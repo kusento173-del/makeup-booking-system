@@ -33,7 +33,9 @@ Thumbs.db
 *.xls
 *.csv
 *.tsv
-data/
+data/source/
+data/private/
+data/processed/
 private-data/
 
 # Local databases and caches
