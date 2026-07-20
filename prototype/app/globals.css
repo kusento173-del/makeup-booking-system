@@ -1414,52 +1414,38 @@ p {
   font-size: 12px;
 }
 
-.timeline {
+.compact-schedule {
   min-width: 980px;
   overflow: hidden;
 }
 
-.timeline-head,
-.timeline-row {
+.schedule-list-head,
+.schedule-list-row {
   display: grid;
   grid-template-columns: 170px minmax(810px, 1fr);
 }
 
-.timeline-head {
+.schedule-list-head {
+  align-items: center;
   border-bottom: 1px solid var(--line);
-  min-height: 46px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  min-height: 44px;
 }
 
 .artist-column {
   align-items: center;
-  color: var(--muted);
   display: flex;
-  font-size: 12px;
-  font-weight: 600;
   padding-left: 2px;
 }
 
-.hours {
-  display: grid;
-  grid-template-columns: repeat(10, 1fr);
-}
-
-.hours span {
-  align-items: center;
-  border-left: 1px solid #f0ebee;
-  color: var(--muted);
-  display: flex;
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  padding-left: 7px;
-}
-
-.timeline-row {
+.schedule-list-row {
   border-bottom: 1px solid var(--line);
-  min-height: 76px;
+  min-height: 106px;
 }
 
-.timeline-row:last-child {
+.schedule-list-row:last-child {
   border-bottom: 0;
 }
 
@@ -1485,79 +1471,103 @@ p {
   margin-top: 4px;
 }
 
-.timeline-track {
-  background-image: repeating-linear-gradient(
-    to right,
-    transparent,
-    transparent calc(10% - 1px),
-    #ebe6e8 calc(10% - 1px),
-    #ebe6e8 10%
-  );
-  position: relative;
-}
-
-.timeline-track.disabled {
-  background-color: #f6f5f5;
-  background-image: none;
-}
-
-.lunch-block {
-  background: #f1eff0;
-  border-left: 1px solid #e2dcdf;
-  border-right: 1px solid #e2dcdf;
-  bottom: 0;
-  left: 40%;
-  position: absolute;
-  top: 0;
-  width: 10%;
-}
-
-.booking-block {
+.appointment-sequence {
   align-items: center;
-  border: 1px solid transparent;
-  border-left-width: 3px;
-  border-radius: 4px;
-  bottom: 14px;
   display: flex;
-  flex-direction: column;
-  font-size: 12px;
-  font-weight: 700;
-  justify-content: center;
-  line-height: 1.15;
+  gap: 8px;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 10px 0;
+}
+
+.appointment-sequence.disabled {
+  background: #f7f6f6;
   overflow: hidden;
-  padding: 0 4px;
-  position: absolute;
-  text-overflow: ellipsis;
-  top: 14px;
-  white-space: nowrap;
 }
 
-.booking-block.fixed {
-  background: #f3ebef;
-  border-color: #dfcbd5;
+.schedule-booking-card {
+  align-items: stretch;
+  background: #fff;
+  border: 1px solid var(--line-strong);
+  border-left: 3px solid transparent;
+  border-radius: 6px;
+  display: flex;
+  flex: 0 0 158px;
+  flex-direction: column;
+  height: 84px;
+  justify-content: space-between;
+  padding: 9px 10px;
+  text-align: left;
+}
+
+.schedule-booking-card:hover {
+  background: #fbfafb;
+  border-color: #cfc4ca;
+}
+
+.schedule-booking-card.fixed {
   border-left-color: var(--plum);
-  color: #402035;
 }
 
-.booking-block.single {
-  background: #edf4f1;
-  border-color: #d7e5df;
+.schedule-booking-card.single {
   border-left-color: #4f7d69;
-  color: #2d5544;
 }
 
-.booking-block small {
-  font-size: 11px;
+.booking-card-time {
+  color: var(--ink);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.booking-card-host {
+  align-items: baseline;
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+
+.booking-card-host strong {
+  font-size: 14px;
+}
+
+.booking-card-host small {
+  color: var(--muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.booking-card-meta {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  font-size: 12px;
+  gap: 5px;
+}
+
+.booking-card-meta i {
+  background: var(--plum);
+  border-radius: 50%;
+  height: 6px;
+  width: 6px;
+}
+
+.schedule-booking-card.single .booking-card-meta i {
+  background: #4f7d69;
+}
+
+.booking-card-meta b {
+  color: var(--ink);
   font-weight: 600;
-  margin-top: 2px;
+  margin-left: auto;
 }
 
 .not-configured {
+  align-self: center;
   color: var(--muted);
   font-size: 12px;
-  left: 18px;
-  position: absolute;
-  top: 29px;
+  padding-left: 16px;
 }
 
 .timeline-legend {
@@ -1574,8 +1584,8 @@ p {
   background: #4f7d69;
 }
 
-.timeline-legend .break {
-  background: #e4dce1;
+.timeline-legend .sort-note {
+  margin-left: auto;
 }
 
 .simple-table,

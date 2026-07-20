@@ -1265,7 +1265,7 @@ function ScheduleBoard({
   openBooking: () => void;
   showToast: (message: string) => void;
 }) {
-  const [view, setView] = useState("时间轴");
+  const [view, setView] = useState("紧凑排班");
   return (
     <section className={compact ? "panel schedule-board compact-board" : "panel schedule-board"}>
       <div className="board-heading">
@@ -1275,8 +1275,8 @@ function ScheduleBoard({
         </div>
         <div className="board-controls">
           <div className="segmented">
-            <button className={view === "时间轴" ? "active" : ""} onClick={() => setView("时间轴")} type="button">时间轴</button>
-            <button className={view === "表格" ? "active" : ""} onClick={() => setView("表格")} type="button">表格</button>
+            <button className={view === "紧凑排班" ? "active" : ""} onClick={() => setView("紧凑排班")} type="button">紧凑排班</button>
+            <button className={view === "明细表" ? "active" : ""} onClick={() => setView("明细表")} type="button">明细表</button>
           </div>
           <button className="button secondary" onClick={() => showToast("排班已刷新到最新状态")} type="button">↻ 刷新</button>
           <button className="button primary" onClick={openBooking} type="button">＋ 代录</button>
@@ -1287,94 +1287,83 @@ function ScheduleBoard({
         <label className="search-box small-search"><span>⌕</span><input placeholder="主播 / 化妆师" /></label>
         <span className="update-time">最后更新 15:42:18</span>
       </div>
-      {view === "时间轴" ? <Timeline /> : <ScheduleTable />}
+      {view === "紧凑排班" ? <CompactSchedule /> : <ScheduleTable />}
       <div className="timeline-legend">
         <span><i className="fixed" />固定预约</span>
         <span><i className="single" />单次预约</span>
-        <span><i className="break" />午休 / 不可用</span>
+        <span className="sort-note">每位化妆师的预约按开始时间排列</span>
       </div>
     </section>
   );
 }
 
-function Timeline() {
-  const hours = ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"];
-  const timelineStart = 8 * 60;
-  const timelineDuration = 10 * 60;
-  const toMinutes = (time: string) => {
-    const [hour, minute] = time.split(":").map(Number);
-    return hour * 60 + minute;
+function CompactSchedule() {
+  const endTimeFor = (start: string, duration: number) => {
+    const [hour, minute] = start.split(":").map(Number);
+    const endMinutes = hour * 60 + minute + duration;
+    return `${String(Math.floor(endMinutes / 60)).padStart(2, "0")}:${String(endMinutes % 60).padStart(2, "0")}`;
   };
-  const positionFor = (start: string, duration: number) => ({
-    left: `${((toMinutes(start) - timelineStart) / timelineDuration) * 100}%`,
-    width: `${(duration / timelineDuration) * 100}%`,
-  });
   const rows = [
     {
       name: "柔柔",
-      count: 6,
       blocks: [
-        { start: "08:30", duration: 30, host: "小鹿", type: "fixed" },
-        { start: "09:45", duration: 30, host: "小雨", type: "fixed" },
-        { start: "10:45", duration: 45, host: "安琪", type: "single" },
-        { start: "13:15", duration: 30, host: "小满", type: "single" },
-        { start: "15:30", duration: 30, host: "笑笑", type: "fixed" },
+        { start: "08:30", duration: 30, host: "小鹿", hostId: "ZB01655", type: "fixed" },
+        { start: "09:45", duration: 30, host: "小雨", hostId: "ZB01842", type: "fixed" },
+        { start: "10:45", duration: 45, host: "安琪", hostId: "ZB01703", type: "single" },
+        { start: "13:15", duration: 30, host: "小满", hostId: "ZB01928", type: "single" },
+        { start: "15:30", duration: 30, host: "笑笑", hostId: "ZB01566", type: "fixed" },
       ],
     },
     {
       name: "江江",
-      count: 7,
       blocks: [
-        { start: "08:15", duration: 30, host: "可可", type: "single" },
-        { start: "09:30", duration: 30, host: "小鱼", type: "fixed" },
-        { start: "11:15", duration: 30, host: "圆圆", type: "single" },
-        { start: "13:45", duration: 45, host: "妮妮", type: "single" },
-        { start: "16:00", duration: 30, host: "阿紫", type: "fixed" },
+        { start: "08:15", duration: 30, host: "可可", hostId: "ZB01288", type: "single" },
+        { start: "09:30", duration: 30, host: "小鱼", hostId: "ZB01302", type: "fixed" },
+        { start: "11:15", duration: 30, host: "圆圆", hostId: "ZB01176", type: "single" },
+        { start: "13:45", duration: 45, host: "妮妮", hostId: "ZB01491", type: "single" },
+        { start: "16:00", duration: 30, host: "阿紫", hostId: "ZB01806", type: "fixed" },
       ],
     },
     {
       name: "安安",
-      count: 5,
       blocks: [
-        { start: "09:00", duration: 30, host: "七七", type: "fixed" },
-        { start: "10:30", duration: 30, host: "小雨", type: "single" },
-        { start: "13:00", duration: 30, host: "小贝", type: "fixed" },
-        { start: "15:00", duration: 30, host: "佳佳", type: "single" },
+        { start: "09:00", duration: 30, host: "七七", hostId: "ZB01037", type: "fixed" },
+        { start: "10:30", duration: 30, host: "暖暖", hostId: "ZB01772", type: "single" },
+        { start: "13:00", duration: 30, host: "小贝", hostId: "ZB01542", type: "fixed" },
+        { start: "15:00", duration: 30, host: "佳佳", hostId: "ZB01901", type: "single" },
       ],
     },
     {
       name: "木木",
-      count: 0,
       blocks: [],
     },
   ];
   return (
-    <div className="timeline">
-      <div className="timeline-head">
+    <div className="compact-schedule">
+      <div className="schedule-list-head">
         <span className="artist-column">化妆师</span>
-        <div className="hours">{hours.map((hour) => <span key={hour}>{hour}</span>)}</div>
+        <span>当日预约（按开始时间排序）</span>
       </div>
       {rows.map((row) => (
-        <div className="timeline-row" key={row.name}>
+        <div className="schedule-list-row" key={row.name}>
           <div className="artist-cell">
             <span className="avatar">{row.name.slice(0, 1)}</span>
-            <span><strong>{row.name}</strong><small>{row.count ? row.count + "个预约" : "未设置班次"}</small></span>
+            <span><strong>{row.name}</strong><small>{row.blocks.length ? row.blocks.length + "个预约" : "未设置班次"}</small></span>
           </div>
-          <div className={row.count ? "timeline-track" : "timeline-track disabled"}>
-            {row.count ? <div className="lunch-block" /> : null}
+          <div className={row.blocks.length ? "appointment-sequence" : "appointment-sequence disabled"}>
             {row.blocks.map((block) => (
               <button
-                className={"booking-block " + block.type}
+                className={"schedule-booking-card " + block.type}
                 key={block.start + block.host}
-                style={positionFor(block.start, block.duration)}
                 title={`${block.start} · ${block.host} · ${block.duration}分钟`}
                 type="button"
               >
-                <span>{block.host}</span>
-                {block.duration > 30 ? <small>{block.duration}分</small> : null}
+                <span className="booking-card-time">{block.start}—{endTimeFor(block.start, block.duration)}</span>
+                <span className="booking-card-host"><strong>{block.host}</strong><small>{block.hostId}</small></span>
+                <span className="booking-card-meta"><i />{block.type === "fixed" ? "固定" : "单次"}<b>{block.duration}分钟</b></span>
               </button>
             ))}
-            {!row.count ? <span className="not-configured">未配置班次，不可预约</span> : null}
+            {!row.blocks.length ? <span className="not-configured">未配置班次，当前不可预约</span> : null}
           </div>
         </div>
       ))}
