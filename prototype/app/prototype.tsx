@@ -502,7 +502,7 @@ function HostDashboard({
       <div className="dashboard-grid host-grid">
         <section className="panel next-panel">
           <SectionHeading
-            eyebrow="NEXT APPOINTMENT"
+            eyebrow="下一场预约"
             title="下一次化妆"
             action={<StatusPill tone="accent">明天</StatusPill>}
           />
@@ -584,7 +584,7 @@ function HostDashboard({
       </div>
 
       <SectionHeading
-        eyebrow="QUICK ACTIONS"
+        eyebrow="常用操作"
         title="常用操作"
       />
       <div className="quick-actions">
@@ -647,7 +647,7 @@ function OperatorDashboard({
     return (
       <div className="page-stack">
         <SectionHeading
-          eyebrow="FIXED REQUESTS"
+          eyebrow="固定申请"
           title="固定申请"
           action={
             <button className="button primary" onClick={openFixed} type="button">
@@ -721,7 +721,7 @@ function OperatorDashboard({
       <div className="dashboard-grid operator-grid">
         <section className="panel">
           <SectionHeading
-            eyebrow="TOMORROW"
+            eyebrow="明日排班"
             title="明日主播排班"
             action={<button className="text-button">查看全部</button>}
           />
@@ -754,7 +754,7 @@ function OperatorDashboard({
         </section>
 
         <section className="panel">
-          <SectionHeading eyebrow="REQUESTS" title="固定申请" />
+          <SectionHeading eyebrow="申请记录" title="固定申请" />
           <div className="fixed-callout">
             <span className="callout-mark">固</span>
             <div>
@@ -805,7 +805,7 @@ function ArtistDashboard({
   if (activeNav === "申请") {
     return (
       <div className="page-stack">
-        <SectionHeading eyebrow="MY REQUESTS" title="申请与请假" />
+        <SectionHeading eyebrow="申请记录" title="申请与请假" />
         <div className="quick-actions two-column">
           <button onClick={openLeave} type="button">
             <Icon symbol="☾" />
@@ -849,7 +849,7 @@ function ArtistDashboard({
   if (activeNav === "排班") {
     return (
       <div className="page-stack">
-        <SectionHeading eyebrow="MY SCHEDULE" title="我的排班" />
+        <SectionHeading eyebrow="当前排班" title="我的排班" />
         <DateStrip />
         <ArtistSchedule />
       </div>
@@ -894,14 +894,14 @@ function ArtistDashboard({
       <div className="dashboard-grid artist-grid">
         <section className="panel">
           <SectionHeading
-            eyebrow="TODAY"
+            eyebrow="今日排班"
             title="今日时间线"
             action={<StatusPill tone="neutral">6个预约</StatusPill>}
           />
           <ArtistSchedule />
         </section>
         <section className="panel">
-          <SectionHeading eyebrow="TOMORROW" title="明日概览" />
+          <SectionHeading eyebrow="明日排班" title="明日概览" />
           <div className="tomorrow-number">
             <strong>7</strong>
             <span>个预约</span>
@@ -937,7 +937,7 @@ function ServiceDashboard({
     return (
       <div className="page-stack service-page">
         <SectionHeading
-          eyebrow="APPROVAL CENTER · 松江"
+          eyebrow="松江场地"
           title="审批中心"
         />
         <div className="filter-tabs">
@@ -952,7 +952,7 @@ function ServiceDashboard({
             <span>申请内容</span>
             <span>提交时间</span>
             <span>状态</span>
-            <span />
+            <span>操作</span>
           </div>
           <ApprovalRow
             content="每周二、四 · 09:30—10:00"
@@ -987,7 +987,7 @@ function ServiceDashboard({
   if (activeNav === "导出中心") {
     return (
       <div className="page-stack service-page">
-        <SectionHeading eyebrow="EXPORT" title="排班导出" />
+        <SectionHeading eyebrow="导出范围" title="排班导出" />
         <section className="panel export-panel">
           <div className="form-grid">
             <label>
@@ -1193,7 +1193,7 @@ function HostDirectory({
 }) {
   return (
     <div className="page-stack">
-      <SectionHeading eyebrow="MANAGED HOSTS" title="负责主播" />
+      <SectionHeading eyebrow="主播范围" title="负责主播" />
       <div className="toolbar">
         <label className="search-box">
           <span>⌕</span>
@@ -1270,7 +1270,7 @@ function ScheduleBoard({
     <section className={compact ? "panel schedule-board compact-board" : "panel schedule-board"}>
       <div className="board-heading">
         <div>
-          <p className="eyebrow">SCHEDULE BOARD</p>
+          <p className="eyebrow">按化妆师查看</p>
           <h2>{title}</h2>
         </div>
         <div className="board-controls">
@@ -1299,37 +1299,47 @@ function ScheduleBoard({
 
 function Timeline() {
   const hours = ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"];
+  const timelineStart = 8 * 60;
+  const timelineDuration = 10 * 60;
+  const toMinutes = (time: string) => {
+    const [hour, minute] = time.split(":").map(Number);
+    return hour * 60 + minute;
+  };
+  const positionFor = (start: string, duration: number) => ({
+    left: `${((toMinutes(start) - timelineStart) / timelineDuration) * 100}%`,
+    width: `${(duration / timelineDuration) * 100}%`,
+  });
   const rows = [
     {
       name: "柔柔",
       count: 6,
       blocks: [
-        ["5%", "9%", "小鹿", "fixed"],
-        ["17%", "10%", "小雨", "fixed"],
-        ["28%", "13%", "安琪 · 45'", "single"],
-        ["53%", "10%", "小满", "single"],
-        ["73%", "10%", "笑笑", "fixed"],
+        { start: "08:30", duration: 30, host: "小鹿", type: "fixed" },
+        { start: "09:45", duration: 30, host: "小雨", type: "fixed" },
+        { start: "10:45", duration: 45, host: "安琪", type: "single" },
+        { start: "13:15", duration: 30, host: "小满", type: "single" },
+        { start: "15:30", duration: 30, host: "笑笑", type: "fixed" },
       ],
     },
     {
       name: "江江",
       count: 7,
       blocks: [
-        ["2%", "10%", "可可", "single"],
-        ["14%", "10%", "小鱼", "fixed"],
-        ["31%", "10%", "圆圆", "single"],
-        ["58%", "15%", "妮妮 · 45'", "single"],
-        ["79%", "10%", "阿紫", "fixed"],
+        { start: "08:15", duration: 30, host: "可可", type: "single" },
+        { start: "09:30", duration: 30, host: "小鱼", type: "fixed" },
+        { start: "11:15", duration: 30, host: "圆圆", type: "single" },
+        { start: "13:45", duration: 45, host: "妮妮", type: "single" },
+        { start: "16:00", duration: 30, host: "阿紫", type: "fixed" },
       ],
     },
     {
       name: "安安",
       count: 5,
       blocks: [
-        ["8%", "10%", "七七", "fixed"],
-        ["22%", "10%", "小雨", "single"],
-        ["48%", "10%", "小贝", "fixed"],
-        ["67%", "10%", "佳佳", "single"],
+        { start: "09:00", duration: 30, host: "七七", type: "fixed" },
+        { start: "10:30", duration: 30, host: "小雨", type: "single" },
+        { start: "13:00", duration: 30, host: "小贝", type: "fixed" },
+        { start: "15:00", duration: 30, host: "佳佳", type: "single" },
       ],
     },
     {
@@ -1351,16 +1361,17 @@ function Timeline() {
             <span><strong>{row.name}</strong><small>{row.count ? row.count + "个预约" : "未设置班次"}</small></span>
           </div>
           <div className={row.count ? "timeline-track" : "timeline-track disabled"}>
-            <div className="lunch-block" />
-            {row.blocks.map(([left, width, label, type]) => (
+            {row.count ? <div className="lunch-block" /> : null}
+            {row.blocks.map((block) => (
               <button
-                className={"booking-block " + type}
-                key={left + label}
-                style={{ left, width }}
-                title={label}
+                className={"booking-block " + block.type}
+                key={block.start + block.host}
+                style={positionFor(block.start, block.duration)}
+                title={`${block.start} · ${block.host} · ${block.duration}分钟`}
                 type="button"
               >
-                {label}
+                <span>{block.host}</span>
+                {block.duration > 30 ? <small>{block.duration}分</small> : null}
               </button>
             ))}
             {!row.count ? <span className="not-configured">未配置班次，不可预约</span> : null}
@@ -1415,7 +1426,7 @@ function ApprovalRow({
       <span>{content}</span>
       <span>{submitted}</span>
       <span><StatusPill tone={statusMap[status][1]}>{statusMap[status][0]}</StatusPill></span>
-      <span className="arrow">›</span>
+      <span className="row-action">查看</span>
     </button>
   );
 }
@@ -1424,7 +1435,7 @@ function PeopleManagement() {
   return (
     <div className="page-stack service-page">
       <SectionHeading
-        eyebrow="PEOPLE · 松江"
+        eyebrow="松江场地"
         title="人员管理"
         action={<button className="button primary" type="button">＋ 新增人员</button>}
       />
@@ -1458,7 +1469,7 @@ function PeopleManagement() {
 function MessageCenter() {
   return (
     <div className="page-stack">
-      <SectionHeading eyebrow="MESSAGES" title="消息中心" />
+      <SectionHeading eyebrow="通知记录" title="消息中心" />
       <div className="filter-tabs">
         <button className="active" type="button">全部</button>
         <button type="button">预约变化</button>
@@ -1489,7 +1500,7 @@ function MessageCenter() {
 function ProfilePanel({ rows }: { rows: string[][] }) {
   return (
     <div className="page-stack">
-      <SectionHeading eyebrow="PROFILE" title="我的资料" />
+      <SectionHeading eyebrow="账号资料" title="我的资料" />
       <section className="panel profile-card">
         <div className="profile-hero">
           <span className="avatar profile-avatar">{rows[0][1].slice(0, 1)}</span>
