@@ -1,0 +1,42 @@
+# Dependencies and builds
+node_modules/
+dist/
+build/
+coverage/
+.turbo/
+.next/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Logs and runtime files
+*.log
+logs/
+tmp/
+temp/
+uploads/
+exports/
+backups/
+
+# IDE and operating system
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Personnel data and spreadsheet imports/exports
+*.xlsx
+*.xls
+*.csv
+*.tsv
+data/
+private-data/
+
+# Local databases and caches
+*.sqlite
+*.sqlite3
+.cache/
