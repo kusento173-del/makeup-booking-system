@@ -10,16 +10,16 @@ export interface CreateAuditEntryInput {
   readonly actorName: string;
   readonly actorRole: AuditActorRole;
   readonly actorUserId?: string;
-  readonly afterData?: AuditSnapshot;
-  readonly beforeData?: AuditSnapshot;
-  readonly clientType?: string;
-  readonly ipAddress?: string;
+  readonly afterData?: AuditSnapshot | undefined;
+  readonly beforeData?: AuditSnapshot | undefined;
+  readonly clientType?: string | undefined;
+  readonly ipAddress?: string | undefined;
   readonly objectId: string;
   readonly objectType: string;
-  readonly reason?: string;
-  readonly requestId?: string;
-  readonly siteId?: string;
-  readonly userAgent?: string;
+  readonly reason?: string | undefined;
+  readonly requestId?: string | undefined;
+  readonly siteId?: string | undefined;
+  readonly userAgent?: string | undefined;
 }
 
 export interface AuditEntryDraft {
