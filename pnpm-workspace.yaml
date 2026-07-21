@@ -20,6 +20,11 @@ catalogMode: strict
 linkWorkspacePackages: true
 
 minimumReleaseAgeExclude:
+  - '@prisma/config@7.9.0'
+  - '@prisma/debug@7.9.0'
+  - '@prisma/engines@7.9.0'
+  - '@prisma/fetch-engine@7.9.0'
+  - '@prisma/get-platform@7.9.0'
   - '@typescript-eslint/eslint-plugin@8.65.0'
   - '@typescript-eslint/parser@8.65.0'
   - '@typescript-eslint/project-service@8.65.0'
@@ -31,7 +36,12 @@ minimumReleaseAgeExclude:
   - '@typescript-eslint/utils@8.65.0'
   - '@typescript-eslint/visitor-keys@8.65.0'
   - prettier@3.9.6
+  - prisma@7.9.0
   - typescript-eslint@8.65.0
+
+overrides:
+  glob: 10.5.0
+  swiper: 'catalog:'
 
 preferWorkspacePackages: true
 
@@ -42,3 +52,4 @@ strictPeerDependencies: true
 catalog:
   dotenv: 17.4.2
   prisma: 7.9.0
+  swiper: 12.1.2

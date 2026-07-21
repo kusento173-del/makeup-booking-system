@@ -21,6 +21,10 @@
     "infra:status": "docker compose ps",
     "infra:up": "docker compose up --detach --wait",
     "lint": "eslint .",
+    "security:audit": "pnpm audit --prod --audit-level high",
+    "security:audit:all": "pnpm audit --audit-level high",
+    "security:check": "pnpm security:files && pnpm security:audit",
+    "security:files": "node scripts/check-tracked-files.mjs",
     "test": "pnpm -r --if-present run test",
     "typecheck": "pnpm -r --if-present run typecheck"
   },
