@@ -60,3 +60,13 @@ test("removes starter-only assets and metadata", async () => {
   });
   assert.deepEqual(previewFiles, []);
 });
+
+test("keeps business copy readable and free of decorative headings", async () => {
+  const [prototype, styles] = await Promise.all([
+    readFile(new URL("../app/prototype.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.doesNotMatch(prototype, /eyebrow|7-DAY OVERVIEW|化妆安排，一眼就清楚/);
+  assert.doesNotMatch(styles, /font-size:\s*(?:[0-9]|1[01])px/);
+});

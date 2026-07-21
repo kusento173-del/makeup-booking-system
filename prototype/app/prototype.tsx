@@ -96,20 +96,15 @@ function StatusPill({
 }
 
 function SectionHeading({
-  eyebrow,
   title,
   action,
 }: {
-  eyebrow?: string;
   title: string;
   action?: React.ReactNode;
 }) {
   return (
     <div className="section-heading">
-      <div>
-        {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}
-        <h2>{title}</h2>
-      </div>
+      <h2>{title}</h2>
       {action}
     </div>
   );
@@ -206,7 +201,7 @@ function AppShell() {
         </div>
 
         <div className="role-switcher">
-          <span className="sidebar-label">切换原型角色</span>
+          <span className="sidebar-label">角色切换</span>
           {roleOptions.map((item) => (
             <button
               className={role === item.id ? "role-option active" : "role-option"}
@@ -225,7 +220,7 @@ function AppShell() {
         </div>
 
         <nav className="primary-nav" aria-label="主导航">
-          <span className="sidebar-label">当前菜单</span>
+          <span className="sidebar-label">菜单</span>
           {roleNavigation[role].map((item, index) => (
             <button
               className={activeNav === item ? "nav-item active" : "nav-item"}
@@ -439,8 +434,7 @@ function HostDashboard({
     return (
       <div className="page-stack">
         <SectionHeading
-          eyebrow="我的预约"
-          title="未来七日"
+          title="未来7日预约"
           action={
             <button className="button primary" onClick={openBooking} type="button">
               ＋ 预约化妆
@@ -620,7 +614,6 @@ function OperatorDashboard({
     return (
       <div className="page-stack">
         <SectionHeading
-          eyebrow="固定申请"
           title="固定申请"
           action={
             <button className="button primary" onClick={openFixed} type="button">
@@ -670,9 +663,8 @@ function OperatorDashboard({
     <div className="page-stack">
       <section className="welcome-row">
         <div>
-          <p className="eyebrow">运营工作台 · 松江</p>
-          <h1>明日排班概览</h1>
-          <p>48名负责主播中，36人已有安排，12人暂无化妆预约。</p>
+          <h1>明日主播预约</h1>
+          <p>36人已预约，12人未预约。</p>
         </div>
         <button className="button primary large" onClick={openBooking} type="button">
           ＋ 代主播预约
@@ -694,7 +686,6 @@ function OperatorDashboard({
       <div className="dashboard-grid operator-grid">
         <section className="panel">
           <SectionHeading
-            eyebrow="明日排班"
             title="明日主播排班"
             action={<button className="text-button">查看全部</button>}
           />
@@ -702,13 +693,13 @@ function OperatorDashboard({
             <HostOverview
               id="ZB01842"
               name="小雨"
-              schedule="09:30 · 柔柔"
+              schedule="09:30—10:00 · 柔柔"
               status="已预约"
             />
             <HostOverview
               id="ZB01703"
               name="安琪"
-              schedule="10:00 · 江江"
+              schedule="10:00—10:30 · 江江"
               status="已预约"
             />
             <HostOverview
@@ -720,29 +711,24 @@ function OperatorDashboard({
             <HostOverview
               id="ZB01991"
               name="小雨"
-              schedule="13:30 · 安安"
+              schedule="13:30—14:00 · 安安"
               status="已预约"
             />
           </div>
         </section>
 
         <section className="panel">
-          <SectionHeading eyebrow="申请记录" title="固定申请" />
+          <SectionHeading title="固定申请" />
           <div className="fixed-callout">
             <span className="callout-mark">固</span>
             <div>
               <strong>为主播建立长期固定</strong>
-              <p>系统会排除已有固定，并计算避开未来单次预约的最早日期。</p>
+              <p>选择化妆师、星期和时间，系统会给出最早可固定日期。</p>
             </div>
           </div>
           <button className="button secondary full" onClick={openFixed} type="button">
             查看可申请固定时间
           </button>
-          <div className="mini-legend">
-            <span><i className="red" />固定占用</span>
-            <span><i className="orange" />未来单次</span>
-            <span><i className="green" />可以申请</span>
-          </div>
         </section>
       </div>
     </div>
@@ -778,13 +764,13 @@ function ArtistDashboard({
   if (activeNav === "申请") {
     return (
       <div className="page-stack">
-        <SectionHeading eyebrow="申请记录" title="申请与请假" />
+        <SectionHeading title="申请与请假" />
         <div className="quick-actions two-column">
           <button onClick={openLeave} type="button">
             <Icon symbol="☾" />
             <span>
               <strong>申请请假</strong>
-              <small>未来七日内，最多连续七日</small>
+              <small>未来7日内，最多连续7日</small>
             </span>
           </button>
           <button type="button">
@@ -822,7 +808,7 @@ function ArtistDashboard({
   if (activeNav === "排班") {
     return (
       <div className="page-stack">
-        <SectionHeading eyebrow="当前排班" title="我的排班" />
+        <SectionHeading title="我的排班" />
         <DateStrip />
         <ArtistSchedule />
       </div>
@@ -833,9 +819,8 @@ function ArtistDashboard({
     <div className="page-stack">
       <section className="welcome-row">
         <div>
-          <p className="eyebrow">柔柔 · 松江场地</p>
-          <h1>今天有 6 位主播</h1>
-          <p>下一位 10:00 开始，当前排班已经锁定。</p>
+          <h1>今日化妆排班</h1>
+          <p>6个预约，下一位10:00，今日不可修改。</p>
         </div>
         <StatusPill tone="success">今日工作日</StatusPill>
       </section>
@@ -845,7 +830,7 @@ function ArtistDashboard({
           <span className="setup-icon">⌚</span>
           <div>
             <strong>请先设置固定班次</strong>
-            <p>完成工作日、上班、午休和下班时间后，主播才能看到你的可预约时间。</p>
+            <p>设置工作日、上下班和午休时间后才可被预约。</p>
           </div>
           <button className="button light" onClick={openShift} type="button">
             立即设置
@@ -867,14 +852,13 @@ function ArtistDashboard({
       <div className="dashboard-grid artist-grid">
         <section className="panel">
           <SectionHeading
-            eyebrow="今日排班"
-            title="今日时间线"
+            title="今日排班"
             action={<StatusPill tone="neutral">6个预约</StatusPill>}
           />
           <ArtistSchedule />
         </section>
         <section className="panel">
-          <SectionHeading eyebrow="明日排班" title="明日概览" />
+          <SectionHeading title="明日排班" />
           <div className="tomorrow-number">
             <strong>7</strong>
             <span>个预约</span>
@@ -910,7 +894,6 @@ function ServiceDashboard({
     return (
       <div className="page-stack service-page">
         <SectionHeading
-          eyebrow="松江场地"
           title="审批中心"
         />
         <div className="filter-tabs">
@@ -960,7 +943,7 @@ function ServiceDashboard({
   if (activeNav === "导出中心") {
     return (
       <div className="page-stack service-page">
-        <SectionHeading eyebrow="导出范围" title="排班导出" />
+        <SectionHeading title="排班导出" />
         <section className="panel export-panel">
           <div className="form-grid">
             <label>
@@ -1010,9 +993,8 @@ function ServiceDashboard({
     <div className="page-stack service-page">
       <section className="service-heading">
         <div>
-          <p className="eyebrow">松江场地 · 客服工作台</p>
-          <h1>今日排班运行正常</h1>
-          <p>20:00 将发送明日排班汇总，当前有 3 条申请待审核。</p>
+          <h1>场地排班管理</h1>
+          <p>3条申请待审核；20:00发送明日排班。</p>
         </div>
         <div className="service-actions">
           <button className="button secondary" type="button">导出明日排班</button>
@@ -1166,7 +1148,7 @@ function HostDirectory({
 }) {
   return (
     <div className="page-stack">
-      <SectionHeading eyebrow="主播范围" title="负责主播" />
+      <SectionHeading title="负责主播" />
       <div className="toolbar">
         <label className="search-box">
           <span>⌕</span>
@@ -1205,11 +1187,11 @@ function ArtistSchedule() {
   return (
     <div className="artist-schedule">
       {[
-        ["08:30", "小鹿 · ZB01655", "固定", "已完成"],
-        ["09:30", "小雨 · ZB01842", "固定", "已预约"],
-        ["10:00", "安琪 · ZB01703", "单次", "已预约"],
-        ["10:45", "可用时间", "", "空闲"],
-        ["11:15", "小满 · ZB01339", "单次", "已预约"],
+        ["08:30—09:00", "小鹿 · ZB01655", "固定", "已完成"],
+        ["09:30—10:00", "小雨 · ZB01842", "固定", "已预约"],
+        ["10:00—10:30", "安琪 · ZB01703", "单次", "已预约"],
+        ["10:45—11:15", "可用时间", "", "空闲"],
+        ["11:15—11:45", "小满 · ZB01339", "单次", "已预约"],
       ].map(([time, host, source, state]) => (
         <div className={"schedule-line " + (state === "空闲" ? "free" : "")} key={time}>
           <span className="schedule-time">{time}</span>
@@ -1242,10 +1224,7 @@ function ScheduleBoard({
   return (
     <section className={compact ? "panel schedule-board compact-board" : "panel schedule-board"}>
       <div className="board-heading">
-        <div>
-          <p className="eyebrow">按化妆师查看</p>
-          <h2>{title}</h2>
-        </div>
+        <h2>{title}</h2>
         <div className="board-controls">
           <div className="segmented">
             <button className={view === "紧凑排班" ? "active" : ""} onClick={() => setView("紧凑排班")} type="button">紧凑排班</button>
@@ -1264,7 +1243,6 @@ function ScheduleBoard({
       <div className="timeline-legend">
         <span><i className="fixed" />固定预约</span>
         <span><i className="single" />单次预约</span>
-        <span className="sort-note">每位化妆师的预约按开始时间排列</span>
       </div>
     </section>
   );
@@ -1397,7 +1375,6 @@ function PeopleManagement() {
   return (
     <div className="page-stack service-page">
       <SectionHeading
-        eyebrow="松江场地"
         title="人员管理"
         action={<button className="button primary" type="button">＋ 新增人员</button>}
       />
@@ -1431,7 +1408,7 @@ function PeopleManagement() {
 function MessageCenter() {
   return (
     <div className="page-stack">
-      <SectionHeading eyebrow="通知记录" title="消息中心" />
+      <SectionHeading title="消息中心" />
       <div className="filter-tabs">
         <button className="active" type="button">全部</button>
         <button type="button">预约变化</button>
@@ -1441,17 +1418,17 @@ function MessageCenter() {
       <div className="message-list">
         <button className="message-item unread" type="button">
           <span className="message-symbol">20</span>
-          <span><strong>明日排班已生成</strong><small>7月21日 09:30—10:00 · 柔柔 · 松江场地</small></span>
+          <span><strong>明日排班已生成</strong><small>7月21日 · 09:30—10:00 · 柔柔 · 松江</small></span>
           <time>20:00</time>
         </button>
         <button className="message-item" type="button">
           <span className="message-symbol">✓</span>
-          <span><strong>预约成功</strong><small>你的化妆预约已确认，开始前一小时会再次提醒。</small></span>
+          <span><strong>预约成功</strong><small>09:30—10:00 · 柔柔 · 开始前1小时提醒</small></span>
           <time>14:26</time>
         </button>
         <button className="message-item" type="button">
           <span className="message-symbol">固</span>
-          <span><strong>固定申请已通过</strong><small>每周二、四 09:30—10:00，自7月21日起生效。</small></span>
+          <span><strong>固定申请已通过</strong><small>周二、周四 · 09:30—10:00 · 7月21日起</small></span>
           <time>昨天</time>
         </button>
       </div>
@@ -1462,11 +1439,11 @@ function MessageCenter() {
 function ProfilePanel({ rows }: { rows: string[][] }) {
   return (
     <div className="page-stack">
-      <SectionHeading eyebrow="账号资料" title="我的资料" />
+      <SectionHeading title="我的资料" />
       <section className="panel profile-card">
         <div className="profile-hero">
           <span className="avatar profile-avatar">{rows[0][1].slice(0, 1)}</span>
-          <div><strong>{rows[0][1]}</strong><small>资料由系统人员主档维护</small></div>
+          <div><strong>{rows[0][1]}</strong><small>人员信息由管理员维护</small></div>
           <StatusPill tone="success">账号正常</StatusPill>
         </div>
         {rows.map(([label, value]) => (
@@ -1556,7 +1533,7 @@ function BookingModal({
         mode === "service"
           ? "客服代录 · 松江场地"
           : mode === "reschedule"
-            ? "选择新档期，成功前原预约保持不变"
+            ? "改期成功前保留原预约"
             : "小雨 · ZB01842 · 松江"
       }
       title={mode === "reschedule" ? "改期" : mode === "service" ? "代录预约" : "预约化妆"}
@@ -1583,7 +1560,7 @@ function BookingModal({
         {step === 1 ? (
           <div className="form-section">
             <h3>选择预约日期</h3>
-            <p className="field-help">今天只能查看，可以预约明日起未来七日。</p>
+            <p className="field-help">今天不可预约，可预约未来7日。</p>
             <div className="choice-grid dates">
               {[
                 ["7月21日", "周二"],
@@ -1607,7 +1584,7 @@ function BookingModal({
                 </button>
               ))}
             </div>
-            <div className="field-tip">预计需要约40分钟的妆容，请选择45分钟。</div>
+            <div className="field-tip">40分钟妆容请选择45分钟。</div>
           </div>
         ) : null}
 
@@ -1661,7 +1638,7 @@ function BookingModal({
             </div>
             <div className="notice-bar subtle">
               <span className="notice-icon">i</span>
-              <div><strong>提交时会再次检查档期</strong><span>多人选择同一时间时，以数据库成功提交顺序先到先得。</span></div>
+              <div><strong>提交时再次检查档期</strong><span>以成功提交顺序为准。</span></div>
             </div>
           </div>
         ) : null}
@@ -1670,7 +1647,7 @@ function BookingModal({
           <div className="second-confirmation">
             <div className="warning-mark">2</div>
             <h3>这是当天第2次化妆预约</h3>
-            <p>请确认两次化妆均有需要。第二次预约无需审批，确认后直接创建。</p>
+            <p>第二次预约无需审批，确认后直接创建。</p>
             <div className="two-bookings">
               <div><small>已有第1次</small><strong>09:30—10:00</strong><span>柔柔 · 松江</span></div>
               <div><small>本次第2次</small><strong>{time}—{endTime}</strong><span>{artist} · 松江</span></div>
@@ -1762,7 +1739,7 @@ function FixedModal({
   }
 
   return (
-    <Modal onClose={onClose} subtitle="仅主播当前运营可以发起" title="申请长期固定" wide>
+    <Modal onClose={onClose} subtitle="仅当前运营可发起" title="申请长期固定" wide>
       <div className="stepper three">
         {["选择规则", "查看可用性", "确认提交"].map((label, index) => (
           <span className={step >= index + 1 ? "active" : ""} key={label}><i>{index + 1}</i>{label}</span>
@@ -1844,7 +1821,7 @@ function FixedModal({
               <div><span>固定时间</span><strong>{selectedSlot} · 30分钟</strong></div>
               <div><span>开始日期</span><strong>{startDate}</strong></div>
             </div>
-            <div className="notice-bar subtle"><span className="notice-icon">i</span><div><strong>提交后进入客服审核</strong><span>待审核期间会占用长期档期；驳回或撤回后释放。</span></div></div>
+            <div className="notice-bar subtle"><span className="notice-icon">i</span><div><strong>提交后由客服审核</strong><span>审核期间占用档期，驳回后释放。</span></div></div>
           </div>
         ) : null}
       </div>
@@ -1868,7 +1845,7 @@ function ShiftModal({
     setDays((current) => current.includes(day) ? current.filter((item) => item !== day) : current.concat(day));
   }
   return (
-    <Modal onClose={onClose} subtitle="首次设置无需审核，后续修改需客服审核" title="设置固定班次">
+    <Modal onClose={onClose} subtitle="首次设置直接生效；修改需审核" title="设置固定班次">
       <div className="modal-body form-section">
         <h3>每周工作日</h3>
         <div className="weekday-choices">
@@ -1903,7 +1880,7 @@ function LeaveModal({
 }) {
   const [confirmed, setConfirmed] = useState(false);
   return (
-    <Modal onClose={onClose} subtitle="无需审批，确认后立即生效" title="化妆师请假">
+    <Modal onClose={onClose} subtitle="提交后立即生效，无需审核" title="化妆师请假">
       <div className="modal-body form-section">
         <div className="form-grid">
           <label><span>开始日期</span><input defaultValue="2026-07-23" type="date" /></label>
