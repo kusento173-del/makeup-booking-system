@@ -22,13 +22,114 @@ model Site {
   hosts     HostProfile[]
   artists   ArtistProfile[]
   operators OperatorProfile[]
+  userRoles UserRole[]
 
   @@index([status, sortOrder], map: "sites_status_sort_order_idx")
   @@map("sites")
 }
 
+model AppUser {
+  id               String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  displayName      String    @map("display_name") @db.VarChar(64)
+  mobileCiphertext String?   @map("mobile_ciphertext") @db.Text
+  mobileHash       String?   @unique(map: "app_users_mobile_hash_uq") @map("mobile_hash") @db.Char(64)
+  mobileLast4      String?   @map("mobile_last4") @db.Char(4)
+  status           String    @default("ACTIVE") @db.VarChar(16)
+  lastLoginAt      DateTime? @map("last_login_at") @db.Timestamptz(3)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  rowVersion       Int       @default(1) @map("row_version")
+
+  identities         UserIdentity[]
+  passwordCredential PasswordCredential?
+  roles              UserRole[]          @relation("UserRoleOwner")
+  assignedRoles      UserRole[]          @relation("UserRoleAssigner")
+  sessions           AuthSession[]
+  hostProfile        HostProfile?
+  artistProfile      ArtistProfile?
+  operatorProfile    OperatorProfile?
+
+  @@index([status], map: "app_users_status_idx")
+  @@map("app_users")
+}
+
+model UserIdentity {
+  id              String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  provider        String   @db.VarChar(32)
+  providerAppId   String   @map("provider_app_id") @db.VarChar(128)
+  externalSubject String   @map("external_subject") @db.VarChar(256)
+  unionId         String?  @map("union_id") @db.VarChar(256)
+  status          String   @default("ACTIVE") @db.VarChar(16)
+  boundAt         DateTime @default(now()) @map("bound_at") @db.Timestamptz(3)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  rowVersion      Int      @default(1) @map("row_version")
+
+  user AppUser @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([provider, providerAppId, externalSubject], map: "user_identities_provider_subject_uq")
+  @@index([userId, status], map: "user_identities_user_status_idx")
+  @@index([unionId], map: "user_identities_union_id_idx")
+  @@map("user_identities")
+}
+
+model PasswordCredential {
+  userId             String    @id @map("user_id") @db.Uuid
+  passwordHash       String    @map("password_hash") @db.Text
+  passwordChangedAt  DateTime  @default(now()) @map("password_changed_at") @db.Timestamptz(3)
+  failedAttemptCount Int       @default(0) @map("failed_attempt_count")
+  lockedUntil        DateTime? @map("locked_until") @db.Timestamptz(3)
+  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user AppUser @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@map("password_credentials")
+}
+
+model UserRole {
+  id               String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  roleCode         String    @map("role_code") @db.VarChar(32)
+  siteId           String?   @map("site_id") @db.Uuid
+  assignedByUserId String?   @map("assigned_by_user_id") @db.Uuid
+  assignedAt       DateTime  @default(now()) @map("assigned_at") @db.Timestamptz(3)
+  revokedAt        DateTime? @map("revoked_at") @db.Timestamptz(3)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  rowVersion       Int       @default(1) @map("row_version")
+
+  user       AppUser  @relation("UserRoleOwner", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  site       Site?    @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  assignedBy AppUser? @relation("UserRoleAssigner", fields: [assignedByUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@unique([userId, roleCode], map: "user_roles_active_role_uq", where: raw("(revoked_at IS NULL)"))
+  @@index([siteId, roleCode, revokedAt], map: "user_roles_site_role_revoked_idx")
+  @@index([assignedByUserId], map: "user_roles_assigned_by_idx")
+  @@map("user_roles")
+}
+
+model AuthSession {
+  id               String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  refreshTokenHash String    @unique(map: "auth_sessions_refresh_token_hash_uq") @map("refresh_token_hash") @db.Char(64)
+  expiresAt        DateTime  @map("expires_at") @db.Timestamptz(3)
+  lastSeenAt       DateTime? @map("last_seen_at") @db.Timestamptz(3)
+  revokedAt        DateTime? @map("revoked_at") @db.Timestamptz(3)
+  revokeReason     String?   @map("revoke_reason") @db.VarChar(500)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  rowVersion       Int       @default(1) @map("row_version")
+
+  user AppUser @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([userId, revokedAt, expiresAt], map: "auth_sessions_user_validity_idx")
+  @@map("auth_sessions")
+}
+
 model HostProfile {
   id                       String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId                   String?  @unique(map: "host_profiles_user_id_uq") @map("user_id") @db.Uuid
   hostCode                 String   @unique(map: "host_profiles_host_code_uq") @map("host_code") @db.VarChar(32)
   realName                 String   @map("real_name") @db.VarChar(64)
   nickname                 String?  @db.VarChar(64)
@@ -40,6 +141,7 @@ model HostProfile {
   rowVersion               Int      @default(1) @map("row_version")
 
   site              Site                   @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  user              AppUser?               @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   operatorRelations HostOperatorRelation[]
 
   @@index([realName], map: "host_profiles_real_name_idx")
@@ -49,6 +151,7 @@ model HostProfile {
 
 model ArtistProfile {
   id                       String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId                   String?   @unique(map: "artist_profiles_user_id_uq") @map("user_id") @db.Uuid
   realName                 String    @map("real_name") @db.VarChar(64)
   nickname                 String    @db.VarChar(64)
   nicknameNormalized       String    @unique(map: "artist_profiles_active_nickname_uq", where: raw("((employment_status)::text = 'ACTIVE'::text)")) @map("nickname_normalized") @db.VarChar(64)
@@ -59,7 +162,8 @@ model ArtistProfile {
   updatedAt                DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
   rowVersion               Int       @default(1) @map("row_version")
 
-  site Site @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  site Site     @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  user AppUser? @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   @@index([realName], map: "artist_profiles_real_name_idx")
   @@index([siteId, employmentStatus], map: "artist_profiles_site_status_idx")
@@ -68,6 +172,7 @@ model ArtistProfile {
 
 model OperatorProfile {
   id               String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId           String?  @unique(map: "operator_profiles_user_id_uq") @map("user_id") @db.Uuid
   realName         String   @map("real_name") @db.VarChar(64)
   nameNormalized   String   @map("name_normalized") @db.VarChar(64)
   siteId           String   @map("site_id") @db.Uuid
@@ -77,6 +182,7 @@ model OperatorProfile {
   rowVersion       Int      @default(1) @map("row_version")
 
   site          Site                   @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  user          AppUser?               @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   hostRelations HostOperatorRelation[]
 
   @@unique([siteId, nameNormalized], map: "operator_profiles_active_name_site_uq", where: raw("((employment_status)::text = 'ACTIVE'::text)"))
