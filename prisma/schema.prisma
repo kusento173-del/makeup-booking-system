@@ -19,10 +19,11 @@ model Site {
   updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
   rowVersion Int      @default(1) @map("row_version")
 
-  hosts     HostProfile[]
-  artists   ArtistProfile[]
-  operators OperatorProfile[]
-  userRoles UserRole[]
+  hosts         HostProfile[]
+  artists       ArtistProfile[]
+  operators     OperatorProfile[]
+  userRoles     UserRole[]
+  operationLogs OperationLog[]
 
   @@index([status, sortOrder], map: "sites_status_sort_order_idx")
   @@map("sites")
@@ -45,6 +46,7 @@ model AppUser {
   roles              UserRole[]          @relation("UserRoleOwner")
   assignedRoles      UserRole[]          @relation("UserRoleAssigner")
   sessions           AuthSession[]
+  operationLogs      OperationLog[]
   hostProfile        HostProfile?
   artistProfile      ArtistProfile?
   operatorProfile    OperatorProfile?
@@ -208,4 +210,31 @@ model HostOperatorRelation {
   @@index([hostId, validFrom(sort: Desc)], map: "host_operator_relations_host_valid_from_idx")
   @@index([operatorId, validFrom, validUntil], map: "host_operator_relations_operator_validity_idx")
   @@map("host_operator_relations")
+}
+
+model OperationLog {
+  id                String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  siteId            String?  @map("site_id") @db.Uuid
+  objectType        String   @map("object_type") @db.VarChar(32)
+  objectId          String   @map("object_id") @db.Uuid
+  action            String   @db.VarChar(64)
+  actorUserId       String?  @map("actor_user_id") @db.Uuid
+  actorNameSnapshot String   @map("actor_name_snapshot") @db.VarChar(64)
+  actorRole         String   @map("actor_role") @db.VarChar(32)
+  reason            String?  @db.VarChar(500)
+  beforeData        Json?    @map("before_data") @db.JsonB
+  afterData         Json?    @map("after_data") @db.JsonB
+  requestId         String?  @map("request_id") @db.VarChar(64)
+  clientType        String?  @map("client_type") @db.VarChar(32)
+  ipAddress         String?  @map("ip_address") @db.Inet
+  userAgent         String?  @map("user_agent") @db.VarChar(500)
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  site      Site?    @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  actorUser AppUser? @relation(fields: [actorUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([objectType, objectId, createdAt(sort: Desc)], map: "operation_logs_object_created_idx")
+  @@index([siteId, createdAt(sort: Desc)], map: "operation_logs_site_created_idx")
+  @@index([actorUserId, createdAt(sort: Desc)], map: "operation_logs_actor_created_idx")
+  @@map("operation_logs")
 }
