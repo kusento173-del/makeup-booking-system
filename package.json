@@ -12,6 +12,11 @@
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "infra:check": "node scripts/check-infrastructure.mjs",
+    "infra:down": "docker compose down",
+    "infra:logs": "docker compose logs --follow postgres redis",
+    "infra:status": "docker compose ps",
+    "infra:up": "docker compose up --detach --wait",
     "lint": "eslint .",
     "test": "pnpm -r --if-present run test",
     "typecheck": "pnpm -r --if-present run typecheck"

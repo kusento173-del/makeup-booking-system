@@ -37,12 +37,25 @@
 
 ## 本地工程
 
-要求：Node.js 24 LTS、pnpm 11。Docker Desktop 和微信开发者工具将在对应 M1 任务接入并验证。
+要求：Node.js 24 LTS、pnpm 11、Docker Desktop。微信开发者工具在小程序联调任务前安装。
 
 ```powershell
 pnpm install --frozen-lockfile
+Copy-Item .env.example .env
+pnpm infra:up
+pnpm infra:check
 pnpm check
 ```
+
+`infra:up` 会启动 PostgreSQL 18.4 和 Redis 8.8.0 并等待健康检查通过；`infra:check` 会验证数据库连接、`btree_gist` 扩展和 Redis 密码认证。常用基础设施命令：
+
+```powershell
+pnpm infra:status
+pnpm infra:logs
+pnpm infra:down
+```
+
+`infra:down` 只停止并移除容器，保留数据库命名卷。项目不提供自动删除数据卷的快捷命令，避免误删本地数据。
 
 `pnpm check` 会依次校验格式、Lint、TypeScript、单元测试和四个应用的生产构建。开发单个应用时使用：
 
@@ -53,7 +66,7 @@ pnpm --filter @makeup/admin-web dev
 pnpm --filter @makeup/miniapp dev
 ```
 
-复制 `.env.example` 为本地 `.env` 后再填写本机配置；`.env`、真实人员文件、构建产物和本地微信项目配置均不会进入 Git。
+首次启动前复制 `.env.example` 为本地 `.env`，需要时再修改本机端口和开发密码；`.env`、真实人员文件、构建产物和本地微信项目配置均不会进入 Git。PostgreSQL 和 Redis 端口只绑定到 `127.0.0.1`，不会暴露给局域网。
 
 ## 文档使用原则
 

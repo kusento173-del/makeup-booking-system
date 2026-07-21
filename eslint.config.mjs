@@ -10,6 +10,13 @@ export default tseslint.config(
     ignores: ['**/dist/**', '**/node_modules/**', '**/.taro/**', '**/.temp/**', 'prototype/**'],
   },
   {
+    ...js.configs.recommended,
+    files: ['*.{js,mjs,cjs}', 'scripts/**/*.{js,mjs,cjs}', 'apps/**/*.cjs'],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
+  {
     files: sourceFiles,
     extends: [js.configs.recommended, ...tseslint.configs.recommendedTypeChecked],
     languageOptions: {
