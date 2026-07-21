@@ -15,7 +15,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const protocol =
     requestHeaders.get("x-forwarded-proto") ??
     (host.startsWith("localhost") ? "http" : "https");
-  const imageUrl = new URL("/og.png", protocol + "://" + host).toString();
+  const imageUrl = new URL("/og-business.png", protocol + "://" + host).toString();
 
   return {
     title,
@@ -24,7 +24,7 @@ export async function generateMetadata(): Promise<Metadata> {
       title,
       description,
       type: "website",
-      images: [{ url: imageUrl, width: 1722, height: 910 }],
+      images: [{ url: imageUrl, width: 1693, height: 929 }],
     },
     twitter: {
       card: "summary_large_image",
