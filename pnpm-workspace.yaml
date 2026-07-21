@@ -50,6 +50,9 @@ saveExact: true
 strictPeerDependencies: true
 
 catalog:
+  '@playwright/test': 1.61.1
   dotenv: 17.4.2
+  husky: 9.1.7
+  lint-staged: 17.1.0
   prisma: 7.9.0
   swiper: 12.1.2

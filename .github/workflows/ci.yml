@@ -66,6 +66,12 @@ jobs:
       - name: Run project quality checks
         run: pnpm check
 
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run end-to-end smoke tests
+        run: pnpm e2e:test
+
       - name: Print infrastructure logs after failure
         if: failure()
         run: docker compose logs --no-color postgres redis

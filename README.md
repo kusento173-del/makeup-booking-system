@@ -37,7 +37,7 @@
 
 ## 本地工程
 
-要求：Node.js 24 LTS、pnpm 11、Docker Desktop。微信开发者工具在小程序联调任务前安装。
+要求：Node.js 24 LTS、pnpm 11、Docker Desktop 和 Chrome。微信开发者工具在小程序联调任务前安装。
 
 ```powershell
 pnpm install --frozen-lockfile
@@ -46,6 +46,7 @@ pnpm infra:up
 pnpm db:migrate
 pnpm infra:check
 pnpm check
+pnpm e2e
 ```
 
 `infra:up` 会启动 PostgreSQL 18.4 和 Redis 8.8.0 并等待健康检查通过；`db:migrate` 会执行所有尚未应用的 Prisma 迁移；`infra:check` 会验证数据库连接、已安装的 `btree_gist` 扩展和 Redis 密码认证。常用数据库与基础设施命令：
@@ -69,6 +70,8 @@ pnpm --filter @makeup/admin-web dev
 pnpm --filter @makeup/miniapp dev
 ```
 
+`pnpm e2e` 会构建四个应用，并使用本机 Chrome 启动管理后台和 API，执行当前真实可用范围内的端到端冒烟。提交时 Husky 会调用 lint-staged，只检查暂存的代码和文档；完整格式、Lint、类型、测试、构建、安全与端到端检查仍由 CI 统一执行。
+
 提交前运行 `pnpm security:check`，检查 Git 已跟踪文件中是否混入人员表、环境配置、密钥、备份或导出文件，并阻止生产依赖中的高危和严重漏洞。`pnpm security:audit:all` 用于查看包含构建工具在内的完整依赖审计；该命令可能因 Taro 上游尚无可用修复版本而失败，不能通过忽略规则或未经验证的跨主版本覆盖强行消除结果。
 
 GitHub Actions 会在每次推送和拉取请求中，从空数据库执行迁移并运行同一套项目检查；工作流定义见 [`.github/workflows/ci.yml`](.github/workflows/ci.yml)。
@@ -85,4 +88,4 @@ GitHub Actions 会在每次推送和拉取请求中，从空数据库执行迁�
 
 ## 下一步
 
-按[当前迭代](docs/当前迭代.md)继续完成 M1 的本地提交和端到端冒烟门禁，再进入主数据和身份权限开发。
+按[当前迭代](docs/当前迭代.md)进入 M2 主数据、身份与权限开发。

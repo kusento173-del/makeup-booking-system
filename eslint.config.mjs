@@ -3,7 +3,13 @@ import eslintConfigPrettier from 'eslint-config-prettier';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
-const sourceFiles = ['apps/**/*.{ts,tsx}', 'packages/**/*.ts', 'prisma.config.ts'];
+const sourceFiles = [
+  'apps/**/*.{ts,tsx}',
+  'packages/**/*.ts',
+  'playwright.config.ts',
+  'prisma.config.ts',
+  'tests/**/*.ts',
+];
 
 export default tseslint.config(
   {
@@ -22,7 +28,7 @@ export default tseslint.config(
     languageOptions: {
       parserOptions: {
         projectService: {
-          allowDefaultProject: ['prisma.config.ts'],
+          allowDefaultProject: ['playwright.config.ts', 'prisma.config.ts', 'tests/e2e/*.ts'],
         },
         tsconfigRootDir: import.meta.dirname,
       },
@@ -34,6 +40,12 @@ export default tseslint.config(
   },
   {
     files: ['apps/{api,worker}/**/*.ts'],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
+  {
+    files: ['playwright.config.ts', 'tests/**/*.ts'],
     languageOptions: {
       globals: globals.node,
     },
