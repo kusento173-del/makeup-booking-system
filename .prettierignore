@@ -1,0 +1,12 @@
+node_modules
+dist
+coverage
+.taro
+.temp
+prototype
+data
+docs
+*.xlsx
+*.xls
+*.csv
+*.tsv

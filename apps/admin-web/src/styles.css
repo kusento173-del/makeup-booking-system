@@ -1,0 +1,24 @@
+:root {
+  color: #142433;
+  font-family: Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: #f5f7f8;
+}
+
+body {
+  margin: 0;
+}
+
+.app-shell {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 64px 24px;
+}
+
+.app-shell p,
+.app-shell span {
+  color: #667783;
+}
+
+.app-shell h1 {
+  margin: 8px 0 16px;
+}

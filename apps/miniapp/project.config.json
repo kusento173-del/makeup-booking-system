@@ -1,0 +1,12 @@
+{
+  "appid": "touristappid",
+  "compileType": "miniprogram",
+  "description": "妆序微信小程序工程骨架",
+  "miniprogramRoot": "dist/",
+  "projectname": "makeup-booking-miniapp",
+  "setting": {
+    "es6": false,
+    "minified": false,
+    "postcss": false
+  }
+}

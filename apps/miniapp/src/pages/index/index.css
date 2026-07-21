@@ -1,0 +1,16 @@
+.page {
+  padding: 64px 32px;
+}
+
+.stage,
+.description {
+  display: block;
+  color: #667783;
+}
+
+.title {
+  display: block;
+  margin: 16px 0 24px;
+  font-size: 40px;
+  font-weight: 700;
+}

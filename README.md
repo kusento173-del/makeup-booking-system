@@ -2,7 +2,7 @@
 
 用于替代现有 Excel 人工排班流程，从预约源头生成结构化、无冲突、可追溯的化妆排班。
 
-当前阶段：**M0 需求与原型收尾**。正式业务代码尚未初始化；交互原型和九份正式设计文档已经完成，正在确认开工前决策并准备进入 M1 工程基线。
+当前阶段：**M1 工程与环境基线**。交互原型和正式设计文档已经完成，正式工程骨架已初始化；当前代码只包含可构建、可测试的技术基线，不包含预约业务功能。
 
 ## 快速入口
 
@@ -19,6 +19,13 @@
 化妆部预约系统/
 ├─ README.md             # 项目总入口
 ├─ AGENTS.md             # 开发与协作硬性规范
+├─ apps/
+│  ├─ api/               # NestJS API
+│  ├─ worker/            # NestJS 后台任务进程
+│  ├─ admin-web/         # React 管理后台
+│  └─ miniapp/           # Taro＋React 微信小程序
+├─ packages/
+│  └─ config/            # 共享 TypeScript 配置
 ├─ docs/                 # 权威产品、业务和技术文档
 ├─ prototype/            # 可点击交互原型
 └─ data/
@@ -26,7 +33,27 @@
    └─ source/            # 真实 Excel 源文件，Git 忽略
 ```
 
-正式代码目录将在 M1 初始化，不提前建立空目录。第一期继续采用 TypeScript 全栈、微信小程序与 Web 管理后台、NestJS 模块化单体、PostgreSQL、Redis/BullMQ 和 Docker Compose。
+第一期采用 TypeScript 全栈、微信小程序与 Web 管理后台、NestJS 模块化单体、PostgreSQL、Redis/BullMQ 和 Docker Compose。共享包、数据库和测试目录在真正有实现时再建立，不保留无意义的空目录。
+
+## 本地工程
+
+要求：Node.js 24 LTS、pnpm 11。Docker Desktop 和微信开发者工具将在对应 M1 任务接入并验证。
+
+```powershell
+pnpm install --frozen-lockfile
+pnpm check
+```
+
+`pnpm check` 会依次校验格式、Lint、TypeScript、单元测试和四个应用的生产构建。开发单个应用时使用：
+
+```powershell
+pnpm --filter @makeup/api dev
+pnpm --filter @makeup/worker dev
+pnpm --filter @makeup/admin-web dev
+pnpm --filter @makeup/miniapp dev
+```
+
+复制 `.env.example` 为本地 `.env` 后再填写本机配置；`.env`、真实人员文件、构建产物和本地微信项目配置均不会进入 Git。
 
 ## 文档使用原则
 
@@ -38,4 +65,4 @@
 
 ## 下一步
 
-完成 M0 待确认决策后，按[项目实施计划](docs/项目实施计划.md)进入 M1：初始化 Monorepo、开发环境、质量门禁和持续集成。
+按[当前迭代](docs/当前迭代.md)继续完成 M1 的本地依赖、Git 门禁、端到端测试与持续集成，再进入主数据和身份权限开发。

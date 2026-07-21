@@ -5,8 +5,13 @@ build/
 !prototype/build/
 !prototype/build/sites-vite-plugin.ts
 coverage/
+*.tsbuildinfo
 .turbo/
 .next/
+.taro/
+.temp/
+.swc/
+apps/miniapp/project.private.config.json
 
 # Environment and secrets
 .env
