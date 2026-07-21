@@ -1241,8 +1241,8 @@ function ScheduleBoard({
       </div>
       {view === "紧凑排班" ? <CompactSchedule /> : <ScheduleTable />}
       <div className="timeline-legend">
-        <span><i className="fixed" />固定预约</span>
-        <span><i className="single" />单次预约</span>
+        <span><i className="booking-fixed" />固定预约</span>
+        <span><i className="booking-single" />单次预约</span>
       </div>
     </section>
   );
@@ -1257,6 +1257,7 @@ function CompactSchedule() {
   const rows = [
     {
       name: "柔柔",
+      availability: ["08:00—12:00", "13:00—18:00"],
       blocks: [
         { start: "08:30", duration: 30, host: "小鹿", hostId: "ZB01655", type: "fixed" },
         { start: "09:45", duration: 30, host: "小雨", hostId: "ZB01842", type: "fixed" },
@@ -1267,6 +1268,7 @@ function CompactSchedule() {
     },
     {
       name: "江江",
+      availability: ["08:30—12:00", "13:00—17:30"],
       blocks: [
         { start: "08:15", duration: 30, host: "可可", hostId: "ZB01288", type: "single" },
         { start: "09:30", duration: 30, host: "小鱼", hostId: "ZB01302", type: "fixed" },
@@ -1277,6 +1279,7 @@ function CompactSchedule() {
     },
     {
       name: "安安",
+      availability: ["09:00—12:00", "13:00—18:00"],
       blocks: [
         { start: "09:00", duration: 30, host: "七七", hostId: "ZB01037", type: "fixed" },
         { start: "10:30", duration: 30, host: "暖暖", hostId: "ZB01772", type: "single" },
@@ -1286,25 +1289,37 @@ function CompactSchedule() {
     },
     {
       name: "木木",
+      availability: [],
       blocks: [],
     },
   ];
   return (
     <div className="compact-schedule">
       <div className="schedule-list-head">
-        <span className="artist-column">化妆师</span>
+        <span className="artist-column">化妆师 / 可排班时间</span>
         <span>当日预约（按开始时间排序）</span>
       </div>
       {rows.map((row) => (
         <div className="schedule-list-row" key={row.name}>
           <div className="artist-cell">
             <span className="avatar">{row.name.slice(0, 1)}</span>
-            <span><strong>{row.name}</strong><small>{row.blocks.length ? row.blocks.length + "个预约" : "未设置班次"}</small></span>
+            <span className="artist-summary">
+              <strong>{row.name}</strong>
+              <small>{row.blocks.length ? row.blocks.length + "个预约" : "暂无预约"}</small>
+              {row.availability.length ? (
+                <span className="artist-hours">
+                  <em>可排班时间</em>
+                  {row.availability.map((period) => <b key={period}>{period}</b>)}
+                </span>
+              ) : (
+                <span className="artist-hours unavailable">未设置可排班时间</span>
+              )}
+            </span>
           </div>
-          <div className={row.blocks.length ? "appointment-sequence" : "appointment-sequence disabled"}>
-            {row.blocks.map((block) => (
+          <div className={row.availability.length ? "appointment-sequence" : "appointment-sequence disabled"}>
+            {[...row.blocks].sort((a, b) => a.start.localeCompare(b.start)).map((block) => (
               <button
-                className={"schedule-booking-card " + block.type}
+                className={"schedule-booking-card is-" + block.type}
                 key={block.start + block.host}
                 title={`${block.start} · ${block.host} · ${block.duration}分钟`}
                 type="button"
@@ -1314,7 +1329,11 @@ function CompactSchedule() {
                 <span className="booking-card-meta"><i />{block.type === "fixed" ? "固定" : "单次"}<b>{block.duration}分钟</b></span>
               </button>
             ))}
-            {!row.blocks.length ? <span className="not-configured">未配置班次，当前不可预约</span> : null}
+            {!row.blocks.length ? (
+              <span className="not-configured">
+                {row.availability.length ? "当日暂无预约" : "未设置可排班时间，当前不可预约"}
+              </span>
+            ) : null}
           </div>
         </div>
       ))}

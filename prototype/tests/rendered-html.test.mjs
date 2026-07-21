@@ -70,3 +70,19 @@ test("keeps business copy readable and free of decorative headings", async () =>
   assert.doesNotMatch(prototype, /eyebrow|7-DAY OVERVIEW|化妆安排，一眼就清楚/);
   assert.doesNotMatch(styles, /font-size:\s*(?:[0-9]|1[01])px/);
 });
+
+test("keeps each artist schedule self-contained and shows availability", async () => {
+  const [prototype, styles] = await Promise.all([
+    readFile(new URL("../app/prototype.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(prototype, /化妆师 \/ 可排班时间/);
+  assert.match(prototype, /className="artist-hours"/);
+  assert.match(prototype, /schedule-booking-card is-/);
+  assert.doesNotMatch(prototype, /className="fixed"/);
+  assert.match(styles, /\.appointment-sequence\s*\{[^}]*display:\s*grid/s);
+  assert.match(styles, /\.schedule-booking-card\.is-fixed/);
+  assert.doesNotMatch(styles, /\.appointment-sequence\s*\{[^}]*overflow-x:\s*auto/s);
+  assert.doesNotMatch(styles, /\.compact-schedule\s*\{[^}]*min-width:\s*980px/s);
+});
