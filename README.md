@@ -69,6 +69,8 @@ pnpm --filter @makeup/admin-web dev
 pnpm --filter @makeup/miniapp dev
 ```
 
+GitHub Actions 会在每次推送和拉取请求中，从空数据库执行迁移并运行同一套项目检查；工作流定义见 [`.github/workflows/ci.yml`](.github/workflows/ci.yml)。
+
 首次启动前复制 `.env.example` 为本地 `.env`，需要时再修改本机端口和开发密码；`.env`、真实人员文件、构建产物和本地微信项目配置均不会进入 Git。PostgreSQL 和 Redis 端口只绑定到 `127.0.0.1`，不会暴露给局域网。
 
 ## 文档使用原则
@@ -81,4 +83,4 @@ pnpm --filter @makeup/miniapp dev
 
 ## 下一步
 
-按[当前迭代](docs/当前迭代.md)继续完成 M1 的 Git 门禁、端到端测试与持续集成，再进入主数据和身份权限开发。
+按[当前迭代](docs/当前迭代.md)继续完成 M1 的依赖安全、敏感文件、Git 提交和端到端测试门禁，再进入主数据和身份权限开发。
