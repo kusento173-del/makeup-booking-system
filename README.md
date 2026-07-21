@@ -43,13 +43,16 @@
 pnpm install --frozen-lockfile
 Copy-Item .env.example .env
 pnpm infra:up
+pnpm db:migrate
 pnpm infra:check
 pnpm check
 ```
 
-`infra:up` 会启动 PostgreSQL 18.4 和 Redis 8.8.0 并等待健康检查通过；`infra:check` 会验证数据库连接、`btree_gist` 扩展和 Redis 密码认证。常用基础设施命令：
+`infra:up` 会启动 PostgreSQL 18.4 和 Redis 8.8.0 并等待健康检查通过；`db:migrate` 会执行所有尚未应用的 Prisma 迁移；`infra:check` 会验证数据库连接、已安装的 `btree_gist` 扩展和 Redis 密码认证。常用数据库与基础设施命令：
 
 ```powershell
+pnpm db:validate
+pnpm db:status
 pnpm infra:status
 pnpm infra:logs
 pnpm infra:down
@@ -78,4 +81,4 @@ pnpm --filter @makeup/miniapp dev
 
 ## 下一步
 
-按[当前迭代](docs/当前迭代.md)继续完成 M1 的本地依赖、Git 门禁、端到端测试与持续集成，再进入主数据和身份权限开发。
+按[当前迭代](docs/当前迭代.md)继续完成 M1 的 Git 门禁、端到端测试与持续集成，再进入主数据和身份权限开发。

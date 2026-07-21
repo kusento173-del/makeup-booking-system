@@ -10,6 +10,9 @@
   "scripts": {
     "build": "pnpm -r --if-present run build",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "db:migrate": "prisma migrate deploy",
+    "db:status": "prisma migrate status",
+    "db:validate": "prisma validate",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "infra:check": "node scripts/check-infrastructure.mjs",
@@ -24,10 +27,12 @@
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@types/node": "24.13.3",
+    "dotenv": "catalog:",
     "eslint": "10.7.0",
     "eslint-config-prettier": "10.1.8",
     "globals": "17.7.0",
     "prettier": "3.9.6",
+    "prisma": "catalog:",
     "tsx": "4.23.1",
     "typescript": "5.9.3",
     "typescript-eslint": "8.65.0",

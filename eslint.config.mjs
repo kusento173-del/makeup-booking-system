@@ -3,7 +3,7 @@ import eslintConfigPrettier from 'eslint-config-prettier';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
-const sourceFiles = ['apps/**/*.{ts,tsx}', 'packages/**/*.ts'];
+const sourceFiles = ['apps/**/*.{ts,tsx}', 'packages/**/*.ts', 'prisma.config.ts'];
 
 export default tseslint.config(
   {
@@ -21,7 +21,9 @@ export default tseslint.config(
     extends: [js.configs.recommended, ...tseslint.configs.recommendedTypeChecked],
     languageOptions: {
       parserOptions: {
-        projectService: true,
+        projectService: {
+          allowDefaultProject: ['prisma.config.ts'],
+        },
         tsconfigRootDir: import.meta.dirname,
       },
     },

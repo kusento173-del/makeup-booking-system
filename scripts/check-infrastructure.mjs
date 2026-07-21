@@ -24,11 +24,11 @@ const postgresResult = runDocker([
   'postgres',
   'sh',
   '-ec',
-  'psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --tuples-only --no-align --command "SELECT 1 FROM pg_available_extensions WHERE name = \'btree_gist\';"',
+  'psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --tuples-only --no-align --command "SELECT 1 FROM pg_extension WHERE extname = \'btree_gist\';"',
 ]);
 
 if (postgresResult !== '1') {
-  throw new Error('PostgreSQL is reachable, but the btree_gist extension is unavailable');
+  throw new Error('PostgreSQL is reachable, but the btree_gist migration has not been applied');
 }
 
 const redisResult = runDocker([
@@ -45,5 +45,5 @@ if (redisResult !== 'PONG') {
   throw new Error(`Unexpected Redis response: ${redisResult || '<empty>'}`);
 }
 
-console.log('PostgreSQL: connected; btree_gist is available');
+console.log('PostgreSQL: connected; btree_gist is installed');
 console.log('Redis: connected; authenticated PING returned PONG');

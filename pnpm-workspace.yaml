@@ -6,12 +6,14 @@ autoInstallPeers: false
 
 allowBuilds:
   '@parcel/watcher': true
+  '@prisma/engines': true
   '@swc/core': true
   '@tarojs/binding': true
   '@tarojs/cli': true
   core-js: false
   core-js-pure: false
   esbuild: true
+  prisma: true
 
 catalogMode: strict
 
@@ -36,3 +38,7 @@ preferWorkspacePackages: true
 saveExact: true
 
 strictPeerDependencies: true
+
+catalog:
+  dotenv: 17.4.2
+  prisma: 7.9.0
