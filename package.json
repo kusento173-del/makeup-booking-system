@@ -11,6 +11,7 @@
     "build": "pnpm -r --if-present run build",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "db:migrate": "prisma migrate deploy",
+    "db:check": "node scripts/check-master-data-database.mjs",
     "db:status": "prisma migrate status",
     "db:validate": "prisma validate",
     "e2e": "pnpm build && pnpm e2e:test",

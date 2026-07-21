@@ -2,7 +2,7 @@
 
 用于替代现有 Excel 人工排班流程，从预约源头生成结构化、无冲突、可追溯的化妆排班。
 
-当前阶段：**M1 工程与环境基线**。交互原型和正式设计文档已经完成，正式工程骨架已初始化；当前代码只包含可构建、可测试的技术基线，不包含预约业务功能。
+当前阶段：**M2 主数据、身份与权限**。M1 工程基线已经完成；当前已建立第一批主数据表和约束，尚未开放人员维护、登录或预约业务功能。
 
 ## 快速入口
 
@@ -26,6 +26,7 @@
 │  └─ miniapp/           # Taro＋React 微信小程序
 ├─ packages/
 │  └─ config/            # 共享 TypeScript 配置
+├─ prisma/               # 数据模型、迁移和数据库约束检查
 ├─ docs/                 # 权威产品、业务和技术文档
 ├─ prototype/            # 可点击交互原型
 └─ data/
@@ -44,12 +45,13 @@ pnpm install --frozen-lockfile
 Copy-Item .env.example .env
 pnpm infra:up
 pnpm db:migrate
+pnpm db:check
 pnpm infra:check
 pnpm check
 pnpm e2e
 ```
 
-`infra:up` 会启动 PostgreSQL 18.4 和 Redis 8.8.0 并等待健康检查通过；`db:migrate` 会执行所有尚未应用的 Prisma 迁移；`infra:check` 会验证数据库连接、已安装的 `btree_gist` 扩展和 Redis 密码认证。常用数据库与基础设施命令：
+`infra:up` 会启动 PostgreSQL 18.4 和 Redis 8.8.0 并等待健康检查通过；`db:migrate` 会执行所有尚未应用的 Prisma 迁移；`db:check` 会在回滚事务中验证主数据关键约束；`infra:check` 会验证数据库连接、已安装的 `btree_gist` 扩展和 Redis 密码认证。常用数据库与基础设施命令：
 
 ```powershell
 pnpm db:validate

@@ -1,3 +1,105 @@
+generator client {
+  provider        = "prisma-client"
+  output          = "../packages/database/generated"
+  previewFeatures = ["partialIndexes"]
+}
+
 datasource db {
   provider = "postgresql"
+}
+
+model Site {
+  id         String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  code       String   @unique(map: "sites_code_uq") @db.VarChar(32)
+  name       String   @unique(map: "sites_name_uq") @db.VarChar(64)
+  timezone   String   @default("Asia/Shanghai") @db.VarChar(64)
+  status     String   @default("ACTIVE") @db.VarChar(16)
+  sortOrder  Int      @default(0) @map("sort_order")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  rowVersion Int      @default(1) @map("row_version")
+
+  hosts     HostProfile[]
+  artists   ArtistProfile[]
+  operators OperatorProfile[]
+
+  @@index([status, sortOrder], map: "sites_status_sort_order_idx")
+  @@map("sites")
+}
+
+model HostProfile {
+  id                       String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  hostCode                 String   @unique(map: "host_profiles_host_code_uq") @map("host_code") @db.VarChar(32)
+  realName                 String   @map("real_name") @db.VarChar(64)
+  nickname                 String?  @db.VarChar(64)
+  siteId                   String   @map("site_id") @db.Uuid
+  qualificationStatus      String   @default("ACTIVE") @map("qualification_status") @db.VarChar(16)
+  qualificationEffectiveAt DateTime @default(now()) @map("qualification_effective_at") @db.Timestamptz(3)
+  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  rowVersion               Int      @default(1) @map("row_version")
+
+  site              Site                   @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  operatorRelations HostOperatorRelation[]
+
+  @@index([realName], map: "host_profiles_real_name_idx")
+  @@index([siteId, qualificationStatus], map: "host_profiles_site_status_idx")
+  @@map("host_profiles")
+}
+
+model ArtistProfile {
+  id                       String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  realName                 String    @map("real_name") @db.VarChar(64)
+  nickname                 String    @db.VarChar(64)
+  nicknameNormalized       String    @unique(map: "artist_profiles_active_nickname_uq", where: raw("((employment_status)::text = 'ACTIVE'::text)")) @map("nickname_normalized") @db.VarChar(64)
+  siteId                   String    @map("site_id") @db.Uuid
+  employmentStatus         String    @default("ACTIVE") @map("employment_status") @db.VarChar(16)
+  initialShiftConfiguredAt DateTime? @map("initial_shift_configured_at") @db.Timestamptz(3)
+  createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  rowVersion               Int       @default(1) @map("row_version")
+
+  site Site @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([realName], map: "artist_profiles_real_name_idx")
+  @@index([siteId, employmentStatus], map: "artist_profiles_site_status_idx")
+  @@map("artist_profiles")
+}
+
+model OperatorProfile {
+  id               String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  realName         String   @map("real_name") @db.VarChar(64)
+  nameNormalized   String   @map("name_normalized") @db.VarChar(64)
+  siteId           String   @map("site_id") @db.Uuid
+  employmentStatus String   @default("ACTIVE") @map("employment_status") @db.VarChar(16)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  rowVersion       Int      @default(1) @map("row_version")
+
+  site          Site                   @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  hostRelations HostOperatorRelation[]
+
+  @@unique([siteId, nameNormalized], map: "operator_profiles_active_name_site_uq", where: raw("((employment_status)::text = 'ACTIVE'::text)"))
+  @@index([siteId, employmentStatus], map: "operator_profiles_site_status_idx")
+  @@map("operator_profiles")
+}
+
+model HostOperatorRelation {
+  id           String                    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  hostId       String                    @map("host_id") @db.Uuid
+  operatorId   String                    @map("operator_id") @db.Uuid
+  validFrom    DateTime                  @map("valid_from") @db.Date
+  validUntil   DateTime?                 @map("valid_until") @db.Date
+  changeReason String?                   @map("change_reason") @db.VarChar(500)
+  activeRange  Unsupported("daterange")? @default(dbgenerated("daterange(valid_from, valid_until, '[)'::text)")) @map("active_range")
+  createdAt    DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime                  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  rowVersion   Int                       @default(1) @map("row_version")
+
+  host     HostProfile     @relation(fields: [hostId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  operator OperatorProfile @relation(fields: [operatorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([hostId, validFrom(sort: Desc)], map: "host_operator_relations_host_valid_from_idx")
+  @@index([operatorId, validFrom, validUntil], map: "host_operator_relations_operator_validity_idx")
+  @@map("host_operator_relations")
 }

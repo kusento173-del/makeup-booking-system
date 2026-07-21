@@ -61,6 +61,7 @@ jobs:
           pnpm db:validate
           pnpm db:migrate
           pnpm db:status
+          pnpm db:check
           pnpm infra:check
 
       - name: Run project quality checks
