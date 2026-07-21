@@ -479,11 +479,10 @@ function HostDashboard({
 
   return (
     <div className="page-stack">
-      <section className="welcome-row">
+      <section className="welcome-row host-page-heading">
         <div>
-          <p className="eyebrow">下午好，小雨</p>
-          <h1>化妆安排，一眼就清楚</h1>
-          <p>今天的排班已经锁定，明日起未来七日可以预约或调整。</p>
+          <h1>我的化妆预约</h1>
+          <p>查看已有预约，或预约未来7日的化妆时间。</p>
         </div>
         <button className="button primary large" onClick={openBooking} type="button">
           <span>＋</span>
@@ -494,15 +493,14 @@ function HostDashboard({
       <div className="notice-bar">
         <span className="notice-icon">!</span>
         <div>
-          <strong>当天排班已锁定</strong>
-          <span>7月20日的预约只能查看，无法新增、改期或取消。</span>
+          <strong>今日预约不可修改</strong>
+          <span>每天0点锁定当天排班，客服和管理员除外。</span>
         </div>
       </div>
 
       <div className="dashboard-grid host-grid">
         <section className="panel next-panel">
           <SectionHeading
-            eyebrow="下一场预约"
             title="下一次化妆"
             action={<StatusPill tone="accent">明天</StatusPill>}
           />
@@ -514,16 +512,16 @@ function HostDashboard({
             >
               <div className="date-block">
                 <strong>21</strong>
-                <span>7月 · 周二</span>
+                <span>7月21日 · 周二</span>
               </div>
               <div className="appointment-main">
                 <strong>{appointments[0].time}</strong>
                 <span>
-                  {appointments[0].artist} · {appointments[0].site}场地
+                  化妆师 {appointments[0].artist}　{appointments[0].site}场地　{appointments[0].duration}分钟
                 </span>
                 <div className="tag-row">
                   <StatusPill tone="accent">
-                    {appointments[0].source}
+                    {appointments[0].source === "固定预约" ? "固定" : "单次"}
                   </StatusPill>
                   <StatusPill tone="success">已预约</StatusPill>
                 </div>
@@ -545,54 +543,29 @@ function HostDashboard({
               }
             />
           )}
-          <div className="operator-line">
-            <span className="avatar small-avatar">周</span>
-            <span>
-              <small>当前负责运营</small>
-              <strong>周舟</strong>
-            </span>
-            <button className="text-button" type="button">
-              查看资料
-            </button>
-          </div>
         </section>
 
         <section className="panel week-panel">
           <SectionHeading
-            eyebrow="7-DAY OVERVIEW"
-            title="未来七日"
+            title="未来7日预约"
             action={
               <button className="text-button" onClick={openBooking} type="button">
-                查看全部
+                预约
               </button>
             }
           />
           <DateStrip compact />
-          <div className="week-summary">
-            <div>
-              <span className="summary-dot accent" />
-              <span>已有预约</span>
-              <strong>{appointments.length}次</strong>
-            </div>
-            <div>
-              <span className="summary-dot available" />
-              <span>可预约日期</span>
-              <strong>7天</strong>
-            </div>
-          </div>
+          <p className="week-note">21日已有预约，其余日期可预约。</p>
         </section>
       </div>
 
-      <SectionHeading
-        eyebrow="常用操作"
-        title="常用操作"
-      />
+      <SectionHeading title="常用操作" />
       <div className="quick-actions">
         <button onClick={openBooking} type="button">
           <Icon symbol="＋" />
           <span>
             <strong>预约化妆</strong>
-            <small>选择空闲化妆师和时间</small>
+            <small>选择时间和化妆师</small>
           </span>
         </button>
         <button
@@ -604,14 +577,14 @@ function HostDashboard({
           <Icon symbol="↻" />
           <span>
             <strong>改期或取消</strong>
-            <small>最晚在预约日前操作</small>
+            <small>预约日前可以操作</small>
           </span>
         </button>
         <button type="button">
           <Icon symbol="☾" />
           <span>
             <strong>主播请假</strong>
-            <small>固定主播可申请未来七日</small>
+            <small>固定主播使用</small>
           </span>
         </button>
       </div>

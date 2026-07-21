@@ -515,7 +515,7 @@ p {
   background: transparent;
   border: 0;
   color: var(--plum-2);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   padding: 5px 0;
 }
@@ -572,12 +572,12 @@ p {
 }
 
 .notice-bar strong {
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .notice-bar div > span {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.5;
   margin-top: 2px;
 }
@@ -683,25 +683,25 @@ p {
 
 .date-block strong {
   font-family: "STSong", "SimSun", serif;
-  font-size: 36px;
+  font-size: 28px;
   line-height: 1;
 }
 
 .date-block span {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
   margin-top: 6px;
 }
 
 .appointment-main > strong {
   display: block;
-  font-size: 20px;
+  font-size: 22px;
 }
 
 .appointment-main > span {
   color: var(--muted);
   display: block;
-  font-size: 11px;
+  font-size: 13px;
   margin-top: 5px;
 }
 
@@ -714,40 +714,6 @@ p {
 .arrow {
   color: #a99da5;
   font-size: 22px;
-}
-
-.operator-line {
-  align-items: center;
-  border-top: 1px solid var(--line);
-  display: flex;
-  gap: 10px;
-  margin-top: 18px;
-  padding-top: 15px;
-}
-
-.operator-line small,
-.operator-line strong {
-  display: block;
-}
-
-.operator-line small {
-  color: var(--muted);
-  font-size: 9px;
-}
-
-.operator-line strong {
-  font-size: 11px;
-  margin-top: 2px;
-}
-
-.operator-line .text-button {
-  margin-left: auto;
-}
-
-.small-avatar {
-  border-radius: 8px;
-  height: 31px;
-  width: 31px;
 }
 
 .date-strip {
@@ -780,7 +746,7 @@ p {
 
 .date-strip span {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .date-strip button.active span {
@@ -789,7 +755,7 @@ p {
 
 .date-strip strong {
   font-family: "STSong", "SimSun", serif;
-  font-size: 21px;
+  font-size: 20px;
   margin-top: 4px;
 }
 
@@ -814,43 +780,12 @@ p {
   min-height: 68px;
 }
 
-.week-summary {
+.week-note {
   border-top: 1px solid var(--line);
-  display: grid;
-  gap: 16px;
-  grid-template-columns: 1fr 1fr;
-  margin-top: 16px;
-  padding-top: 15px;
-}
-
-.week-summary div {
-  align-items: center;
-  display: grid;
-  gap: 4px 8px;
-  grid-template-columns: 8px 1fr auto;
-}
-
-.week-summary span {
   color: var(--muted);
-  font-size: 9px;
-}
-
-.week-summary strong {
-  font-size: 11px;
-}
-
-.summary-dot {
-  border-radius: 50%;
-  height: 7px;
-  width: 7px;
-}
-
-.summary-dot.accent {
-  background: var(--rose);
-}
-
-.summary-dot.available {
-  background: #70b493;
+  font-size: 13px;
+  margin-top: 16px;
+  padding-top: 13px;
 }
 
 .quick-actions {
@@ -867,7 +802,7 @@ p {
   align-items: center;
   background: #fff;
   border: 1px solid var(--line);
-  border-radius: 13px;
+  border-radius: 7px;
   display: flex;
   gap: 13px;
   padding: 16px;
@@ -875,13 +810,13 @@ p {
 }
 
 .quick-actions > button:hover {
-  border-color: #cfbcc5;
-  box-shadow: var(--shadow);
+  border-color: #9eacb7;
+  box-shadow: none;
 }
 
 .quick-actions .icon {
   background: var(--plum-soft);
-  border-radius: 9px;
+  border-radius: 6px;
   color: var(--plum);
   flex: 0 0 auto;
   height: 38px;
@@ -894,12 +829,12 @@ p {
 }
 
 .quick-actions strong {
-  font-size: 12px;
+  font-size: 15px;
 }
 
 .quick-actions small {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 13px;
   margin-top: 4px;
 }
 
