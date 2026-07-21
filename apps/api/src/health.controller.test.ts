@@ -1,9 +1,18 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
+import type { DatabaseService } from './database/database.service';
 import { HealthController } from './health.controller';
 
 describe('HealthController', () => {
-  it('reports the API skeleton as ready', () => {
-    expect(new HealthController().check()).toEqual({ service: 'api', status: 'ok' });
+  it('reports readiness only after the database responds', async () => {
+    const database = { assertHealthy: vi.fn().mockResolvedValue(undefined) };
+    const controller = new HealthController(database as unknown as DatabaseService);
+
+    await expect(controller.check()).resolves.toEqual({
+      database: 'ok',
+      service: 'api',
+      status: 'ok',
+    });
+    expect(database.assertHealthy).toHaveBeenCalledOnce();
   });
 });

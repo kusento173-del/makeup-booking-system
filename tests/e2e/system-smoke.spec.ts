@@ -11,5 +11,9 @@ test('API 健康检查返回可用状态', async ({ request }) => {
   const response = await request.get('http://127.0.0.1:3000/health');
 
   expect(response.ok()).toBe(true);
-  await expect(response.json()).resolves.toEqual({ service: 'api', status: 'ok' });
+  await expect(response.json()).resolves.toEqual({
+    database: 'ok',
+    service: 'api',
+    status: 'ok',
+  });
 });

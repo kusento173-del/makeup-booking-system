@@ -38,6 +38,10 @@ minimumReleaseAgeExclude:
   - prettier@3.9.6
   - prisma@7.9.0
   - typescript-eslint@8.65.0
+  - '@prisma/adapter-pg@7.9.0'
+  - '@prisma/client-runtime-utils@7.9.0'
+  - '@prisma/client@7.9.0'
+  - '@prisma/driver-adapter-utils@7.9.0'
 
 overrides:
   glob: 10.5.0
@@ -45,14 +49,21 @@ overrides:
 
 preferWorkspacePackages: true
 
+peerDependencyRules:
+  allowedVersions:
+    '@tarojs/plugin-framework-react@4.2.1>vite': 8.1.5
+
 saveExact: true
 
 strictPeerDependencies: true
 
 catalog:
   '@playwright/test': 1.61.1
+  '@prisma/adapter-pg': 7.9.0
+  '@prisma/client': 7.9.0
   dotenv: 17.4.2
   husky: 9.1.7
   lint-staged: 17.1.0
+  pg: 8.22.0
   prisma: 7.9.0
   swiper: 12.1.2

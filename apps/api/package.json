@@ -5,15 +5,18 @@
   "type": "commonjs",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "predev": "pnpm --filter @makeup/database build",
     "dev": "tsx watch src/main.ts",
     "start": "node dist/main.js",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@makeup/database": "workspace:*",
     "@nestjs/common": "11.1.28",
     "@nestjs/core": "11.1.28",
     "@nestjs/platform-fastify": "11.1.28",
+    "dotenv": "catalog:",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2"
   }

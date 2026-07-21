@@ -12,6 +12,8 @@
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "db:migrate": "prisma migrate deploy",
     "db:check": "node scripts/check-master-data-database.mjs && node scripts/check-identity-database.mjs && node scripts/check-audit-database.mjs",
+    "db:client": "pnpm db:generate && pnpm --filter @makeup/database build",
+    "db:generate": "prisma generate",
     "db:status": "prisma migrate status",
     "db:validate": "prisma validate",
     "e2e": "pnpm build && pnpm e2e:test",
@@ -30,7 +32,7 @@
     "security:check": "pnpm security:files && pnpm security:audit",
     "security:files": "node scripts/check-tracked-files.mjs",
     "test": "pnpm -r --if-present run test",
-    "typecheck": "tsc -p tsconfig.tools.json --noEmit && pnpm -r --if-present run typecheck"
+    "typecheck": "pnpm db:client && tsc -p tsconfig.tools.json --noEmit && pnpm -r --if-present run typecheck"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
