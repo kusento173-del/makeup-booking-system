@@ -9,7 +9,11 @@ import {
   MasterDataNotFoundError,
   MasterDataVersionConflictError,
 } from './master-data/master-data.errors';
-import { InitialShiftAlreadyConfiguredError, ShiftArtistNotFoundError } from './shift/shift.errors';
+import {
+  InitialShiftAlreadyConfiguredError,
+  ShiftArtistNotFoundError,
+  ShiftChangeStateConflictError,
+} from './shift/shift.errors';
 import { ShiftDefinitionInvalidError } from './shift/shift-time';
 
 function createHost() {
@@ -115,6 +119,18 @@ describe('ApiExceptionFilter', () => {
     expect(conflict.response.status).toHaveBeenCalledWith(409);
     expect(conflict.send).toHaveBeenCalledWith({
       error: { code: 'INITIAL_SHIFT_ALREADY_CONFIGURED', message: '数据状态冲突，请刷新后重试' },
+      statusCode: 409,
+    });
+  });
+
+  it('maps concurrent shift review to a stable conflict response', () => {
+    const { host, response, send } = createHost();
+
+    new ApiExceptionFilter().catch(new ShiftChangeStateConflictError(), host);
+
+    expect(response.status).toHaveBeenCalledWith(409);
+    expect(send).toHaveBeenCalledWith({
+      error: { code: 'SHIFT_CHANGE_STATE_CONFLICT', message: '数据状态冲突，请刷新后重试' },
       statusCode: 409,
     });
   });

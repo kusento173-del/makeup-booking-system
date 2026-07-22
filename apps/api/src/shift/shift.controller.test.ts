@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { AccessTokenClaims } from '../auth/auth-session.types';
 import type { MasterDataCommandContextService } from '../master-data/master-data-command-context.service';
 import type { ArtistShiftService } from './artist-shift.service';
+import type { ShiftChangeService } from './shift-change.service';
 import { ShiftController } from './shift.controller';
 import { ShiftRequestInvalidError } from './shift-request.parser';
 import type { ShiftCommandContext } from './shift.types';
@@ -24,6 +25,7 @@ describe('ShiftController', () => {
     const setInitialShift = vi.fn().mockResolvedValue({ id: 'shift-1' });
     const controller = new ShiftController(
       { resolve } as unknown as MasterDataCommandContextService,
+      {} as ShiftChangeService,
       { setInitialShift } as unknown as ArtistShiftService,
     );
 
@@ -63,6 +65,7 @@ describe('ShiftController', () => {
     const getCurrentShift = vi.fn();
     const controller = new ShiftController(
       {} as MasterDataCommandContextService,
+      {} as ShiftChangeService,
       { getCurrentShift } as unknown as ArtistShiftService,
     );
 
@@ -70,5 +73,38 @@ describe('ShiftController', () => {
       controller.getCurrentShift(artistId, { siteId: 'untrusted-site' }, authorization),
     ).toThrow(ShiftRequestInvalidError);
     expect(getCurrentShift).not.toHaveBeenCalled();
+  });
+
+  it('parses and submits a change through the verified artist context', async () => {
+    const resolve = vi.fn().mockResolvedValue(context);
+    const submit = vi.fn().mockResolvedValue({ id: 'change-1' });
+    const controller = new ShiftController(
+      { resolve } as unknown as MasterDataCommandContextService,
+      { submit } as unknown as ShiftChangeService,
+      {} as ArtistShiftService,
+    );
+
+    await expect(
+      controller.submitChange(
+        artistId,
+        {
+          effectiveFrom: '2026-07-24',
+          reason: '调整班次',
+          workEndMinute: 1080,
+          workStartMinute: 540,
+          workdays: [1, 2, 3],
+        },
+        authorization,
+        '127.0.0.1',
+      ),
+    ).resolves.toEqual({ id: 'change-1' });
+    expect(submit).toHaveBeenCalledWith(
+      context,
+      expect.objectContaining({
+        artistId,
+        effectiveFrom: new Date('2026-07-24T00:00:00.000Z'),
+        reason: '调整班次',
+      }),
+    );
   });
 });

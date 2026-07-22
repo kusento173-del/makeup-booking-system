@@ -50,3 +50,22 @@ export interface ShiftChangeSummary extends ShiftDefinition {
   readonly status: 'APPROVED' | 'PENDING' | 'REJECTED' | 'WITHDRAWN';
   readonly submittedAt: string;
 }
+
+export interface ShiftChangeListItem extends ShiftChangeSummary {
+  readonly artistNickname: string;
+  readonly reviewComment: string | null;
+  readonly reviewedAt: string | null;
+}
+
+export interface ShiftChangePage {
+  readonly items: readonly ShiftChangeListItem[];
+  readonly page: number;
+  readonly pageSize: number;
+  readonly total: number;
+}
+
+export interface ShiftChangePageInput {
+  readonly page: number;
+  readonly pageSize: number;
+  readonly status?: ShiftChangeSummary['status'];
+}

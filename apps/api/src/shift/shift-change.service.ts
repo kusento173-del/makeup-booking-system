@@ -6,6 +6,7 @@ import {
   AuthorizationDeniedError,
   AuthorizationPolicyService,
 } from '../auth/authorization-policy.service';
+import type { VerifiedAuthorizationContext } from '../auth/authorization.types';
 import { DatabaseService } from '../database/database.service';
 import { formatDateOnly, toBusinessDate } from './business-date';
 import {
@@ -22,6 +23,9 @@ import { validateShiftDefinition } from './shift-time';
 import type {
   ArtistShiftSummary,
   ReviewShiftChangeCommand,
+  ShiftChangeListItem,
+  ShiftChangePage,
+  ShiftChangePageInput,
   ShiftChangeSummary,
   ShiftCommandContext,
   SubmitShiftChangeCommand,
@@ -65,11 +69,19 @@ const REVIEW_SELECT = {
   submittedByUserId: true,
 } satisfies Prisma.ArtistShiftChangeRequestSelect;
 
+const LIST_SELECT = {
+  ...CHANGE_SELECT,
+  artist: { select: { nickname: true } },
+  reviewComment: true,
+  reviewedAt: true,
+} satisfies Prisma.ArtistShiftChangeRequestSelect;
+
 type CurrentShiftRecord = Prisma.ArtistShiftTemplateGetPayload<{
   select: typeof CURRENT_SHIFT_SELECT;
 }>;
 type ChangeRecord = Prisma.ArtistShiftChangeRequestGetPayload<{ select: typeof CHANGE_SELECT }>;
 type ReviewRecord = Prisma.ArtistShiftChangeRequestGetPayload<{ select: typeof REVIEW_SELECT }>;
+type ListRecord = Prisma.ArtistShiftChangeRequestGetPayload<{ select: typeof LIST_SELECT }>;
 
 function normalizedRequiredText(value: string): string {
   const result = value.normalize('NFKC').trim();
@@ -108,6 +120,32 @@ export class ShiftChangeService {
     private readonly authorization: AuthorizationPolicyService,
     private readonly database: DatabaseService,
   ) {}
+
+  list(
+    context: VerifiedAuthorizationContext,
+    input: ShiftChangePageInput,
+  ): Promise<ShiftChangePage> {
+    const where = this.listScope(context, input.status);
+
+    return this.database.read(async (client) => {
+      const [items, total] = await Promise.all([
+        client.artistShiftChangeRequest.findMany({
+          orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
+          select: LIST_SELECT,
+          skip: (input.page - 1) * input.pageSize,
+          take: input.pageSize,
+          where,
+        }),
+        client.artistShiftChangeRequest.count({ where }),
+      ]);
+      return {
+        items: items.map((item) => this.toListItem(item)),
+        page: input.page,
+        pageSize: input.pageSize,
+        total,
+      };
+    });
+  }
 
   submit(
     context: ShiftCommandContext,
@@ -358,6 +396,27 @@ export class ShiftChangeService {
     }
   }
 
+  private listScope(
+    context: VerifiedAuthorizationContext,
+    status: ShiftChangePageInput['status'],
+  ): Prisma.ArtistShiftChangeRequestWhereInput {
+    const statusFilter = status ? { status } : {};
+    switch (context.roleCode) {
+      case 'ARTIST':
+        return { ...statusFilter, artist: { userId: context.userId } };
+      case 'CUSTOMER_SERVICE':
+        if (!context.siteId) {
+          throw new AuthorizationDeniedError();
+        }
+        return { ...statusFilter, siteId: context.siteId };
+      case 'ADMIN':
+        return statusFilter;
+      case 'HOST':
+      case 'OPERATOR':
+        throw new AuthorizationDeniedError();
+    }
+  }
+
   private toSummary(request: ChangeRecord): ShiftChangeSummary {
     return {
       artistId: request.artistId,
@@ -373,6 +432,15 @@ export class ShiftChangeService {
       workEndMinute: request.proposedWorkEndMinute,
       workStartMinute: request.proposedWorkStartMinute,
       workdays: request.proposedWorkdays,
+    };
+  }
+
+  private toListItem(request: ListRecord): ShiftChangeListItem {
+    return {
+      ...this.toSummary(request),
+      artistNickname: request.artist.nickname,
+      reviewComment: request.reviewComment,
+      reviewedAt: request.reviewedAt?.toISOString() ?? null,
     };
   }
 

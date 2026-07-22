@@ -1,4 +1,4 @@
-import type { Prisma } from '@makeup/database';
+import type { DatabaseClient, Prisma } from '@makeup/database';
 import { describe, expect, it, vi } from 'vitest';
 
 import { AuditCommandService } from '../audit/audit-command.service';
@@ -76,6 +76,9 @@ const reviewRequest = {
 function createService(transaction: object) {
   const append = vi.fn().mockResolvedValue('log-1');
   const database = {
+    read: vi.fn((operation: (value: DatabaseClient) => unknown) =>
+      operation(transaction as DatabaseClient),
+    ),
     transaction: vi.fn((operation: (value: Prisma.TransactionClient) => unknown) =>
       operation(transaction as Prisma.TransactionClient),
     ),
@@ -102,6 +105,48 @@ const submitCommand = {
 } as const;
 
 describe('ShiftChangeService', () => {
+  it('lists only the verified customer-service site and maps review fields', async () => {
+    const findMany = vi.fn().mockResolvedValue([
+      {
+        ...request,
+        artist: { nickname: '柔柔' },
+        reviewComment: null,
+        reviewedAt: null,
+      },
+    ]);
+    const transaction = {
+      artistShiftChangeRequest: { count: vi.fn().mockResolvedValue(1), findMany },
+    };
+    const { service } = createService(transaction);
+
+    await expect(
+      service.list(customerServiceContext, { page: 1, pageSize: 50, status: 'PENDING' }),
+    ).resolves.toMatchObject({
+      items: [{ artistNickname: '柔柔', id: 'request-1', reviewedAt: null }],
+      total: 1,
+    });
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { siteId: 'site-songjiang', status: 'PENDING' } }),
+    );
+  });
+
+  it('derives artist list scope from the bound user and denies unrelated roles', async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+    const transaction = {
+      artistShiftChangeRequest: { count: vi.fn().mockResolvedValue(0), findMany },
+    };
+    const { database, service } = createService(transaction);
+
+    await service.list(artistContext, { page: 1, pageSize: 50 });
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { artist: { userId: 'user-artist' } } }),
+    );
+    expect(() =>
+      service.list({ ...artistContext, roleCode: 'HOST' }, { page: 1, pageSize: 50 }),
+    ).toThrow(AuthorizationDeniedError);
+    expect(database.read).toHaveBeenCalledTimes(1);
+  });
+
   it('submits an artist own future change while preserving the current shift', async () => {
     const create = vi.fn().mockResolvedValue(request);
     const transaction = {

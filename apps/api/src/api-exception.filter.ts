@@ -45,6 +45,12 @@ import {
   InitialShiftAlreadyConfiguredError,
   ShiftArtistNotFoundError,
   ShiftArtistUnavailableError,
+  ShiftChangeEffectiveDateError,
+  ShiftChangeNoOpError,
+  ShiftChangeNotFoundError,
+  ShiftChangePendingExistsError,
+  ShiftChangeReasonInvalidError,
+  ShiftChangeStateConflictError,
 } from './shift/shift.errors';
 import { ShiftRequestInvalidError } from './shift/shift-request.parser';
 import { ShiftDefinitionInvalidError } from './shift/shift-time';
@@ -89,7 +95,8 @@ export class ApiExceptionFilter implements ExceptionFilter {
       exception instanceof AuthRequestInvalidError ||
       exception instanceof MasterDataRequestInvalidError ||
       exception instanceof ShiftRequestInvalidError ||
-      exception instanceof ShiftDefinitionInvalidError
+      exception instanceof ShiftDefinitionInvalidError ||
+      exception instanceof ShiftChangeReasonInvalidError
     ) {
       return this.response(HttpStatus.BAD_REQUEST, exception.code, '请求内容不正确');
     }
@@ -101,7 +108,8 @@ export class ApiExceptionFilter implements ExceptionFilter {
     if (
       exception instanceof MasterDataNotFoundError ||
       exception instanceof BackofficeAccountNotFoundError ||
-      exception instanceof ShiftArtistNotFoundError
+      exception instanceof ShiftArtistNotFoundError ||
+      exception instanceof ShiftChangeNotFoundError
     ) {
       return this.response(HttpStatus.NOT_FOUND, exception.code, '目标数据不存在');
     }
@@ -116,7 +124,11 @@ export class ApiExceptionFilter implements ExceptionFilter {
       exception instanceof MasterDataInactiveSiteError ||
       exception instanceof MasterDataSiteMismatchError ||
       exception instanceof InitialShiftAlreadyConfiguredError ||
-      exception instanceof ShiftArtistUnavailableError
+      exception instanceof ShiftArtistUnavailableError ||
+      exception instanceof ShiftChangeEffectiveDateError ||
+      exception instanceof ShiftChangeNoOpError ||
+      exception instanceof ShiftChangePendingExistsError ||
+      exception instanceof ShiftChangeStateConflictError
     ) {
       return this.response(HttpStatus.CONFLICT, exception.code, '数据状态冲突，请刷新后重试');
     }

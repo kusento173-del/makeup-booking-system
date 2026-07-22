@@ -20,13 +20,20 @@ import type { AccessTokenClaims } from '../auth/auth-session.types';
 import { CurrentAuth } from '../auth/current-auth.decorator';
 import { MasterDataCommandContextService } from '../master-data/master-data-command-context.service';
 import { ArtistShiftService } from './artist-shift.service';
-import { ArtistShiftDto, SetInitialShiftRequestDto } from './shift-openapi.dto';
+import {
+  ArtistShiftDto,
+  SetInitialShiftRequestDto,
+  ShiftChangeDto,
+  SubmitShiftChangeRequestDto,
+} from './shift-openapi.dto';
 import {
   assertNoShiftQuery,
   parseArtistId,
   parseInitialShiftRequest,
+  parseSubmitShiftChangeRequest,
 } from './shift-request.parser';
-import type { ArtistShiftSummary } from './shift.types';
+import type { ArtistShiftSummary, ShiftChangeSummary } from './shift.types';
+import { ShiftChangeService } from './shift-change.service';
 
 @ApiTags('化妆师班次')
 @ApiBearerAuth('access-token')
@@ -38,6 +45,7 @@ import type { ArtistShiftSummary } from './shift.types';
 export class ShiftController {
   constructor(
     private readonly contexts: MasterDataCommandContextService,
+    private readonly changes: ShiftChangeService,
     private readonly shifts: ArtistShiftService,
   ) {}
 
@@ -63,6 +71,30 @@ export class ShiftController {
       ...(userAgent ? { userAgent } : {}),
     });
     return this.shifts.setInitialShift(context, command);
+  }
+
+  @Post('changes')
+  @ApiOperation({ summary: '化妆师提交后续班次修改申请' })
+  @ApiBody({ type: SubmitShiftChangeRequestDto })
+  @ApiCreatedResponse({ type: ShiftChangeDto })
+  @ApiConflictResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  async submitChange(
+    @Param('artistId') artistId: string,
+    @Body() body: unknown,
+    @CurrentAuth() authorization: AccessTokenClaims,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent?: string,
+    @Headers('x-request-id') requestId?: string,
+  ): Promise<ShiftChangeSummary> {
+    const command = parseSubmitShiftChangeRequest(artistId, body);
+    const context = await this.contexts.resolve(authorization, {
+      clientType: 'WECHAT_MINI_PROGRAM',
+      ipAddress,
+      ...(requestId ? { requestId } : {}),
+      ...(userAgent ? { userAgent } : {}),
+    });
+    return this.changes.submit(context, command);
   }
 
   @Get('current')

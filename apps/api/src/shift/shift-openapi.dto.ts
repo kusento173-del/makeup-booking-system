@@ -51,3 +51,75 @@ export class ArtistShiftDto {
   @ApiProperty({ isArray: true, type: Number })
   workdays!: number[];
 }
+
+export class SubmitShiftChangeRequestDto extends SetInitialShiftRequestDto {
+  @ApiProperty({ format: 'date' })
+  effectiveFrom!: string;
+
+  @ApiProperty({ maxLength: 500 })
+  reason!: string;
+}
+
+export class ShiftChangeDto extends SetInitialShiftRequestDto {
+  @ApiProperty({ format: 'uuid' })
+  artistId!: string;
+
+  @ApiProperty({ format: 'date' })
+  effectiveFrom!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ maxLength: 500 })
+  reason!: string;
+
+  @ApiProperty({ minimum: 1 })
+  rowVersion!: number;
+
+  @ApiProperty({ format: 'uuid' })
+  siteId!: string;
+
+  @ApiProperty({ enum: ['APPROVED', 'PENDING', 'REJECTED', 'WITHDRAWN'] })
+  status!: string;
+
+  @ApiProperty({ format: 'date-time' })
+  submittedAt!: string;
+}
+
+export class ShiftChangeListItemDto extends ShiftChangeDto {
+  @ApiProperty()
+  artistNickname!: string;
+
+  @ApiProperty({ nullable: true })
+  reviewComment!: string | null;
+
+  @ApiProperty({ format: 'date-time', nullable: true })
+  reviewedAt!: string | null;
+}
+
+export class ShiftChangePageDto {
+  @ApiProperty({ isArray: true, type: ShiftChangeListItemDto })
+  items!: ShiftChangeListItemDto[];
+
+  @ApiProperty({ minimum: 1 })
+  page!: number;
+
+  @ApiProperty({ maximum: 100, minimum: 1 })
+  pageSize!: number;
+
+  @ApiProperty({ minimum: 0 })
+  total!: number;
+}
+
+export class WithdrawShiftChangeRequestDto {
+  @ApiProperty({ minimum: 1 })
+  expectedRowVersion!: number;
+}
+
+export class ReviewShiftChangeRequestDto extends WithdrawShiftChangeRequestDto {
+  @ApiPropertyOptional({ maxLength: 500 })
+  comment?: string;
+
+  @ApiProperty({ enum: ['APPROVE', 'REJECT'] })
+  decision!: string;
+}
