@@ -30,6 +30,7 @@ model Site {
   appointments        Appointment[]
   fixedRequests       FixedAppointmentRequest[]
   fixedRules          FixedAppointmentRule[]
+  exportJobs          ExportJob[]
 
   @@index([status, sortOrder], map: "sites_status_sort_order_idx")
   @@map("sites")
@@ -76,6 +77,7 @@ model AppUser {
   idempotencyRecords      IdempotencyRecord[]
   submittedFixedRequests  FixedAppointmentRequest[]    @relation("FixedRequestSubmittedBy")
   reviewedFixedRequests   FixedAppointmentRequest[]    @relation("FixedRequestReviewedBy")
+  requestedExportJobs     ExportJob[]                   @relation("ExportJobRequester")
 
   @@index([status], map: "app_users_status_idx")
   @@map("app_users")
@@ -734,6 +736,38 @@ model ImportRow {
   @@index([importBatchId, validationStatus], map: "import_rows_batch_validation_idx")
   @@index([targetEntityId], map: "import_rows_target_entity_idx")
   @@map("import_rows")
+}
+
+model ExportJob {
+  id                  String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  requestedByUserId   String    @map("requested_by_user_id") @db.Uuid
+  requestedByRoleCode String    @map("requested_by_role_code") @db.VarChar(32)
+  scope               String    @db.VarChar(16)
+  siteId              String?   @map("site_id") @db.Uuid
+  scheduleDate        DateTime  @map("schedule_date") @db.Date
+  status              String    @default("PENDING") @db.VarChar(16)
+  outputFilename      String?   @map("output_filename") @db.VarChar(255)
+  contentType         String?   @map("content_type") @db.VarChar(100)
+  storageKey          String?   @map("storage_key") @db.VarChar(500)
+  fileSizeBytes       BigInt?   @map("file_size_bytes") @db.BigInt
+  fileSha256          String?   @map("file_sha256") @db.Char(64)
+  rowCount            Int?      @map("row_count")
+  failureReason       String?   @map("failure_reason") @db.VarChar(500)
+  startedAt           DateTime? @map("started_at") @db.Timestamptz(3)
+  completedAt         DateTime? @map("completed_at") @db.Timestamptz(3)
+  expiresAt           DateTime? @map("expires_at") @db.Timestamptz(3)
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  rowVersion          Int       @default(1) @map("row_version")
+
+  requestedBy AppUser @relation("ExportJobRequester", fields: [requestedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  site        Site?   @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([requestedByUserId, createdAt(sort: Desc)], map: "export_jobs_requester_created_idx")
+  @@index([siteId, scheduleDate, createdAt(sort: Desc)], map: "export_jobs_site_date_created_idx")
+  @@index([status, createdAt], map: "export_jobs_status_created_idx")
+  @@index([expiresAt], map: "export_jobs_expires_at_idx")
+  @@map("export_jobs")
 }
 
 model AccountBindingCode {

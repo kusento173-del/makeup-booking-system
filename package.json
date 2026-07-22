@@ -12,7 +12,7 @@
     "build": "pnpm -r --if-present run build",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "db:migrate": "prisma migrate deploy",
-    "db:check": "node scripts/check-master-data-database.mjs && node scripts/check-identity-database.mjs && node scripts/check-audit-database.mjs && node scripts/check-import-database.mjs && node scripts/check-shift-database.mjs && node scripts/check-availability-exceptions-database.mjs && node scripts/check-appointment-database.mjs && node scripts/check-booking-reliability-database.mjs && node scripts/check-fixed-appointment-database.mjs && pnpm db:check:booking-concurrency",
+    "db:check": "node scripts/check-master-data-database.mjs && node scripts/check-identity-database.mjs && node scripts/check-audit-database.mjs && node scripts/check-import-database.mjs && node scripts/check-shift-database.mjs && node scripts/check-availability-exceptions-database.mjs && node scripts/check-appointment-database.mjs && node scripts/check-booking-reliability-database.mjs && node scripts/check-fixed-appointment-database.mjs && node scripts/check-export-database.mjs && pnpm db:check:booking-concurrency",
     "db:check:booking-concurrency": "node packages/database/scripts/check-booking-concurrency.mjs",
     "db:client": "pnpm db:generate && pnpm --filter @makeup/database build",
     "db:generate": "prisma generate",
