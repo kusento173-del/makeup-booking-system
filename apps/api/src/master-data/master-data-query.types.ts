@@ -26,6 +26,7 @@ export interface ArtistSummary {
   readonly id: string;
   readonly initialShiftConfigured: boolean;
   readonly nickname: string;
+  readonly realName: string;
   readonly siteId: string;
 }
 
@@ -34,4 +35,17 @@ export interface OperatorSummary {
   readonly id: string;
   readonly realName: string;
   readonly siteId: string;
+}
+
+export interface MasterDataPageInput {
+  readonly page: number;
+  readonly pageSize: number;
+  readonly search?: string;
+}
+
+export interface MasterDataPage<T> {
+  readonly items: readonly T[];
+  readonly page: number;
+  readonly pageSize: number;
+  readonly total: number;
 }

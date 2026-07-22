@@ -7,6 +7,7 @@ import type { DatabaseService } from '../database/database.service';
 import { MasterDataQueryService } from './master-data-query.service';
 
 const asOf = new Date('2026-07-21T00:00:00.000Z');
+const page = { page: 1, pageSize: 50 };
 const baseContext: VerifiedAuthorizationContext = {
   roleAssignmentId: 'role-1',
   roleCode: 'CUSTOMER_SERVICE',
@@ -27,9 +28,11 @@ function createService(client: object): MasterDataQueryService {
 describe('MasterDataQueryService', () => {
   it('restricts customer-service host queries to the verified role site', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const service = createService({ hostProfile: { findMany } });
+    const service = createService({
+      hostProfile: { count: vi.fn().mockResolvedValue(0), findMany },
+    });
 
-    await service.listHosts(baseContext, asOf);
+    await service.listHosts(baseContext, asOf, page);
 
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { siteId: 'site-songjiang' } }),
@@ -38,10 +41,12 @@ describe('MasterDataQueryService', () => {
 
   it('derives operator host scope from active database relations', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const service = createService({ hostProfile: { findMany } });
+    const service = createService({
+      hostProfile: { count: vi.fn().mockResolvedValue(0), findMany },
+    });
     const context = { ...baseContext, roleCode: 'OPERATOR', siteId: null } as const;
 
-    await service.listHosts(context, asOf);
+    await service.listHosts(context, asOf, page);
 
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -62,12 +67,12 @@ describe('MasterDataQueryService', () => {
     const findUnique = vi.fn().mockResolvedValue({ siteId: 'site-songjiang' });
     const findMany = vi.fn().mockResolvedValue([]);
     const service = createService({
-      artistProfile: { findMany },
+      artistProfile: { count: vi.fn().mockResolvedValue(0), findMany },
       hostProfile: { findUnique },
     });
     const context = { ...baseContext, roleCode: 'HOST', siteId: null } as const;
 
-    await service.listArtists(context);
+    await service.listArtists(context, page);
 
     expect(findUnique).toHaveBeenCalledWith({
       select: { siteId: true },
@@ -79,10 +84,56 @@ describe('MasterDataQueryService', () => {
   });
 
   it('denies host-list access to artists by default', async () => {
-    const service = createService({ hostProfile: { findMany: vi.fn() } });
+    const service = createService({
+      hostProfile: { count: vi.fn(), findMany: vi.fn() },
+    });
     const context = { ...baseContext, roleCode: 'ARTIST', siteId: null } as const;
 
-    await expect(service.listHosts(context, asOf)).rejects.toBeInstanceOf(AuthorizationDeniedError);
+    await expect(service.listHosts(context, asOf, page)).rejects.toBeInstanceOf(
+      AuthorizationDeniedError,
+    );
+  });
+
+  it('applies bounded pagination and search to host queries', async () => {
+    const count = vi.fn().mockResolvedValue(101);
+    const findMany = vi.fn().mockResolvedValue([]);
+    const service = createService({ hostProfile: { count, findMany } });
+
+    await expect(
+      service.listHosts(baseContext, asOf, { page: 2, pageSize: 20, search: 'ZB01' }),
+    ).resolves.toEqual({ items: [], page: 2, pageSize: 20, total: 101 });
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        skip: 20,
+        take: 20,
+        where: {
+          AND: [
+            { siteId: 'site-songjiang' },
+            {
+              OR: [
+                { hostCode: { contains: 'ZB01', mode: 'insensitive' } },
+                { nickname: { contains: 'ZB01', mode: 'insensitive' } },
+                { realName: { contains: 'ZB01', mode: 'insensitive' } },
+              ],
+            },
+          ],
+        },
+      }),
+    );
+    expect(count).toHaveBeenCalledWith({
+      where: {
+        AND: [
+          { siteId: 'site-songjiang' },
+          {
+            OR: [
+              { hostCode: { contains: 'ZB01', mode: 'insensitive' } },
+              { nickname: { contains: 'ZB01', mode: 'insensitive' } },
+              { realName: { contains: 'ZB01', mode: 'insensitive' } },
+            ],
+          },
+        ],
+      },
+    });
   });
 
   it('shows inactive sites only to administrators', async () => {

@@ -7,6 +7,8 @@ import { DatabaseService } from '../database/database.service';
 import type {
   ArtistSummary,
   HostSummary,
+  MasterDataPage,
+  MasterDataPageInput,
   OperatorSummary,
   SiteSummary,
 } from './master-data-query.types';
@@ -25,6 +27,7 @@ const ARTIST_SELECT = {
   id: true,
   initialShiftConfiguredAt: true,
   nickname: true,
+  realName: true,
   siteId: true,
 } satisfies Prisma.ArtistProfileSelect;
 
@@ -65,41 +68,113 @@ export class MasterDataQueryService {
     );
   }
 
-  listHosts(context: VerifiedAuthorizationContext, asOf: Date): Promise<HostSummary[]> {
+  listHosts(
+    context: VerifiedAuthorizationContext,
+    asOf: Date,
+    input: MasterDataPageInput,
+  ): Promise<MasterDataPage<HostSummary>> {
     return this.database.read(async (client) => {
-      const where = this.hostScope(context, asOf);
-      return (await client.hostProfile.findMany({
-        orderBy: [{ siteId: 'asc' }, { hostCode: 'asc' }],
-        select: HOST_SELECT,
-        where,
-      })) as HostSummary[];
+      const scope = this.hostScope(context, asOf);
+      const where: Prisma.HostProfileWhereInput = input.search
+        ? {
+            AND: [
+              scope,
+              {
+                OR: [
+                  { hostCode: { contains: input.search, mode: 'insensitive' } },
+                  { nickname: { contains: input.search, mode: 'insensitive' } },
+                  { realName: { contains: input.search, mode: 'insensitive' } },
+                ],
+              },
+            ],
+          }
+        : scope;
+      const [items, total] = await Promise.all([
+        client.hostProfile.findMany({
+          orderBy: [{ siteId: 'asc' }, { hostCode: 'asc' }],
+          select: HOST_SELECT,
+          skip: (input.page - 1) * input.pageSize,
+          take: input.pageSize,
+          where,
+        }),
+        client.hostProfile.count({ where }),
+      ]);
+
+      return { items: items as HostSummary[], page: input.page, pageSize: input.pageSize, total };
     });
   }
 
-  listArtists(context: VerifiedAuthorizationContext): Promise<ArtistSummary[]> {
+  listArtists(
+    context: VerifiedAuthorizationContext,
+    input: MasterDataPageInput,
+  ): Promise<MasterDataPage<ArtistSummary>> {
     return this.database.read(async (client) => {
-      const where = await this.artistScope(client, context);
-      const artists = await client.artistProfile.findMany({
-        orderBy: [{ siteId: 'asc' }, { nickname: 'asc' }],
-        select: ARTIST_SELECT,
-        where,
-      });
+      const scope = await this.artistScope(client, context);
+      const where: Prisma.ArtistProfileWhereInput = input.search
+        ? {
+            AND: [
+              scope,
+              {
+                OR: [
+                  { nickname: { contains: input.search, mode: 'insensitive' } },
+                  { realName: { contains: input.search, mode: 'insensitive' } },
+                ],
+              },
+            ],
+          }
+        : scope;
+      const [artists, total] = await Promise.all([
+        client.artistProfile.findMany({
+          orderBy: [{ siteId: 'asc' }, { nickname: 'asc' }],
+          select: ARTIST_SELECT,
+          skip: (input.page - 1) * input.pageSize,
+          take: input.pageSize,
+          where,
+        }),
+        client.artistProfile.count({ where }),
+      ]);
 
-      return artists.map(({ initialShiftConfiguredAt, ...artist }) => ({
-        ...artist,
-        initialShiftConfigured: initialShiftConfiguredAt !== null,
-      })) as ArtistSummary[];
+      return {
+        items: artists.map(({ initialShiftConfiguredAt, ...artist }) => ({
+          ...artist,
+          initialShiftConfigured: initialShiftConfiguredAt !== null,
+        })) as ArtistSummary[],
+        page: input.page,
+        pageSize: input.pageSize,
+        total,
+      };
     });
   }
 
-  listOperators(context: VerifiedAuthorizationContext, asOf: Date): Promise<OperatorSummary[]> {
+  listOperators(
+    context: VerifiedAuthorizationContext,
+    asOf: Date,
+    input: MasterDataPageInput,
+  ): Promise<MasterDataPage<OperatorSummary>> {
     return this.database.read(async (client) => {
-      const where = this.operatorScope(context, asOf);
-      return (await client.operatorProfile.findMany({
-        orderBy: [{ siteId: 'asc' }, { realName: 'asc' }],
-        select: OPERATOR_SELECT,
-        where,
-      })) as OperatorSummary[];
+      const scope = this.operatorScope(context, asOf);
+      const where: Prisma.OperatorProfileWhereInput = input.search
+        ? {
+            AND: [scope, { realName: { contains: input.search, mode: 'insensitive' } }],
+          }
+        : scope;
+      const [items, total] = await Promise.all([
+        client.operatorProfile.findMany({
+          orderBy: [{ siteId: 'asc' }, { realName: 'asc' }],
+          select: OPERATOR_SELECT,
+          skip: (input.page - 1) * input.pageSize,
+          take: input.pageSize,
+          where,
+        }),
+        client.operatorProfile.count({ where }),
+      ]);
+
+      return {
+        items: items as OperatorSummary[],
+        page: input.page,
+        pageSize: input.pageSize,
+        total,
+      };
     });
   }
 

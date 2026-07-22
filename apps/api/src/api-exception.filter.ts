@@ -14,6 +14,7 @@ import {
   RateLimitUnavailableError,
 } from './auth/auth-rate-limit.errors';
 import { AuthSessionInvalidError, AuthConfigurationError } from './auth/auth-session.errors';
+import { AuthorizationDeniedError } from './auth/authorization-policy.service';
 import { BindingCodeInvalidError } from './auth/binding-code.errors';
 import {
   AccountLoginDeniedError,
@@ -21,6 +22,7 @@ import {
   WechatLoginConfigurationError,
   WechatLoginFailedError,
 } from './auth/wechat-login.errors';
+import { MasterDataRequestInvalidError } from './master-data/master-data-request.parser';
 
 interface ErrorResponse {
   readonly error: {
@@ -58,8 +60,15 @@ export class ApiExceptionFilter implements ExceptionFilter {
       );
     }
 
-    if (exception instanceof AuthRequestInvalidError) {
+    if (
+      exception instanceof AuthRequestInvalidError ||
+      exception instanceof MasterDataRequestInvalidError
+    ) {
       return this.response(HttpStatus.BAD_REQUEST, exception.code, '请求内容不正确');
+    }
+
+    if (exception instanceof AuthorizationDeniedError) {
+      return this.response(HttpStatus.FORBIDDEN, exception.code, '无权执行该操作');
     }
 
     if (

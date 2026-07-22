@@ -36,7 +36,17 @@ test('后台登录对不存在的账号返回统一错误且事务锁可以正�
   });
 });
 
-test('OpenAPI 契约包含完整认证路径和访问令牌方案', async ({ request }) => {
+test('主数据接口默认拒绝未登录请求', async ({ request }) => {
+  const response = await request.get(`${apiUrl}/master-data/sites`);
+
+  expect(response.status()).toBe(401);
+  await expect(response.json()).resolves.toEqual({
+    error: { code: 'AUTH_SESSION_INVALID', message: '登录状态无效或账号不可用' },
+    statusCode: 401,
+  });
+});
+
+test('OpenAPI 契约包含认证、主数据路径和分页查询参数', async ({ request }) => {
   const response = await request.get(`${apiUrl}/openapi.json`);
 
   expect(response.ok()).toBe(true);
@@ -55,7 +65,19 @@ test('OpenAPI 契约包含完整认证路径和访问令牌方案', async ({ req
       '/auth/me',
       '/auth/logout',
       '/auth/logout-all',
+      '/master-data/sites',
+      '/master-data/hosts',
+      '/master-data/artists',
+      '/master-data/operators',
     ]),
   );
   expect(document.components?.securitySchemes).toHaveProperty('access-token');
+  const hostOperation = document.paths?.['/master-data/hosts'] as
+    { get?: { parameters?: { name?: string }[] } } | undefined;
+  expect(hostOperation?.get?.parameters?.map(({ name }) => name)).toEqual([
+    'page',
+    'pageSize',
+    'search',
+    'asOf',
+  ]);
 });

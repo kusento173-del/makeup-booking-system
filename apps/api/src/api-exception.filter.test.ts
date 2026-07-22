@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { ApiExceptionFilter } from './api-exception.filter';
 import { AuthSessionInvalidError } from './auth/auth-session.errors';
+import { AuthorizationDeniedError } from './auth/authorization-policy.service';
 
 function createHost() {
   const send = vi.fn();
@@ -37,6 +38,18 @@ describe('ApiExceptionFilter', () => {
     expect(send).toHaveBeenCalledWith({
       error: { code: 'INTERNAL_ERROR', message: '服务暂时异常' },
       statusCode: 500,
+    });
+  });
+
+  it('maps authorization denials to a stable forbidden response', () => {
+    const { host, response, send } = createHost();
+
+    new ApiExceptionFilter().catch(new AuthorizationDeniedError(), host);
+
+    expect(response.status).toHaveBeenCalledWith(403);
+    expect(send).toHaveBeenCalledWith({
+      error: { code: 'AUTHORIZATION_DENIED', message: '无权执行该操作' },
+      statusCode: 403,
     });
   });
 });
