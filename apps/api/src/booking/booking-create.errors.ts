@@ -95,3 +95,11 @@ export class BookingCancellationReasonInvalidError extends Error {
     this.name = 'BookingCancellationReasonInvalidError';
   }
 }
+
+export class BookingCreationReasonInvalidError extends Error {
+  readonly code = 'BOOKING_CREATION_REASON_INVALID';
+  constructor() {
+    super('Creation reason is invalid');
+    this.name = 'BookingCreationReasonInvalidError';
+  }
+}

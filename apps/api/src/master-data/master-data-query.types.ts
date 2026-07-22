@@ -63,6 +63,7 @@ export interface MasterDataPageInput {
   readonly page: number;
   readonly pageSize: number;
   readonly search?: string;
+  readonly siteId?: string;
 }
 
 export interface MasterDataPage<T> {

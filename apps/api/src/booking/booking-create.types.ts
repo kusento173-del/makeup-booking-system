@@ -15,6 +15,7 @@ export interface CreateBookingCommand {
   readonly durationMinutes: number;
   readonly hostId: string;
   readonly idempotencyKey: string;
+  readonly reason?: string;
   readonly startMinute: number;
 }
 

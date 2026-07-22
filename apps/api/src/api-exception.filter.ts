@@ -34,6 +34,7 @@ import {
   BookingAppointmentNotFoundError,
   BookingCancellationCutoffError,
   BookingCancellationReasonInvalidError,
+  BookingCreationReasonInvalidError,
   BookingDailyLimitReachedError,
   BookingHostUnavailableError,
   BookingIdempotencyConflictError,
@@ -172,6 +173,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
       exception instanceof FixedRequestReviewCommentInvalidError ||
       exception instanceof BookingIdempotencyKeyInvalidError ||
       exception instanceof BookingCancellationReasonInvalidError ||
+      exception instanceof BookingCreationReasonInvalidError ||
       exception instanceof LeaveRequestInvalidError ||
       exception instanceof MasterDataRequestInvalidError ||
       exception instanceof OvertimeRequestInvalidError ||

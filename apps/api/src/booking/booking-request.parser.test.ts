@@ -58,6 +58,22 @@ describe('booking request parser', () => {
     });
   });
 
+  it('preserves a backoffice creation reason for service-level normalization', () => {
+    expect(
+      parseCreateBookingRequest(
+        {
+          artistId,
+          date: '2026-07-23',
+          durationMinutes: 30,
+          hostId,
+          reason: '  主播临时加播  ',
+          startMinute: 570,
+        },
+        'booking-key-0002',
+      ).reason,
+    ).toBe('  主播临时加播  ');
+  });
+
   it('parses a strict fixed-availability query', () => {
     expect(
       parseFixedAvailabilityRequest({

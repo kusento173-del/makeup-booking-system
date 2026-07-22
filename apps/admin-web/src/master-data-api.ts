@@ -107,6 +107,15 @@ export function listManagementItems(
   return apiRequest(`${PATHS[view]}?${query.toString()}`, { token });
 }
 
+export function searchHosts(
+  token: string,
+  search: string,
+  siteId: string,
+): Promise<Page<HostSummary>> {
+  const query = new URLSearchParams({ page: '1', pageSize: '20', search, siteId });
+  return apiRequest(`/master-data/hosts?${query.toString()}`, { token });
+}
+
 export function createManagementItem(
   view: ManagementView,
   token: string,

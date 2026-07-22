@@ -18,6 +18,7 @@ import {
 } from '../shift/business-date';
 import {
   BookingArtistUnavailableError,
+  BookingCreationReasonInvalidError,
   BookingDailyLimitReachedError,
   BookingHostUnavailableError,
   BookingIdempotencyConflictError,
@@ -100,6 +101,7 @@ export interface BookingCreationOptions {
   readonly auditAction?: string;
   readonly eventType?: string;
   readonly excludeFixedRuleId?: string;
+  readonly reason?: string;
   readonly rescheduledFromAppointmentId?: string;
 }
 
@@ -121,7 +123,18 @@ export class BookingCreateService {
     validateBookingDate(command.date, now);
     validateBookingStart(command.startMinute, command.durationMinutes);
     const idempotencyKey = this.normalizeIdempotencyKey(command.idempotencyKey);
-    const requestHash = this.requestHash(command);
+    const reason = this.creationReason(context, command.reason);
+    const normalizedCommand: CreateBookingCommand = {
+      artistId: command.artistId,
+      confirmedSecondBooking: command.confirmedSecondBooking,
+      date: command.date,
+      durationMinutes: command.durationMinutes,
+      hostId: command.hostId,
+      idempotencyKey: command.idempotencyKey,
+      ...(reason ? { reason } : {}),
+      startMinute: command.startMinute,
+    };
+    const requestHash = this.requestHash(normalizedCommand);
 
     return this.database
       .transaction(async (transaction) => {
@@ -135,7 +148,9 @@ export class BookingCreateService {
           now,
         );
         if (replay) return { appointment: replay, replayed: true };
-        const summary = await this.createFresh(transaction, context, command);
+        const summary = await this.createFresh(transaction, context, normalizedCommand, {
+          ...(reason ? { reason } : {}),
+        });
         await this.completeIdempotency(
           transaction,
           context.userId,
@@ -295,6 +310,7 @@ export class BookingCreateService {
           date: formatDateOnly(command.date),
           durationMinutes: command.durationMinutes,
           hostId: command.hostId,
+          ...(command.reason ? { reason: command.reason } : {}),
           startMinute: command.startMinute,
         }),
       )
@@ -453,6 +469,7 @@ export class BookingCreateService {
       },
       objectId: appointment.id,
       objectType: 'APPOINTMENT',
+      ...(options.reason ? { reason: options.reason } : {}),
       siteId: appointment.siteId,
     });
     await transaction.outboxEvent.create({
@@ -469,6 +486,20 @@ export class BookingCreateService {
         },
       },
     });
+  }
+
+  private creationReason(
+    context: BookingCommandContext,
+    value: string | undefined,
+  ): string | undefined {
+    const result = value?.normalize('NFKC').trim();
+    if (
+      (result && result.length > 500) ||
+      (['CUSTOMER_SERVICE', 'ADMIN'].includes(context.roleCode) && !result)
+    ) {
+      throw new BookingCreationReasonInvalidError();
+    }
+    return result || undefined;
   }
 
   async completeIdempotency(

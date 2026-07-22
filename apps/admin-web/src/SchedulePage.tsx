@@ -4,6 +4,7 @@ import { ApiError } from './api-client';
 import type { SessionTokenPair } from './auth-session';
 import { addBusinessDays, businessDateLabel, currentBusinessDate } from './business-date';
 import { CancelBookingDialog } from './CancelBookingDialog';
+import { CreateBookingDialog } from './CreateBookingDialog';
 import { listSites, type SiteSummary } from './master-data-api';
 import { RescheduleBookingDialog } from './RescheduleBookingDialog';
 import { ScheduleDetailDrawer } from './ScheduleDetailDrawer';
@@ -77,6 +78,7 @@ export function SchedulePage({ onUnauthorized, session }: SchedulePageProps) {
     readonly artist: ScheduleArtist;
     readonly type: 'CANCEL' | 'RESCHEDULE';
   } | null>(null);
+  const [createBookingOpen, setCreateBookingOpen] = useState(false);
 
   const visibleArtists = useMemo(
     () =>
@@ -192,6 +194,14 @@ export function SchedulePage({ onUnauthorized, session }: SchedulePageProps) {
             type="button"
           >
             刷新
+          </button>
+          <button
+            className="primary-button schedule-create"
+            disabled={!board || loading}
+            onClick={() => setCreateBookingOpen(true)}
+            type="button"
+          >
+            代录预约
           </button>
         </div>
       </header>
@@ -419,6 +429,24 @@ export function SchedulePage({ onUnauthorized, session }: SchedulePageProps) {
             setReloadVersion((value) => value + 1);
           }}
           onUnauthorized={onUnauthorized}
+          token={session.accessToken}
+        />
+      ) : null}
+      {createBookingOpen && board ? (
+        <CreateBookingDialog
+          artists={board.artists}
+          initialDate={board.date > today ? board.date : addBusinessDays(today, 1)}
+          maxDate={addBusinessDays(today, 7)}
+          minDate={addBusinessDays(today, 1)}
+          onClose={() => setCreateBookingOpen(false)}
+          onSuccess={(bookingDate) => {
+            setCreateBookingOpen(false);
+            setDate(bookingDate);
+            setReloadVersion((value) => value + 1);
+          }}
+          onUnauthorized={onUnauthorized}
+          siteId={board.siteId}
+          siteName={board.siteName}
           token={session.accessToken}
         />
       ) : null}

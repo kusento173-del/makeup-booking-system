@@ -43,6 +43,7 @@ import {
   CreateOperatorRequestDto,
   CreateSiteRequestDto,
   DatedMasterDataListQueryDto,
+  DatedSiteFilteredMasterDataListQueryDto,
   EndOperatorAssignmentRequestDto,
   HostPageDto,
   HostOperatorRelationPageDto,
@@ -272,13 +273,16 @@ export class MasterDataController {
 
   @Get('hosts')
   @ApiOperation({ summary: '分页查询当前角色可见主播' })
-  @ApiQuery({ type: DatedMasterDataListQueryDto })
+  @ApiQuery({ type: DatedSiteFilteredMasterDataListQueryDto })
   @ApiOkResponse({ type: HostPageDto })
   listHosts(
     @CurrentAuth() authorization: AccessTokenClaims,
     @Query() query: unknown,
   ): Promise<MasterDataPage<HostSummary>> {
-    const request = parseMasterDataListRequest(query, { includeAsOf: true });
+    const request = parseMasterDataListRequest(query, {
+      includeAsOf: true,
+      includeSiteId: true,
+    });
     return this.queries.listHosts(authorization, request.asOf, request.page);
   }
 

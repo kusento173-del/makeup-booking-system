@@ -32,6 +32,17 @@ describe('master-data request parser', () => {
     ).toEqual(new Date('2026-07-22T00:00:00.000Z'));
   });
 
+  it('accepts a site filter only for endpoints that explicitly narrow by site', () => {
+    const siteId = '019f7a17-6845-7a90-94cb-e5f5caabd5f6';
+    expect(
+      parseMasterDataListRequest(
+        { siteId: siteId.toUpperCase() },
+        { includeAsOf: true, includeSiteId: true },
+      ).page.siteId,
+    ).toBe(siteId);
+    expect(() => parseMasterDataListRequest({ siteId })).toThrow(MasterDataRequestInvalidError);
+  });
+
   it('rejects impossible dates, oversized pages and unknown fields', () => {
     expect(() => parseMasterDataListRequest({ asOf: '2026-02-30' }, { includeAsOf: true })).toThrow(
       MasterDataRequestInvalidError,

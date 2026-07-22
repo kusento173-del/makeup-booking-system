@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { listManagementItems, updateManagementItem } from './master-data-api';
+import { listManagementItems, searchHosts, updateManagementItem } from './master-data-api';
 
 describe('master-data API client', () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -37,5 +37,21 @@ describe('master-data API client', () => {
       expectedRowVersion: 3,
       reason: '更正场地',
     });
+  });
+
+  it('narrows backoffice host search to the current schedule site', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ items: [], page: 1, pageSize: 20, total: 0 }), {
+        headers: { 'Content-Type': 'application/json' },
+        status: 200,
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await searchHosts('access-token', 'ZB01001', 'site-songjiang');
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      '/api/master-data/hosts?page=1&pageSize=20&search=ZB01001&siteId=site-songjiang',
+    );
   });
 });

@@ -261,12 +261,16 @@ export function parseCreateBookingRequest(
     'date',
     'durationMinutes',
     'hostId',
+    'reason',
     'startMinute',
   ]);
   if (
     input.confirmedSecondBooking !== undefined &&
     typeof input.confirmedSecondBooking !== 'boolean'
   ) {
+    throw new BookingRequestInvalidError();
+  }
+  if (input.reason !== undefined && typeof input.reason !== 'string') {
     throw new BookingRequestInvalidError();
   }
   return {
@@ -276,6 +280,7 @@ export function parseCreateBookingRequest(
     durationMinutes: integer(input.durationMinutes, false),
     hostId: uuid(input.hostId),
     idempotencyKey: idempotencyKey(idempotencyHeader),
+    ...(input.reason !== undefined ? { reason: input.reason } : {}),
     startMinute: integer(input.startMinute, false),
   };
 }

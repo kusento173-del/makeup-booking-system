@@ -12,6 +12,7 @@ import {
 import type { DatabaseService } from '../database/database.service';
 import {
   BookingArtistUnavailableError,
+  BookingCreationReasonInvalidError,
   BookingDailyLimitReachedError,
   BookingHostUnavailableError,
   BookingIdempotencyConflictError,
@@ -92,6 +93,12 @@ const hostContext: BookingCommandContext = {
   roleCode: 'HOST',
   siteId: 'site-1',
   userId: 'host-user-1',
+};
+const customerServiceContext: BookingCommandContext = {
+  ...hostContext,
+  actorName: '松江客服',
+  roleCode: 'CUSTOMER_SERVICE',
+  userId: 'customer-service-1',
 };
 
 function requestHash(confirmedSecondBooking = false): string {
@@ -191,6 +198,21 @@ describe('BookingCreateService', () => {
     expect(transaction.idempotencyRecord.updateMany.mock.calls[0]?.[0]).toMatchObject({
       data: { responseStatus: 201 },
     });
+  });
+
+  it('requires and audits a normalized reason for customer-service creation', async () => {
+    expect(() => createService().service.create(customerServiceContext, command, now)).toThrow(
+      BookingCreationReasonInvalidError,
+    );
+
+    const { audit, service, transaction } = createService();
+    await service.create(customerServiceContext, { ...command, reason: '  主播临时加播  ' }, now);
+
+    expect(audit.append).toHaveBeenCalledWith(
+      transaction,
+      customerServiceContext,
+      expect.objectContaining({ reason: '主播临时加播' }),
+    );
   });
 
   it('requires an explicit warning confirmation for the second booking, then uses sequence two', async () => {
@@ -297,7 +319,7 @@ describe('BookingCreateService', () => {
     await expect(
       createService().service.create(
         { ...hostContext, roleCode: 'CUSTOMER_SERVICE', siteId: 'site-2' },
-        command,
+        { ...command, reason: '客服代录' },
         now,
       ),
     ).rejects.toBeInstanceOf(AuthorizationDeniedError);

@@ -136,6 +136,27 @@ describe('MasterDataQueryService', () => {
     });
   });
 
+  it('combines an admin site filter with the role scope instead of replacing it', async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+    const service = createService({
+      hostProfile: { count: vi.fn().mockResolvedValue(0), findMany },
+    });
+    const admin = { ...baseContext, roleCode: 'ADMIN', siteId: null } as const;
+
+    await service.listHosts(admin, asOf, {
+      page: 1,
+      pageSize: 20,
+      search: '小雨',
+      siteId: 'site-songjiang',
+    });
+
+    const query = findMany.mock.calls[0]?.[0] as {
+      where: { AND: readonly object[] };
+    };
+    expect(query.where.AND[0]).toEqual({});
+    expect(query.where.AND[1]).toEqual({ siteId: 'site-songjiang' });
+  });
+
   it('exposes only a binding flag instead of a host account identifier', async () => {
     const service = createService({
       hostProfile: {

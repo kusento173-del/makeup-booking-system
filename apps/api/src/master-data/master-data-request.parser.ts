@@ -238,12 +238,16 @@ function dateOnly(value: unknown, now: Date): Date {
 
 export function parseMasterDataListRequest(
   query: unknown,
-  options: { readonly includeAsOf: boolean; readonly now?: Date } = { includeAsOf: false },
+  options: {
+    readonly includeAsOf: boolean;
+    readonly includeSiteId?: boolean;
+    readonly now?: Date;
+  } = { includeAsOf: false },
 ): MasterDataListRequest {
   const value = record(query);
-  const allowedKeys = options.includeAsOf
-    ? new Set(['asOf', 'page', 'pageSize', 'search'])
-    : new Set(['page', 'pageSize', 'search']);
+  const allowedKeys = new Set(['page', 'pageSize', 'search']);
+  if (options.includeAsOf) allowedKeys.add('asOf');
+  if (options.includeSiteId) allowedKeys.add('siteId');
 
   if (Object.keys(value).some((key) => !allowedKeys.has(key))) {
     throw new MasterDataRequestInvalidError();
@@ -256,6 +260,9 @@ export function parseMasterDataListRequest(
       page: positiveInteger(value['page'], 1, 100_000),
       pageSize: positiveInteger(value['pageSize'], 50, 100),
       ...(search ? { search } : {}),
+      ...(options.includeSiteId && value['siteId'] !== undefined
+        ? { siteId: uuidText(value['siteId']) }
+        : {}),
     },
   };
 }

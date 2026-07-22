@@ -90,20 +90,18 @@ export class MasterDataQueryService {
   ): Promise<MasterDataPage<HostSummary>> {
     return this.database.read(async (client) => {
       const scope = this.hostScope(context, asOf);
-      const where: Prisma.HostProfileWhereInput = input.search
-        ? {
-            AND: [
-              scope,
-              {
-                OR: [
-                  { hostCode: { contains: input.search, mode: 'insensitive' } },
-                  { nickname: { contains: input.search, mode: 'insensitive' } },
-                  { realName: { contains: input.search, mode: 'insensitive' } },
-                ],
-              },
-            ],
-          }
-        : scope;
+      const filters: Prisma.HostProfileWhereInput[] = [scope];
+      if (input.siteId) filters.push({ siteId: input.siteId });
+      if (input.search) {
+        filters.push({
+          OR: [
+            { hostCode: { contains: input.search, mode: 'insensitive' } },
+            { nickname: { contains: input.search, mode: 'insensitive' } },
+            { realName: { contains: input.search, mode: 'insensitive' } },
+          ],
+        });
+      }
+      const where: Prisma.HostProfileWhereInput = filters.length === 1 ? scope : { AND: filters };
       const [items, total] = await Promise.all([
         client.hostProfile.findMany({
           orderBy: [{ siteId: 'asc' }, { hostCode: 'asc' }],

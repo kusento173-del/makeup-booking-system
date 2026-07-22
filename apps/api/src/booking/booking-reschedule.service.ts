@@ -134,6 +134,7 @@ export class BookingRescheduleService {
             auditAction: 'APPOINTMENT_CREATED_BY_RESCHEDULE',
             eventType: 'APPOINTMENT_RESCHEDULED_TO',
             ...(original.fixedRuleId ? { excludeFixedRuleId: original.fixedRuleId } : {}),
+            ...(reason ? { reason } : {}),
             rescheduledFromAppointmentId: original.id,
           },
         );

@@ -425,6 +425,9 @@ export class CreateBookingRequestDto {
   @ApiProperty({ format: 'uuid' })
   hostId!: string;
 
+  @ApiPropertyOptional({ description: '客服或管理员代录时必填', maxLength: 500 })
+  reason?: string;
+
   @ApiProperty({ maximum: 1425, minimum: 0, multipleOf: 15 })
   startMinute!: number;
 }

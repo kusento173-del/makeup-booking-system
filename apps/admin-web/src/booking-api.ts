@@ -78,3 +78,24 @@ export function rescheduleBooking(
     token,
   });
 }
+
+export function createBooking(
+  token: string,
+  input: {
+    readonly artistId: string;
+    readonly confirmedSecondBooking: boolean;
+    readonly date: string;
+    readonly durationMinutes: BookingDuration;
+    readonly hostId: string;
+    readonly reason: string;
+    readonly startMinute: number;
+  },
+  idempotencyKey: string,
+): Promise<BookingMutationResult> {
+  return apiRequest('/appointments', {
+    body: input,
+    headers: { 'Idempotency-Key': idempotencyKey },
+    method: 'POST',
+    token,
+  });
+}

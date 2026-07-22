@@ -22,6 +22,11 @@ export class DatedMasterDataListQueryDto extends MasterDataListQueryDto {
   asOf?: string;
 }
 
+export class DatedSiteFilteredMasterDataListQueryDto extends DatedMasterDataListQueryDto {
+  @ApiPropertyOptional({ description: '仅在当前角色可见范围内按场地收窄', format: 'uuid' })
+  siteId?: string;
+}
+
 export class CreatedMasterDataDto {
   @ApiProperty({ format: 'uuid' })
   id!: string;

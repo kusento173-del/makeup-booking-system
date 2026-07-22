@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { cancelBooking, getBookingSlots, rescheduleBooking } from './booking-api';
+import { cancelBooking, createBooking, getBookingSlots, rescheduleBooking } from './booking-api';
 
 describe('booking API client', () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -66,5 +66,33 @@ describe('booking API client', () => {
 
     const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect((init.headers as Record<string, string>)['Idempotency-Key']).toBe('reschedule-key-1');
+  });
+
+  it('creates a backoffice booking with a reason and idempotency key', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ appointment: { id: 'appointment-1' }, replayed: false }), {
+        headers: { 'Content-Type': 'application/json' },
+        status: 201,
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await createBooking(
+      'token',
+      {
+        artistId: 'artist-1',
+        confirmedSecondBooking: true,
+        date: '2026-07-23',
+        durationMinutes: 30,
+        hostId: 'host-1',
+        reason: '主播临时加播',
+        startMinute: 570,
+      },
+      'create-key-1',
+    );
+
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect((init.headers as Record<string, string>)['Idempotency-Key']).toBe('create-key-1');
+    expect(JSON.parse(init.body as string)).toMatchObject({ reason: '主播临时加播' });
   });
 });

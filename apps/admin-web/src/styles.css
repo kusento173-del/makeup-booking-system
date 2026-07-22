@@ -620,6 +620,12 @@ tbody tr:hover {
   height: 40px;
 }
 
+.schedule-create {
+  height: 40px;
+  margin: 0;
+  padding: 0 16px;
+}
+
 .date-strip {
   display: grid;
   grid-template-columns: repeat(8, minmax(86px, 1fr));
@@ -977,6 +983,52 @@ tbody tr:hover {
   gap: 12px;
 }
 
+.booking-host-search {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.booking-host-search .secondary-button {
+  height: 46px;
+}
+
+.booking-host-results {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  max-height: 150px;
+  padding: 8px;
+  overflow-y: auto;
+  border: 1px solid #d5dde4;
+  border-radius: 7px;
+  background: #f7f9fa;
+}
+
+.booking-host-results button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid #c9d3da;
+  border-radius: 6px;
+  background: #fff;
+  color: #263744;
+  cursor: pointer;
+}
+
+.booking-host-results button[aria-selected='true'] {
+  border-color: #255d76;
+  box-shadow: 0 0 0 2px rgb(37 93 118 / 14%);
+}
+
+.booking-host-results span {
+  color: #657480;
+  font-size: 13px;
+}
+
 .booking-form-grid label {
   display: grid;
   gap: 7px;
@@ -1058,6 +1110,10 @@ tbody tr:hover {
 
   .booking-slot-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .booking-host-results {
+    grid-template-columns: 1fr;
   }
 }
 
