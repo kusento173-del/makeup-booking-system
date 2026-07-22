@@ -12,6 +12,7 @@ import { AuthRateLimitService } from './auth-rate-limit.service';
 import { AuthSessionService } from './auth-session.service';
 import { AuthorizationPolicyService } from './authorization-policy.service';
 import { BackofficeLoginService } from './backoffice-login.service';
+import { BackofficePasswordService } from './backoffice-password.service';
 import { BindingChallengeService } from './binding-challenge.service';
 import { BindingCodeHasherService } from './binding-code-hasher.service';
 import { BindingCodeIssuerService } from './binding-code-issuer.service';
@@ -35,6 +36,7 @@ import { WechatMiniProgramAdapter } from './wechat-mini-program.adapter';
     AuthSessionService,
     AuthorizationPolicyService,
     BackofficeLoginService,
+    BackofficePasswordService,
     BindingChallengeService,
     BindingCodeHasherService,
     BindingCodeIssuerService,
@@ -54,6 +56,7 @@ import { WechatMiniProgramAdapter } from './wechat-mini-program.adapter';
     AuthSessionService,
     AuthorizationPolicyService,
     BackofficeLoginService,
+    BackofficePasswordService,
     BindingChallengeService,
     BindingCodeHasherService,
     BindingCodeIssuerService,

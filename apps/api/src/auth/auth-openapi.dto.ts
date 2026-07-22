@@ -15,6 +15,14 @@ export class BackofficeLoginRequestDto {
   password!: string;
 }
 
+export class BackofficePasswordChangeRequestDto {
+  @ApiProperty({ maxLength: 128 })
+  currentPassword!: string;
+
+  @ApiProperty({ maxLength: 128, minLength: 12 })
+  newPassword!: string;
+}
+
 export class RefreshSessionRequestDto {
   @ApiProperty({ description: '上一次登录或刷新返回的刷新令牌', maxLength: 256 })
   refreshToken!: string;

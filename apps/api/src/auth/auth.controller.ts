@@ -20,6 +20,7 @@ import {
   ApiErrorResponseDto,
   AuthFlowResponseDto,
   BackofficeLoginRequestDto,
+  BackofficePasswordChangeRequestDto,
   BindWechatAccountRequestDto,
   RefreshSessionRequestDto,
   SelectRoleRequestDto,
@@ -30,6 +31,7 @@ import { AuthRateLimitService } from './auth-rate-limit.service';
 import {
   parseAccountBindingRequest,
   parseBackofficeLoginRequest,
+  parseBackofficePasswordChangeRequest,
   parseRefreshRequest,
   parseRoleSelectionRequest,
   parseWechatLoginRequest,
@@ -38,6 +40,7 @@ import { AuthSessionService } from './auth-session.service';
 import type { AccessTokenClaims, SessionTokenPair } from './auth-session.types';
 import { CurrentAuth } from './current-auth.decorator';
 import { BackofficeLoginService } from './backoffice-login.service';
+import { BackofficePasswordService } from './backoffice-password.service';
 
 @ApiTags('认证')
 @ApiBadRequestResponse({ type: ApiErrorResponseDto })
@@ -47,10 +50,44 @@ import { BackofficeLoginService } from './backoffice-login.service';
 export class AuthController {
   constructor(
     private readonly backofficeLogin: BackofficeLoginService,
+    private readonly backofficePasswords: BackofficePasswordService,
     private readonly flow: AuthFlowService,
     private readonly rateLimits: AuthRateLimitService,
     private readonly sessions: AuthSessionService,
   ) {}
+
+  @Post('backoffice/password')
+  @HttpCode(204)
+  @UseGuards(AccessTokenGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: '客服或管理员修改自己的登录密码' })
+  @ApiBody({ type: BackofficePasswordChangeRequestDto })
+  @ApiNoContentResponse({ description: '密码修改成功，当前账号全部会话已注销' })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  async changeBackofficePassword(
+    @Body() body: unknown,
+    @CurrentAuth() authorization: AccessTokenClaims,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent?: string,
+    @Headers('x-request-id') requestId?: string,
+  ): Promise<void> {
+    const request = parseBackofficePasswordChangeRequest(body);
+    await this.rateLimits.assertAllowed(
+      'backoffice-password-user',
+      authorization.userId,
+      5,
+      15 * 60,
+    );
+    await this.backofficePasswords.change({
+      authorization,
+      clientType: 'ADMIN_WEB',
+      currentPassword: request.currentPassword,
+      ipAddress,
+      newPassword: request.newPassword,
+      ...(requestId ? { requestId } : {}),
+      ...(userAgent ? { userAgent } : {}),
+    });
+  }
 
   @Post('backoffice/login')
   @HttpCode(200)

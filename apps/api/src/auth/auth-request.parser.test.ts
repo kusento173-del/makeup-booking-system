@@ -4,6 +4,7 @@ import {
   AuthRequestInvalidError,
   parseAccountBindingRequest,
   parseBackofficeLoginRequest,
+  parseBackofficePasswordChangeRequest,
   parseRefreshRequest,
   parseRoleSelectionRequest,
   parseWechatLoginRequest,
@@ -18,6 +19,22 @@ describe('auth request parsers', () => {
     expect(
       parseBackofficeLoginRequest({ loginName: ' Admin.User ', password: '  pass phrase  ' }),
     ).toEqual({ loginName: 'Admin.User', password: '  pass phrase  ' });
+  });
+
+  it('accepts only the two password-change fields and preserves both values', () => {
+    expect(
+      parseBackofficePasswordChangeRequest({
+        currentPassword: ' current password ',
+        newPassword: ' next password ',
+      }),
+    ).toEqual({ currentPassword: ' current password ', newPassword: ' next password ' });
+    expect(() =>
+      parseBackofficePasswordChangeRequest({
+        currentPassword: 'current password',
+        newPassword: 'next password',
+        userId: 'forged-user',
+      }),
+    ).toThrow(AuthRequestInvalidError);
   });
 
   it('rejects unknown fields and malformed refresh requests', () => {
