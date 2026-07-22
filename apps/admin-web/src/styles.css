@@ -852,6 +852,79 @@ tbody tr:hover {
   margin: 0 0 14px;
 }
 
+.export-main {
+  max-width: 1500px;
+}
+
+.export-create-card {
+  display: flex;
+  align-items: end;
+  gap: 14px;
+  margin-bottom: 18px;
+  padding: 18px;
+  border: 1px solid #d7dee4;
+  border-radius: 9px;
+  background: #fff;
+}
+
+.export-create-card .primary-action {
+  margin-left: auto;
+}
+
+.export-scope-note {
+  min-width: 150px;
+  display: grid;
+  gap: 7px;
+  padding-bottom: 9px;
+}
+
+.export-scope-note span {
+  color: #5b6a78;
+  font-size: 14px;
+}
+
+.export-error {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid #efc7c2;
+  border-radius: 6px;
+  background: #fff7f6;
+  color: #a52a20;
+  font-size: 15px;
+}
+
+.export-status {
+  display: inline-block;
+  padding: 4px 9px;
+  border-radius: 12px;
+  background: #edf1f3;
+  color: #425563;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.export-status.succeeded {
+  background: #e5f3ed;
+  color: #27644f;
+}
+
+.export-status.failed {
+  background: #fbe9e7;
+  color: #a52a20;
+}
+
+.export-status.processing {
+  background: #e7f0f5;
+  color: #285e78;
+}
+
+.export-failure {
+  max-width: 280px;
+  overflow: hidden;
+  color: #a52a20;
+  text-overflow: ellipsis;
+}
+
 @media (max-width: 560px) {
   .login-card {
     padding: 28px 22px;
@@ -904,6 +977,15 @@ tbody tr:hover {
 
   .schedule-header {
     display: grid;
+  }
+
+  .export-create-card {
+    display: grid;
+  }
+
+  .export-create-card .primary-action {
+    width: 100%;
+    margin-left: 0;
   }
 
   .schedule-filters {
