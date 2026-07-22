@@ -7,6 +7,7 @@ import { DatabaseService } from '../database/database.service';
 import type {
   ArtistSummary,
   HostSummary,
+  HostOperatorRelationSummary,
   MasterDataPage,
   MasterDataPageInput,
   OperatorSummary,
@@ -188,6 +189,69 @@ export class MasterDataQueryService {
     });
   }
 
+  listHostOperatorRelations(
+    context: VerifiedAuthorizationContext,
+    input: MasterDataPageInput,
+  ): Promise<MasterDataPage<HostOperatorRelationSummary>> {
+    return this.database.read(async (client) => {
+      const scope = this.relationScope(context);
+      const where: Prisma.HostOperatorRelationWhereInput = input.search
+        ? {
+            AND: [
+              scope,
+              {
+                OR: [
+                  { host: { hostCode: { contains: input.search, mode: 'insensitive' } } },
+                  { host: { nickname: { contains: input.search, mode: 'insensitive' } } },
+                  { host: { realName: { contains: input.search, mode: 'insensitive' } } },
+                  { operator: { realName: { contains: input.search, mode: 'insensitive' } } },
+                ],
+              },
+            ],
+          }
+        : scope;
+      const [relations, total] = await Promise.all([
+        client.hostOperatorRelation.findMany({
+          orderBy: [{ validFrom: 'desc' }, { createdAt: 'desc' }],
+          select: {
+            changeReason: true,
+            host: {
+              select: { hostCode: true, id: true, nickname: true, realName: true, siteId: true },
+            },
+            id: true,
+            operator: { select: { id: true, realName: true } },
+            rowVersion: true,
+            validFrom: true,
+            validUntil: true,
+          },
+          skip: (input.page - 1) * input.pageSize,
+          take: input.pageSize,
+          where,
+        }),
+        client.hostOperatorRelation.count({ where }),
+      ]);
+
+      return {
+        items: relations.map((relation) => ({
+          changeReason: relation.changeReason,
+          hostCode: relation.host.hostCode,
+          hostId: relation.host.id,
+          hostName: relation.host.nickname ?? relation.host.realName,
+          id: relation.id,
+          operatorId: relation.operator.id,
+          operatorName: relation.operator.realName,
+          rowVersion: relation.rowVersion,
+          siteId: relation.host.siteId,
+          validFrom: relation.validFrom.toISOString().slice(0, 10),
+          validUntil: relation.validUntil?.toISOString().slice(0, 10) ?? null,
+        })),
+        page: input.page,
+        pageSize: input.pageSize,
+        total,
+      };
+    });
+  }
+
   private hostScope(
     context: VerifiedAuthorizationContext,
     asOf: Date,
@@ -252,6 +316,21 @@ export class MasterDataQueryService {
           },
         };
       case 'ARTIST':
+        throw new AuthorizationDeniedError();
+    }
+  }
+
+  private relationScope(
+    context: VerifiedAuthorizationContext,
+  ): Prisma.HostOperatorRelationWhereInput {
+    switch (context.roleCode) {
+      case 'ADMIN':
+        return {};
+      case 'CUSTOMER_SERVICE':
+        return { host: { siteId: requireSiteId(context.siteId) } };
+      case 'ARTIST':
+      case 'HOST':
+      case 'OPERATOR':
         throw new AuthorizationDeniedError();
     }
   }

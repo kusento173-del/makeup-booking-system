@@ -91,6 +91,72 @@ export class AssignOperatorRequestDto {
   validUntil?: string;
 }
 
+class UpdateMasterDataRequestDto {
+  @ApiProperty({ minimum: 1, type: Number })
+  expectedRowVersion!: number;
+
+  @ApiProperty({ maxLength: 500 })
+  reason!: string;
+}
+
+export class UpdateSiteRequestDto extends UpdateMasterDataRequestDto {
+  @ApiProperty({ maxLength: 64 })
+  name!: string;
+
+  @ApiProperty({ type: Number })
+  sortOrder!: number;
+
+  @ApiProperty({ enum: SITE_STATUSES })
+  status!: string;
+
+  @ApiProperty({ maxLength: 64 })
+  timezone!: string;
+}
+
+export class UpdateHostRequestDto extends UpdateMasterDataRequestDto {
+  @ApiPropertyOptional({ maxLength: 64, nullable: true })
+  nickname?: string | null;
+
+  @ApiProperty({ enum: HOST_QUALIFICATION_STATUSES })
+  qualificationStatus!: string;
+
+  @ApiProperty({ maxLength: 64 })
+  realName!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  siteId!: string;
+}
+
+export class UpdateArtistRequestDto extends UpdateMasterDataRequestDto {
+  @ApiProperty({ enum: EMPLOYMENT_STATUSES })
+  employmentStatus!: string;
+
+  @ApiProperty({ maxLength: 64 })
+  nickname!: string;
+
+  @ApiProperty({ maxLength: 64 })
+  realName!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  siteId!: string;
+}
+
+export class UpdateOperatorRequestDto extends UpdateMasterDataRequestDto {
+  @ApiProperty({ enum: EMPLOYMENT_STATUSES })
+  employmentStatus!: string;
+
+  @ApiProperty({ maxLength: 64 })
+  realName!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  siteId!: string;
+}
+
+export class EndOperatorAssignmentRequestDto extends UpdateMasterDataRequestDto {
+  @ApiProperty({ format: 'date' })
+  validUntil!: string;
+}
+
 export class SiteSummaryDto {
   @ApiProperty()
   code!: string;
@@ -198,4 +264,44 @@ export class ArtistPageDto extends PageMetadataDto {
 export class OperatorPageDto extends PageMetadataDto {
   @ApiProperty({ type: [OperatorSummaryDto] })
   items!: OperatorSummaryDto[];
+}
+
+export class HostOperatorRelationSummaryDto {
+  @ApiPropertyOptional({ nullable: true })
+  changeReason!: string | null;
+
+  @ApiProperty()
+  hostCode!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  hostId!: string;
+
+  @ApiProperty()
+  hostName!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  operatorId!: string;
+
+  @ApiProperty()
+  operatorName!: string;
+
+  @ApiProperty({ minimum: 1 })
+  rowVersion!: number;
+
+  @ApiProperty({ format: 'uuid' })
+  siteId!: string;
+
+  @ApiProperty({ format: 'date' })
+  validFrom!: string;
+
+  @ApiPropertyOptional({ format: 'date', nullable: true })
+  validUntil!: string | null;
+}
+
+export class HostOperatorRelationPageDto extends PageMetadataDto {
+  @ApiProperty({ type: [HostOperatorRelationSummaryDto] })
+  items!: HostOperatorRelationSummaryDto[];
 }

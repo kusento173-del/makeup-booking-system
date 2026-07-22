@@ -6,7 +6,10 @@ import {
   parseAssignOperatorRequest,
   parseCreateHostRequest,
   parseCreateSiteRequest,
+  parseEndOperatorAssignmentRequest,
   parseMasterDataListRequest,
+  parseUpdateHostRequest,
+  parseUpdateSiteRequest,
 } from './master-data-request.parser';
 
 describe('master-data request parser', () => {
@@ -95,6 +98,65 @@ describe('master-data request parser', () => {
         operatorId: '019f7a17-6845-7a90-94cb-e5f5caabd5f7',
         validFrom: '2026-07-23',
         validUntil: '2026-07-23',
+      }),
+    ).toThrow(MasterDataRequestInvalidError);
+  });
+
+  it('strictly parses optimistic-concurrency update requests', () => {
+    expect(
+      parseUpdateHostRequest('019F7A17-6845-7A90-94CB-E5F5CAABD5F6', {
+        expectedRowVersion: 3,
+        nickname: null,
+        qualificationStatus: 'SUSPENDED',
+        realName: ' 主播一 ',
+        reason: ' 暂停资格 ',
+        siteId: '019f7a17-6845-7a90-94cb-e5f5caabd5f7',
+      }),
+    ).toEqual({
+      expectedRowVersion: 3,
+      id: '019f7a17-6845-7a90-94cb-e5f5caabd5f6',
+      qualificationStatus: 'SUSPENDED',
+      realName: '主播一',
+      reason: '暂停资格',
+      siteId: '019f7a17-6845-7a90-94cb-e5f5caabd5f7',
+    });
+    expect(
+      parseEndOperatorAssignmentRequest('019f7a17-6845-7a90-94cb-e5f5caabd5f6', {
+        expectedRowVersion: 2,
+        reason: ' 重新分配 ',
+        validUntil: '2026-08-01',
+      }),
+    ).toEqual({
+      expectedRowVersion: 2,
+      id: '019f7a17-6845-7a90-94cb-e5f5caabd5f6',
+      reason: '重新分配',
+      validUntil: new Date('2026-08-01T00:00:00.000Z'),
+    });
+  });
+
+  it('rejects stale or malformed update input before calling a service', () => {
+    const validSiteUpdate = {
+      expectedRowVersion: 1,
+      name: '松江场地',
+      reason: '调整资料',
+      sortOrder: 1,
+      status: 'ACTIVE',
+      timezone: 'Asia/Shanghai',
+    };
+
+    expect(() => parseUpdateSiteRequest('not-a-uuid', validSiteUpdate)).toThrow(
+      MasterDataRequestInvalidError,
+    );
+    expect(() =>
+      parseUpdateSiteRequest('019f7a17-6845-7a90-94cb-e5f5caabd5f6', {
+        ...validSiteUpdate,
+        expectedRowVersion: 0,
+      }),
+    ).toThrow(MasterDataRequestInvalidError);
+    expect(() =>
+      parseUpdateSiteRequest('019f7a17-6845-7a90-94cb-e5f5caabd5f6', {
+        ...validSiteUpdate,
+        actorName: '伪造操作人',
       }),
     ).toThrow(MasterDataRequestInvalidError);
   });

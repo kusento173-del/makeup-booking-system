@@ -1,10 +1,25 @@
-import { Body, Controller, Get, Headers, Ip, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  HttpCode,
+  HttpStatus,
+  Ip,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
   ApiBody,
   ApiCreatedResponse,
   ApiForbiddenResponse,
+  ApiNoContentResponse,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiQuery,
@@ -28,15 +43,22 @@ import {
   CreateOperatorRequestDto,
   CreateSiteRequestDto,
   DatedMasterDataListQueryDto,
+  EndOperatorAssignmentRequestDto,
   HostPageDto,
+  HostOperatorRelationPageDto,
   MasterDataListQueryDto,
   OperatorPageDto,
   SiteSummaryDto,
+  UpdateArtistRequestDto,
+  UpdateHostRequestDto,
+  UpdateOperatorRequestDto,
+  UpdateSiteRequestDto,
 } from './master-data-openapi.dto';
 import { MasterDataQueryService } from './master-data-query.service';
 import type {
   ArtistSummary,
   HostSummary,
+  HostOperatorRelationSummary,
   MasterDataPage,
   OperatorSummary,
   SiteSummary,
@@ -48,8 +70,14 @@ import {
   parseCreateHostRequest,
   parseCreateOperatorRequest,
   parseCreateSiteRequest,
+  parseEndOperatorAssignmentRequest,
   parseMasterDataListRequest,
+  parseUpdateArtistRequest,
+  parseUpdateHostRequest,
+  parseUpdateOperatorRequest,
+  parseUpdateSiteRequest,
 } from './master-data-request.parser';
+import { MasterDataUpdateService } from './master-data-update.service';
 
 @ApiTags('主数据')
 @ApiBearerAuth('access-token')
@@ -63,6 +91,7 @@ export class MasterDataController {
     private readonly contexts: MasterDataCommandContextService,
     private readonly creates: MasterDataCreateService,
     private readonly queries: MasterDataQueryService,
+    private readonly updates: MasterDataUpdateService,
   ) {}
 
   @Post('sites')
@@ -140,6 +169,96 @@ export class MasterDataController {
     return { id: await this.creates.assignOperator(context, parseAssignOperatorRequest(body)) };
   }
 
+  @Patch('sites/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: '修改或停用场地（仅管理员）' })
+  @ApiBody({ type: UpdateSiteRequestDto })
+  @ApiNoContentResponse()
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  async updateSite(
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @CurrentAuth() authorization: AccessTokenClaims,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent?: string,
+    @Headers('x-request-id') requestId?: string,
+  ): Promise<void> {
+    const context = await this.commandContext(authorization, ipAddress, userAgent, requestId);
+    await this.updates.updateSite(context, parseUpdateSiteRequest(id, body));
+  }
+
+  @Patch('hosts/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: '修改主播资料或预约资格' })
+  @ApiBody({ type: UpdateHostRequestDto })
+  @ApiNoContentResponse()
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  async updateHost(
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @CurrentAuth() authorization: AccessTokenClaims,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent?: string,
+    @Headers('x-request-id') requestId?: string,
+  ): Promise<void> {
+    const context = await this.commandContext(authorization, ipAddress, userAgent, requestId);
+    await this.updates.updateHost(context, parseUpdateHostRequest(id, body));
+  }
+
+  @Patch('artists/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: '修改或停用化妆师' })
+  @ApiBody({ type: UpdateArtistRequestDto })
+  @ApiNoContentResponse()
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  async updateArtist(
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @CurrentAuth() authorization: AccessTokenClaims,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent?: string,
+    @Headers('x-request-id') requestId?: string,
+  ): Promise<void> {
+    const context = await this.commandContext(authorization, ipAddress, userAgent, requestId);
+    await this.updates.updateArtist(context, parseUpdateArtistRequest(id, body));
+  }
+
+  @Patch('operators/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: '修改或停用运营' })
+  @ApiBody({ type: UpdateOperatorRequestDto })
+  @ApiNoContentResponse()
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  async updateOperator(
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @CurrentAuth() authorization: AccessTokenClaims,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent?: string,
+    @Headers('x-request-id') requestId?: string,
+  ): Promise<void> {
+    const context = await this.commandContext(authorization, ipAddress, userAgent, requestId);
+    await this.updates.updateOperator(context, parseUpdateOperatorRequest(id, body));
+  }
+
+  @Patch('host-operator-relations/:id/end')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: '结束主播—运营关系' })
+  @ApiBody({ type: EndOperatorAssignmentRequestDto })
+  @ApiNoContentResponse()
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  async endOperatorAssignment(
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @CurrentAuth() authorization: AccessTokenClaims,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent?: string,
+    @Headers('x-request-id') requestId?: string,
+  ): Promise<void> {
+    const context = await this.commandContext(authorization, ipAddress, userAgent, requestId);
+    await this.updates.endOperatorAssignment(context, parseEndOperatorAssignmentRequest(id, body));
+  }
+
   @Get('sites')
   @ApiOperation({ summary: '查询当前角色可见场地' })
   @ApiOkResponse({ type: [SiteSummaryDto] })
@@ -185,6 +304,18 @@ export class MasterDataController {
   ): Promise<MasterDataPage<OperatorSummary>> {
     const request = parseMasterDataListRequest(query, { includeAsOf: true });
     return this.queries.listOperators(authorization, request.asOf, request.page);
+  }
+
+  @Get('host-operator-relations')
+  @ApiOperation({ summary: '分页查询主播—运营关系（客服和管理员）' })
+  @ApiQuery({ type: MasterDataListQueryDto })
+  @ApiOkResponse({ type: HostOperatorRelationPageDto })
+  listHostOperatorRelations(
+    @CurrentAuth() authorization: AccessTokenClaims,
+    @Query() query: unknown,
+  ): Promise<MasterDataPage<HostOperatorRelationSummary>> {
+    const request = parseMasterDataListRequest(query);
+    return this.queries.listHostOperatorRelations(authorization, request.page);
   }
 
   private commandContext(

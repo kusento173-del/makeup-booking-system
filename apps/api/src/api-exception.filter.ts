@@ -25,6 +25,7 @@ import {
 } from './auth/wechat-login.errors';
 import { MasterDataRequestInvalidError } from './master-data/master-data-request.parser';
 import {
+  MasterDataDateRangeError,
   MasterDataInactiveSiteError,
   MasterDataNotFoundError,
   MasterDataSiteMismatchError,
@@ -84,6 +85,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
 
     if (
       exception instanceof MasterDataVersionConflictError ||
+      exception instanceof MasterDataDateRangeError ||
       exception instanceof MasterDataInactiveSiteError ||
       exception instanceof MasterDataSiteMismatchError
     ) {

@@ -4,6 +4,11 @@ import type {
   CreateHostCommand,
   CreateOperatorCommand,
   CreateSiteCommand,
+  EndOperatorAssignmentCommand,
+  UpdateArtistCommand,
+  UpdateHostCommand,
+  UpdateOperatorCommand,
+  UpdateSiteCommand,
 } from './master-data-command.types';
 import type { MasterDataPageInput } from './master-data-query.types';
 
@@ -71,14 +76,69 @@ function optionalText(
   return requiredText(value, field, maximumLength);
 }
 
-function uuid(value: Record<string, unknown>, field: string): string {
-  const id = requiredText(value, field, 36).toLocaleLowerCase('en-US');
+function uuidText(raw: unknown): string {
+  if (typeof raw !== 'string') {
+    throw new MasterDataRequestInvalidError();
+  }
 
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(id)) {
+  const id = raw.normalize('NFKC').trim().toLocaleLowerCase('en-US');
+
+  if (
+    id.length !== 36 ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(id)
+  ) {
     throw new MasterDataRequestInvalidError();
   }
 
   return id;
+}
+
+function uuid(value: Record<string, unknown>, field: string): string {
+  return uuidText(value[field]);
+}
+
+function requiredInteger(value: Record<string, unknown>, field: string, minimum: number): number {
+  const raw = value[field];
+
+  if (
+    typeof raw !== 'number' ||
+    !Number.isSafeInteger(raw) ||
+    raw < minimum ||
+    raw > 2_147_483_647
+  ) {
+    throw new MasterDataRequestInvalidError();
+  }
+
+  return raw;
+}
+
+function enumValue<const T extends string>(
+  value: Record<string, unknown>,
+  field: string,
+  allowed: readonly T[],
+): T {
+  const raw = value[field];
+
+  if (typeof raw !== 'string' || !allowed.includes(raw as T)) {
+    throw new MasterDataRequestInvalidError();
+  }
+
+  return raw as T;
+}
+
+function timezone(value: Record<string, unknown>, field: string): string {
+  const result = requiredText(value, field, 64);
+
+  assertValidTimezone(result);
+  return result;
+}
+
+function assertValidTimezone(value: string): void {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: value }).format();
+  } catch {
+    throw new MasterDataRequestInvalidError();
+  }
 }
 
 function optionalInteger(value: Record<string, unknown>, field: string, fallback: number): number {
@@ -210,18 +270,110 @@ export function parseCreateSiteRequest(body: unknown): CreateSiteCommand {
   const value = record(body);
   exactKeys(value, ['code', 'name', 'sortOrder', 'timezone']);
   const timezone = optionalText(value, 'timezone', 64) ?? 'Asia/Shanghai';
-
-  try {
-    new Intl.DateTimeFormat('en-US', { timeZone: timezone }).format();
-  } catch {
-    throw new MasterDataRequestInvalidError();
-  }
+  assertValidTimezone(timezone);
 
   return {
     code: requiredText(value, 'code', 32),
     name: requiredText(value, 'name', 64),
     sortOrder: optionalInteger(value, 'sortOrder', 0),
     timezone,
+  };
+}
+
+export function parseMasterDataId(value: unknown): string {
+  return uuidText(value);
+}
+
+export function parseUpdateSiteRequest(id: unknown, body: unknown): UpdateSiteCommand {
+  const value = record(body);
+  exactKeys(value, ['expectedRowVersion', 'name', 'reason', 'sortOrder', 'status', 'timezone']);
+
+  return {
+    expectedRowVersion: requiredInteger(value, 'expectedRowVersion', 1),
+    id: parseMasterDataId(id),
+    name: requiredText(value, 'name', 64),
+    reason: requiredText(value, 'reason', 500),
+    sortOrder: requiredInteger(value, 'sortOrder', -2_147_483_648),
+    status: enumValue(value, 'status', ['ACTIVE', 'INACTIVE']),
+    timezone: timezone(value, 'timezone'),
+  };
+}
+
+export function parseUpdateHostRequest(id: unknown, body: unknown): UpdateHostCommand {
+  const value = record(body);
+  exactKeys(value, [
+    'expectedRowVersion',
+    'nickname',
+    'qualificationStatus',
+    'realName',
+    'reason',
+    'siteId',
+  ]);
+  const nickname = optionalText(value, 'nickname', 64);
+
+  return {
+    expectedRowVersion: requiredInteger(value, 'expectedRowVersion', 1),
+    id: parseMasterDataId(id),
+    ...(nickname ? { nickname } : {}),
+    qualificationStatus: enumValue(value, 'qualificationStatus', [
+      'ACTIVE',
+      'SUSPENDED',
+      'CANCELLED',
+    ]),
+    realName: requiredText(value, 'realName', 64),
+    reason: requiredText(value, 'reason', 500),
+    siteId: uuid(value, 'siteId'),
+  };
+}
+
+export function parseUpdateArtistRequest(id: unknown, body: unknown): UpdateArtistCommand {
+  const value = record(body);
+  exactKeys(value, [
+    'employmentStatus',
+    'expectedRowVersion',
+    'nickname',
+    'realName',
+    'reason',
+    'siteId',
+  ]);
+
+  return {
+    employmentStatus: enumValue(value, 'employmentStatus', ['ACTIVE', 'INACTIVE']),
+    expectedRowVersion: requiredInteger(value, 'expectedRowVersion', 1),
+    id: parseMasterDataId(id),
+    nickname: requiredText(value, 'nickname', 64),
+    realName: requiredText(value, 'realName', 64),
+    reason: requiredText(value, 'reason', 500),
+    siteId: uuid(value, 'siteId'),
+  };
+}
+
+export function parseUpdateOperatorRequest(id: unknown, body: unknown): UpdateOperatorCommand {
+  const value = record(body);
+  exactKeys(value, ['employmentStatus', 'expectedRowVersion', 'realName', 'reason', 'siteId']);
+
+  return {
+    employmentStatus: enumValue(value, 'employmentStatus', ['ACTIVE', 'INACTIVE']),
+    expectedRowVersion: requiredInteger(value, 'expectedRowVersion', 1),
+    id: parseMasterDataId(id),
+    realName: requiredText(value, 'realName', 64),
+    reason: requiredText(value, 'reason', 500),
+    siteId: uuid(value, 'siteId'),
+  };
+}
+
+export function parseEndOperatorAssignmentRequest(
+  id: unknown,
+  body: unknown,
+): EndOperatorAssignmentCommand {
+  const value = record(body);
+  exactKeys(value, ['expectedRowVersion', 'reason', 'validUntil']);
+
+  return {
+    expectedRowVersion: requiredInteger(value, 'expectedRowVersion', 1),
+    id: parseMasterDataId(id),
+    reason: requiredText(value, 'reason', 500),
+    validUntil: dateOnly(requiredText(value, 'validUntil', 10), new Date()),
   };
 }
 

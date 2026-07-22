@@ -5,6 +5,7 @@ import type { MasterDataCommandContextService } from './master-data-command-cont
 import type { MasterDataCommandContext } from './master-data-command.types';
 import type { MasterDataCreateService } from './master-data-create.service';
 import type { MasterDataQueryService } from './master-data-query.service';
+import type { MasterDataUpdateService } from './master-data-update.service';
 import { MasterDataController } from './master-data.controller';
 
 const authorization: AccessTokenClaims = {
@@ -32,6 +33,7 @@ describe('MasterDataController', () => {
       { resolve } as unknown as MasterDataCommandContextService,
       { createHost } as unknown as MasterDataCreateService,
       {} as MasterDataQueryService,
+      {} as MasterDataUpdateService,
     );
 
     await expect(
@@ -58,6 +60,42 @@ describe('MasterDataController', () => {
       nickname: '小雨',
       realName: '主播一',
       siteId: '019f7a17-6845-7a90-94cb-e5f5caabd5f6',
+    });
+  });
+
+  it('derives the actor context and enforces parsed row-version updates', async () => {
+    const resolve = vi.fn().mockResolvedValue(context);
+    const updateSite = vi.fn().mockResolvedValue(undefined);
+    const controller = new MasterDataController(
+      { resolve } as unknown as MasterDataCommandContextService,
+      {} as MasterDataCreateService,
+      {} as MasterDataQueryService,
+      { updateSite } as unknown as MasterDataUpdateService,
+    );
+
+    await expect(
+      controller.updateSite(
+        '019f7a17-6845-7a90-94cb-e5f5caabd5f6',
+        {
+          expectedRowVersion: 2,
+          name: ' 松江场地 ',
+          reason: ' 调整显示名 ',
+          sortOrder: 1,
+          status: 'ACTIVE',
+          timezone: 'Asia/Shanghai',
+        },
+        authorization,
+        '127.0.0.1',
+      ),
+    ).resolves.toBeUndefined();
+    expect(updateSite).toHaveBeenCalledWith(context, {
+      expectedRowVersion: 2,
+      id: '019f7a17-6845-7a90-94cb-e5f5caabd5f6',
+      name: '松江场地',
+      reason: '调整显示名',
+      sortOrder: 1,
+      status: 'ACTIVE',
+      timezone: 'Asia/Shanghai',
     });
   });
 });

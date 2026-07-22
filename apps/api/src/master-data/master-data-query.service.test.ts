@@ -149,4 +149,26 @@ describe('MasterDataQueryService', () => {
     );
     expect(findMany).toHaveBeenNthCalledWith(2, expect.objectContaining({ where: {} }));
   });
+
+  it('limits relation management queries to the customer-service site', async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+    const service = createService({
+      hostOperatorRelation: { count: vi.fn().mockResolvedValue(0), findMany },
+    });
+
+    await service.listHostOperatorRelations(baseContext, page);
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { host: { siteId: 'site-songjiang' } } }),
+    );
+  });
+
+  it('denies relation management queries to non-backoffice roles', async () => {
+    const service = createService({ hostOperatorRelation: {} });
+    const context = { ...baseContext, roleCode: 'OPERATOR', siteId: null } as const;
+
+    await expect(service.listHostOperatorRelations(context, page)).rejects.toBeInstanceOf(
+      AuthorizationDeniedError,
+    );
+  });
 });

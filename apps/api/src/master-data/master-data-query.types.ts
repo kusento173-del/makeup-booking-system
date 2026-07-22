@@ -41,6 +41,20 @@ export interface OperatorSummary {
   readonly siteId: string;
 }
 
+export interface HostOperatorRelationSummary {
+  readonly changeReason: string | null;
+  readonly hostCode: string;
+  readonly hostId: string;
+  readonly hostName: string;
+  readonly id: string;
+  readonly operatorId: string;
+  readonly operatorName: string;
+  readonly rowVersion: number;
+  readonly siteId: string;
+  readonly validFrom: string;
+  readonly validUntil: string | null;
+}
+
 export interface MasterDataPageInput {
   readonly page: number;
   readonly pageSize: number;

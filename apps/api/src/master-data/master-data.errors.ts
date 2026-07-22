@@ -33,3 +33,12 @@ export class MasterDataInactiveSiteError extends Error {
     this.name = 'MasterDataInactiveSiteError';
   }
 }
+
+export class MasterDataDateRangeError extends Error {
+  readonly code = 'MASTER_DATA_DATE_RANGE_INVALID';
+
+  constructor() {
+    super('The master-data date range is invalid');
+    this.name = 'MasterDataDateRangeError';
+  }
+}

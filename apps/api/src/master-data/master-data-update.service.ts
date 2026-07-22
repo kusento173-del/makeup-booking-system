@@ -13,6 +13,7 @@ import type {
   UpdateSiteCommand,
 } from './master-data-command.types';
 import {
+  MasterDataDateRangeError,
   MasterDataInactiveSiteError,
   MasterDataNotFoundError,
   MasterDataVersionConflictError,
@@ -310,7 +311,7 @@ export class MasterDataUpdateService {
       this.authorization.assertSiteScope(context, before.host.siteId);
 
       if (command.validUntil <= before.validFrom) {
-        throw new RangeError('validUntil must be later than validFrom');
+        throw new MasterDataDateRangeError();
       }
 
       const result = await transaction.hostOperatorRelation.updateMany({

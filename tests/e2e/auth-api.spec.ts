@@ -74,12 +74,26 @@ test('OpenAPI 契约包含认证、主数据路径和分页查询参数', async 
       '/master-data/artists',
       '/master-data/operators',
       '/master-data/host-operator-relations',
+      '/master-data/sites/{id}',
+      '/master-data/hosts/{id}',
+      '/master-data/artists/{id}',
+      '/master-data/operators/{id}',
+      '/master-data/host-operator-relations/{id}/end',
     ]),
   );
   expect(document.components?.securitySchemes).toHaveProperty('access-token');
   const hostOperation = document.paths?.['/master-data/hosts'] as
     { get?: { parameters?: { name?: string }[] }; post?: unknown } | undefined;
   expect(hostOperation).toHaveProperty('post');
+  for (const path of [
+    '/master-data/sites/{id}',
+    '/master-data/hosts/{id}',
+    '/master-data/artists/{id}',
+    '/master-data/operators/{id}',
+    '/master-data/host-operator-relations/{id}/end',
+  ]) {
+    expect(document.paths?.[path]).toHaveProperty('patch');
+  }
   for (const path of [
     '/master-data/sites',
     '/master-data/artists',
@@ -88,6 +102,7 @@ test('OpenAPI 契约包含认证、主数据路径和分页查询参数', async 
   ]) {
     expect(document.paths?.[path]).toHaveProperty('post');
   }
+  expect(document.paths?.['/master-data/host-operator-relations']).toHaveProperty('get');
   expect(hostOperation?.get?.parameters?.map(({ name }) => name)).toEqual([
     'page',
     'pageSize',
