@@ -2,6 +2,7 @@ import type { MinuteInterval } from '../shift/shift-time';
 
 interface AvailabilityBase {
   readonly artistId: string;
+  readonly artistNickname: string;
   readonly date: string;
   readonly siteId: string;
 }

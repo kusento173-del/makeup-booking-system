@@ -1,6 +1,10 @@
 import { businessDateMinuteToInstant, toBusinessDate } from '../shift/business-date';
 import type { MinuteInterval } from '../shift/shift-time';
-import { BookingDateInvalidError, BookingDurationInvalidError } from './booking-time.errors';
+import {
+  BookingDateInvalidError,
+  BookingDurationInvalidError,
+  BookingStartInvalidError,
+} from './booking-time.errors';
 
 const DURATIONS = new Set([15, 30, 45, 60]);
 
@@ -29,6 +33,18 @@ export function validateBookingDate(date: Date, now: Date): void {
 
 export function validateBookingDuration(durationMinutes: number): void {
   if (!DURATIONS.has(durationMinutes)) throw new BookingDurationInvalidError();
+}
+
+export function validateBookingStart(startMinute: number, durationMinutes: number): void {
+  validateBookingDuration(durationMinutes);
+  if (
+    !Number.isSafeInteger(startMinute) ||
+    startMinute < 0 ||
+    startMinute % 15 !== 0 ||
+    startMinute + durationMinutes > 24 * 60
+  ) {
+    throw new BookingStartInvalidError();
+  }
 }
 
 export function listFreeStartMinutes(

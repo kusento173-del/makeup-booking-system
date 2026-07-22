@@ -11,6 +11,7 @@ const now = new Date('2026-07-22T04:00:00.000Z');
 const date = new Date('2026-07-23T00:00:00.000Z');
 const available: ArtistDayAvailability = {
   artistId: 'artist-1',
+  artistNickname: '柔柔',
   available: true,
   date: '2026-07-23',
   intervals: [
@@ -145,6 +146,7 @@ describe('BookingSlotService', () => {
   it('propagates an artist non-working reason without reading appointments', async () => {
     const unavailable: ArtistDayAvailability = {
       artistId: 'artist-1',
+      artistNickname: '柔柔',
       available: false,
       date: '2026-07-23',
       intervals: [],

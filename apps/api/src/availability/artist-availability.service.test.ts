@@ -13,6 +13,7 @@ const weekend = new Date('2026-07-25T00:00:00.000Z');
 const artist = {
   employmentStatus: 'ACTIVE',
   id: 'artist-1',
+  nickname: '柔柔',
   site: { status: 'ACTIVE' },
   siteId: 'site-songjiang',
 };
@@ -74,6 +75,7 @@ describe('ArtistAvailabilityService', () => {
 
     await expect(service.getDay('artist-1', weekday)).resolves.toEqual({
       artistId: 'artist-1',
+      artistNickname: '柔柔',
       available: true,
       date: '2026-07-23',
       intervals: [
@@ -102,6 +104,7 @@ describe('ArtistAvailabilityService', () => {
 
     await expect(service.getDay('artist-1', weekend)).resolves.toEqual({
       artistId: 'artist-1',
+      artistNickname: '柔柔',
       available: false,
       date: '2026-07-25',
       intervals: [],
@@ -115,6 +118,7 @@ describe('ArtistAvailabilityService', () => {
 
     await expect(service.getDay('artist-1', weekend)).resolves.toEqual({
       artistId: 'artist-1',
+      artistNickname: '柔柔',
       available: true,
       date: '2026-07-25',
       intervals: [{ endMinute: 1020, startMinute: 600 }],

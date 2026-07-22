@@ -13,3 +13,11 @@ export class BookingDurationInvalidError extends Error {
     this.name = 'BookingDurationInvalidError';
   }
 }
+
+export class BookingStartInvalidError extends Error {
+  readonly code = 'BOOKING_START_INVALID';
+  constructor() {
+    super('Booking start must use a 15-minute boundary and end within the business date');
+    this.name = 'BookingStartInvalidError';
+  }
+}

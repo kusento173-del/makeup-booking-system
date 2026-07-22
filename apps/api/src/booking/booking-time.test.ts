@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import { businessDateMinuteToInstant } from '../shift/business-date';
-import { BookingDateInvalidError, BookingDurationInvalidError } from './booking-time.errors';
-import { listFreeStartMinutes, validateBookingDate } from './booking-time';
+import {
+  BookingDateInvalidError,
+  BookingDurationInvalidError,
+  BookingStartInvalidError,
+} from './booking-time.errors';
+import { listFreeStartMinutes, validateBookingDate, validateBookingStart } from './booking-time';
 
 const now = new Date('2026-07-22T04:00:00.000Z');
 const date = new Date('2026-07-23T00:00:00.000Z');
@@ -47,5 +51,12 @@ describe('booking time rules', () => {
       ]),
     ).toEqual([570]);
     expect(() => listFreeStartMinutes(date, [], 20, [])).toThrow(BookingDurationInvalidError);
+  });
+
+  it('accepts only safe 15-minute starts that end within the date', () => {
+    expect(() => validateBookingStart(570, 30)).not.toThrow();
+    expect(() => validateBookingStart(1430, 15)).toThrow(BookingStartInvalidError);
+    expect(() => validateBookingStart(571, 30)).toThrow(BookingStartInvalidError);
+    expect(() => validateBookingStart(Number.NaN, 30)).toThrow(BookingStartInvalidError);
   });
 });
