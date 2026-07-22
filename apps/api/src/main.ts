@@ -5,6 +5,7 @@ import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fa
 import { NestFactory } from '@nestjs/core';
 
 import { AppModule } from './app.module';
+import { ApiExceptionFilter } from './api-exception.filter';
 
 config({ path: resolve(__dirname, '../../../.env'), quiet: true });
 
@@ -13,6 +14,7 @@ async function bootstrap(): Promise<void> {
   const port = Number.parseInt(process.env.API_PORT ?? '3000', 10);
 
   app.enableShutdownHooks();
+  app.useGlobalFilters(new ApiExceptionFilter());
   await app.listen(port, '0.0.0.0');
 }
 

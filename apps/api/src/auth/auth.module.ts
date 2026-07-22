@@ -2,8 +2,11 @@ import { Module } from '@nestjs/common';
 
 import { AuditModule } from '../audit/audit.module';
 import { DatabaseModule } from '../database/database.module';
+import { AccessTokenGuard } from './access-token.guard';
 import { AccessTokenService } from './access-token.service';
 import { AccountBindingService } from './account-binding.service';
+import { AuthController } from './auth.controller';
+import { AuthFlowService } from './auth-flow.service';
 import { AuthSessionService } from './auth-session.service';
 import { AuthorizationPolicyService } from './authorization-policy.service';
 import { BindingChallengeService } from './binding-challenge.service';
@@ -17,10 +20,13 @@ import { WechatLoginService } from './wechat-login.service';
 import { WechatMiniProgramAdapter } from './wechat-mini-program.adapter';
 
 @Module({
+  controllers: [AuthController],
   imports: [AuditModule, DatabaseModule],
   providers: [
+    AccessTokenGuard,
     AccessTokenService,
     AccountBindingService,
+    AuthFlowService,
     AuthSessionService,
     AuthorizationPolicyService,
     BindingChallengeService,
@@ -33,8 +39,10 @@ import { WechatMiniProgramAdapter } from './wechat-mini-program.adapter';
     { provide: WECHAT_LOGIN_ADAPTER, useClass: WechatMiniProgramAdapter },
   ],
   exports: [
+    AccessTokenGuard,
     AccessTokenService,
     AccountBindingService,
+    AuthFlowService,
     AuthSessionService,
     AuthorizationPolicyService,
     BindingChallengeService,
