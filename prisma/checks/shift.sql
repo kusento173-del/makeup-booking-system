@@ -248,6 +248,30 @@ BEGIN
     SET "valid_until" = DATE '2026-10-01'
     WHERE "id" = current_shift_id;
 
+    INSERT INTO "artist_shift_templates" (
+        "artist_id",
+        "version_no",
+        "workdays",
+        "work_start_minute",
+        "break_start_minute",
+        "break_end_minute",
+        "work_end_minute",
+        "valid_from",
+        "created_by_user_id",
+        "source_request_id"
+    ) VALUES (
+        artist_id,
+        3,
+        ARRAY[1, 2, 3, 4, 5]::SMALLINT[],
+        540,
+        720,
+        780,
+        1080,
+        DATE '2026-10-01',
+        user_id,
+        request_id
+    );
+
     BEGIN
         UPDATE "artist_shift_templates"
         SET "valid_until" = DATE '2026-10-15'

@@ -21,3 +21,32 @@ export interface ArtistShiftSummary extends ShiftDefinition {
   readonly validUntil: string | null;
   readonly versionNo: number;
 }
+
+export interface SubmitShiftChangeCommand extends ShiftDefinition {
+  readonly artistId: string;
+  readonly effectiveFrom: Date;
+  readonly reason: string;
+}
+
+export interface WithdrawShiftChangeCommand {
+  readonly expectedRowVersion: number;
+  readonly requestId: string;
+}
+
+export interface ReviewShiftChangeCommand {
+  readonly comment?: string;
+  readonly decision: 'APPROVE' | 'REJECT';
+  readonly expectedRowVersion: number;
+  readonly requestId: string;
+}
+
+export interface ShiftChangeSummary extends ShiftDefinition {
+  readonly artistId: string;
+  readonly effectiveFrom: string;
+  readonly id: string;
+  readonly reason: string;
+  readonly rowVersion: number;
+  readonly siteId: string;
+  readonly status: 'APPROVED' | 'PENDING' | 'REJECTED' | 'WITHDRAWN';
+  readonly submittedAt: string;
+}
