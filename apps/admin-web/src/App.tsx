@@ -60,11 +60,30 @@ export function App() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!session) {
+      return;
+    }
+    const delay = Math.max(0, Date.parse(session.accessTokenExpiresAt) - Date.now() - 30_000);
+    const timer = window.setTimeout(
+      () => {
+        void refreshSession(session.refreshToken).then(acceptSession).catch(clearSession);
+      },
+      Math.min(delay, 2_147_483_647),
+    );
+    return () => window.clearTimeout(timer);
+  }, [session]);
+
   function acceptSession(next: SessionTokenPair) {
     saveSession(next);
     setSession(next);
     setPendingChallenge(null);
     setPendingRoles([]);
+  }
+
+  function clearSession() {
+    saveSession(null);
+    setSession(null);
   }
 
   async function handleLogin(loginName: string, password: string) {
@@ -114,8 +133,7 @@ export function App() {
     try {
       await logoutSession(session.accessToken);
     } finally {
-      saveSession(null);
-      setSession(null);
+      clearSession();
       setBusy(false);
     }
   }
@@ -125,7 +143,14 @@ export function App() {
   }
 
   if (session) {
-    return <DashboardShell busy={busy} onLogout={handleLogout} session={session} />;
+    return (
+      <DashboardShell
+        busy={busy}
+        onLogout={handleLogout}
+        onUnauthorized={clearSession}
+        session={session}
+      />
+    );
   }
 
   return (

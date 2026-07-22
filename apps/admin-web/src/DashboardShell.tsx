@@ -1,12 +1,14 @@
 import type { SessionTokenPair } from './auth-session';
+import { ManagementPage } from './ManagementPage';
 
 interface DashboardShellProps {
   readonly busy: boolean;
   readonly onLogout: () => Promise<void>;
+  readonly onUnauthorized: () => void;
   readonly session: SessionTokenPair;
 }
 
-export function DashboardShell({ busy, onLogout, session }: DashboardShellProps) {
+export function DashboardShell({ busy, onLogout, onUnauthorized, session }: DashboardShellProps) {
   return (
     <div className="dashboard-shell">
       <header className="topbar">
@@ -23,11 +25,7 @@ export function DashboardShell({ busy, onLogout, session }: DashboardShellProps)
           退出登录
         </button>
       </header>
-      <main className="dashboard-content">
-        <p className="eyebrow">系统管理</p>
-        <h1>登录成功</h1>
-        <p>人员、场地和账号管理页面将在下一步接入。</p>
-      </main>
+      <ManagementPage onUnauthorized={onUnauthorized} session={session} />
     </div>
   );
 }

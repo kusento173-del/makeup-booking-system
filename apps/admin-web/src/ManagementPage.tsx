@@ -1,0 +1,340 @@
+import { type FormEvent, useEffect, useMemo, useState } from 'react';
+
+import { ApiError } from './api-client';
+import type { SessionTokenPair } from './auth-session';
+import {
+  type AccountSummary,
+  type ArtistSummary,
+  type HostSummary,
+  listManagementItems,
+  listSites,
+  type ManagementItem,
+  type ManagementView,
+  type OperatorSummary,
+  type RelationSummary,
+  type SiteSummary,
+} from './master-data-api';
+
+interface ManagementPageProps {
+  readonly onUnauthorized: () => void;
+  readonly session: SessionTokenPair;
+}
+
+interface Column {
+  readonly key: string;
+  readonly label: string;
+  readonly render: (item: ManagementItem) => string;
+}
+
+const STATUS_NAMES: Record<string, string> = {
+  ACTIVE: '正常',
+  CANCELLED: '已取消资格',
+  DISABLED: '已停用',
+  INACTIVE: '已停用',
+  SUSPENDED: '暂停资格',
+};
+
+const NAV_ITEMS: readonly { readonly id: ManagementView; readonly label: string }[] = [
+  { id: 'hosts', label: '主播' },
+  { id: 'artists', label: '化妆师' },
+  { id: 'operators', label: '运营' },
+  { id: 'relations', label: '主播—运营关系' },
+  { id: 'sites', label: '场地' },
+  { id: 'accounts', label: '账号与角色' },
+];
+
+function personName(realName: string, nickname: string | null): string {
+  return nickname ? `${nickname}（${realName}）` : realName;
+}
+
+function roleNames(account: AccountSummary): string {
+  return account.roles.map((role) => (role.roleCode === 'ADMIN' ? '管理员' : '客服')).join('、');
+}
+
+function columns(view: ManagementView, siteNames: ReadonlyMap<string, string>): readonly Column[] {
+  const site = (siteId: string) => siteNames.get(siteId) ?? '未知场地';
+  switch (view) {
+    case 'hosts':
+      return [
+        { key: 'code', label: '主播编号', render: (item) => (item as HostSummary).hostCode },
+        {
+          key: 'name',
+          label: '主播',
+          render: (item) => {
+            const host = item as HostSummary;
+            return personName(host.realName, host.nickname);
+          },
+        },
+        { key: 'site', label: '场地', render: (item) => site((item as HostSummary).siteId) },
+        {
+          key: 'status',
+          label: '预约资格',
+          render: (item) => STATUS_NAMES[(item as HostSummary).qualificationStatus] ?? '未知',
+        },
+      ];
+    case 'artists':
+      return [
+        {
+          key: 'name',
+          label: '化妆师',
+          render: (item) => {
+            const artist = item as ArtistSummary;
+            return personName(artist.realName, artist.nickname);
+          },
+        },
+        { key: 'site', label: '场地', render: (item) => site((item as ArtistSummary).siteId) },
+        {
+          key: 'shift',
+          label: '班次',
+          render: (item) => ((item as ArtistSummary).initialShiftConfigured ? '已设置' : '未设置'),
+        },
+        {
+          key: 'status',
+          label: '状态',
+          render: (item) => STATUS_NAMES[(item as ArtistSummary).employmentStatus] ?? '未知',
+        },
+      ];
+    case 'operators':
+      return [
+        { key: 'name', label: '运营', render: (item) => (item as OperatorSummary).realName },
+        { key: 'site', label: '场地', render: (item) => site((item as OperatorSummary).siteId) },
+        {
+          key: 'status',
+          label: '状态',
+          render: (item) => STATUS_NAMES[(item as OperatorSummary).employmentStatus] ?? '未知',
+        },
+      ];
+    case 'relations':
+      return [
+        {
+          key: 'host',
+          label: '主播',
+          render: (item) => {
+            const relation = item as RelationSummary;
+            return `${relation.hostName}｜${relation.hostCode}`;
+          },
+        },
+        {
+          key: 'operator',
+          label: '运营',
+          render: (item) => (item as RelationSummary).operatorName,
+        },
+        { key: 'site', label: '场地', render: (item) => site((item as RelationSummary).siteId) },
+        {
+          key: 'validity',
+          label: '有效期',
+          render: (item) => {
+            const relation = item as RelationSummary;
+            return `${relation.validFrom} 至 ${relation.validUntil ?? '长期'}`;
+          },
+        },
+      ];
+    case 'sites':
+      return [
+        { key: 'name', label: '场地', render: (item) => (item as SiteSummary).name },
+        { key: 'code', label: '代码', render: (item) => (item as SiteSummary).code },
+        { key: 'timezone', label: '时区', render: (item) => (item as SiteSummary).timezone },
+        {
+          key: 'status',
+          label: '状态',
+          render: (item) => STATUS_NAMES[(item as SiteSummary).status] ?? '未知',
+        },
+      ];
+    case 'accounts':
+      return [
+        { key: 'name', label: '账号名称', render: (item) => (item as AccountSummary).displayName },
+        {
+          key: 'login',
+          label: '登录名',
+          render: (item) => (item as AccountSummary).loginName ?? '未设置密码登录',
+        },
+        {
+          key: 'roles',
+          label: '有效角色',
+          render: (item) => roleNames(item as AccountSummary) || '无',
+        },
+        {
+          key: 'status',
+          label: '状态',
+          render: (item) => STATUS_NAMES[(item as AccountSummary).status] ?? '未知',
+        },
+      ];
+  }
+}
+
+export function ManagementPage({ onUnauthorized, session }: ManagementPageProps) {
+  const [view, setView] = useState<ManagementView>('hosts');
+  const [sites, setSites] = useState<readonly SiteSummary[]>([]);
+  const [items, setItems] = useState<readonly ManagementItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [draftSearch, setDraftSearch] = useState('');
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const visibleNavigation = NAV_ITEMS.filter(
+    (item) => item.id !== 'accounts' || session.role.roleCode === 'ADMIN',
+  );
+  const siteNames = useMemo(() => new Map(sites.map((site) => [site.id, site.name])), [sites]);
+  const tableColumns = useMemo(() => columns(view, siteNames), [siteNames, view]);
+  const pageCount = Math.max(1, Math.ceil(total / 50));
+
+  useEffect(() => {
+    let active = true;
+    void listSites(session.accessToken)
+      .then((result) => active && setSites(result))
+      .catch((cause: unknown) => {
+        if (cause instanceof ApiError && cause.status === 401) {
+          onUnauthorized();
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [onUnauthorized, session.accessToken]);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError(null);
+    const request =
+      view === 'sites'
+        ? listSites(session.accessToken).then((result) => ({ items: result, total: result.length }))
+        : listManagementItems(view, session.accessToken, page, search);
+
+    void request
+      .then((result) => {
+        if (active) {
+          setItems(result.items);
+          setTotal(result.total);
+        }
+      })
+      .catch((cause: unknown) => {
+        if (!active) {
+          return;
+        }
+        if (cause instanceof ApiError && cause.status === 401) {
+          onUnauthorized();
+          return;
+        }
+        setError(cause instanceof ApiError ? cause.message : '数据加载失败，请稍后重试');
+      })
+      .finally(() => active && setLoading(false));
+    return () => {
+      active = false;
+    };
+  }, [onUnauthorized, page, search, session.accessToken, view]);
+
+  function switchView(next: ManagementView) {
+    setView(next);
+    setPage(1);
+    setDraftSearch('');
+    setSearch('');
+  }
+
+  function submitSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPage(1);
+    setSearch(draftSearch.trim());
+  }
+
+  const title = NAV_ITEMS.find((item) => item.id === view)?.label ?? '主数据';
+
+  return (
+    <div className="management-layout">
+      <aside className="sidebar" aria-label="管理菜单">
+        <div className="sidebar-brand">妆序</div>
+        <nav>
+          {visibleNavigation.map((item) => (
+            <button
+              aria-current={item.id === view ? 'page' : undefined}
+              key={item.id}
+              onClick={() => switchView(item.id)}
+              type="button"
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
+      </aside>
+
+      <section className="management-main">
+        <header className="management-header">
+          <div>
+            <p className="eyebrow">主数据管理</p>
+            <h1>{title}</h1>
+          </div>
+          {view === 'sites' ? null : (
+            <form className="search-form" onSubmit={submitSearch}>
+              <label className="sr-only" htmlFor="management-search">
+                搜索
+              </label>
+              <input
+                id="management-search"
+                onChange={(event) => setDraftSearch(event.target.value)}
+                placeholder="输入姓名或编号"
+                value={draftSearch}
+              />
+              <button type="submit">搜索</button>
+            </form>
+          )}
+        </header>
+
+        <div className="table-card">
+          <div className="table-summary">
+            <span>共 {total} 条</span>
+            <span>{loading ? '正在加载…' : '数据已更新'}</span>
+          </div>
+          {error ? <div className="content-message error-message">{error}</div> : null}
+          {!error && !loading && items.length === 0 ? (
+            <div className="content-message">暂无数据</div>
+          ) : null}
+          {!error && items.length > 0 ? (
+            <div className="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    {tableColumns.map((column) => (
+                      <th key={column.key}>{column.label}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((item) => (
+                    <tr key={item.id}>
+                      {tableColumns.map((column) => (
+                        <td key={column.key}>{column.render(item)}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+          {view !== 'sites' && pageCount > 1 ? (
+            <div className="pagination">
+              <button
+                disabled={page === 1 || loading}
+                onClick={() => setPage(page - 1)}
+                type="button"
+              >
+                上一页
+              </button>
+              <span>
+                第 {page} / {pageCount} 页
+              </span>
+              <button
+                disabled={page >= pageCount || loading}
+                onClick={() => setPage(page + 1)}
+                type="button"
+              >
+                下一页
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </section>
+    </div>
+  );
+}
