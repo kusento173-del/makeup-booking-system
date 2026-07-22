@@ -41,11 +41,11 @@ const appointment = {
   status: 'BOOKED',
 };
 
-function createService(options?: { relations?: readonly object[] }) {
+function createService(options?: { appointment?: object; relations?: readonly object[] }) {
   const client = {
     appointment: {
       count: vi.fn().mockResolvedValue(1),
-      findMany: vi.fn().mockResolvedValue([appointment]),
+      findMany: vi.fn().mockResolvedValue([options?.appointment ?? appointment]),
     },
     hostOperatorRelation: {
       findMany: vi.fn().mockResolvedValue(options?.relations ?? []),
@@ -151,6 +151,16 @@ describe('AppointmentQueryService', () => {
     await completed.service.list(context, { ...input, status: 'COMPLETED' }, now);
     expect(whereParts(completed.client)).toContainEqual({
       OR: [{ status: 'COMPLETED' }, { endAt: { lte: now }, status: 'BOOKED' }],
+    });
+  });
+
+  it('returns generated fixed appointments with their fixed origin', async () => {
+    const { service } = createService({
+      appointment: { ...appointment, appointmentType: 'FIXED', id: 'fixed-appointment-1' },
+    });
+
+    await expect(service.list(context, input, now)).resolves.toMatchObject({
+      items: [{ appointmentType: 'FIXED', id: 'fixed-appointment-1' }],
     });
   });
 });

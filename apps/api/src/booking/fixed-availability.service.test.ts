@@ -195,6 +195,25 @@ describe('FixedAvailabilityService', () => {
     expect(result.slots.some((slot) => slot.startMinute === 945)).toBe(false);
   });
 
+  it('can exclude the rule being changed from host and slot conflicts', async () => {
+    const { client, service } = createService();
+
+    await service.getAvailabilityWithClient(
+      client as unknown as DatabaseClient,
+      context,
+      input,
+      now,
+      { excludeRuleId: 'rule-1' },
+    );
+
+    expect(client.hostProfile.findUnique.mock.calls[0]?.[0]).toMatchObject({
+      select: { fixedRules: { where: { id: { not: 'rule-1' }, status: 'ACTIVE' } } },
+    });
+    expect(client.fixedAppointmentRuleWeekday.findMany.mock.calls[0]?.[0]).toMatchObject({
+      where: { ruleId: { not: 'rule-1' } },
+    });
+  });
+
   it.each([
     [{ ...host, qualificationStatus: 'SUSPENDED' }, artist, 'HOST_INELIGIBLE'],
     [{ ...host, fixedRules: [{ id: 'rule-1' }] }, artist, 'HOST_HAS_ACTIVE_FIXED_RULE'],

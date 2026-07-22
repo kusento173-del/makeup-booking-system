@@ -31,6 +31,8 @@ import type { AccessTokenClaims } from '../auth/auth-session.types';
 import { CurrentAuth } from '../auth/current-auth.decorator';
 import { MasterDataCommandContextService } from '../master-data/master-data-command-context.service';
 import {
+  CancelFixedRequestDto,
+  ChangeFixedRequestDto,
   CreateFixedRequestDto,
   FixedAvailabilityResultDto,
   FixedRequestCreateResultDto,
@@ -39,6 +41,8 @@ import {
   ReviewFixedRequestDto,
 } from './booking-openapi.dto';
 import {
+  parseCancelFixedRequest,
+  parseChangeFixedRequest,
   parseCreateFixedRequest,
   parseFixedAvailabilityRequest,
   parseFixedRequestList,
@@ -152,5 +156,51 @@ export class FixedAppointmentController {
       ...(userAgent ? { userAgent } : {}),
     });
     return this.requests.create(context, command);
+  }
+
+  @Post('requests/change')
+  @ApiOperation({ summary: '运营提交固定预约星期、时间或时长变更申请' })
+  @ApiHeader({ description: '同一用户内唯一，建议使用 UUID', name: 'Idempotency-Key' })
+  @ApiCreatedResponse({ type: FixedRequestCreateResultDto })
+  @ApiConflictResponse({ type: ApiErrorResponseDto })
+  async changeRequest(
+    @Body() body: ChangeFixedRequestDto,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @CurrentAuth() authorization: AccessTokenClaims,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent?: string,
+    @Headers('x-request-id') requestId?: string,
+  ): Promise<FixedRequestCreateResult> {
+    const command = parseChangeFixedRequest(body, idempotencyKey);
+    const context = await this.contexts.resolve(authorization, {
+      clientType: 'WECHAT_MINI_PROGRAM',
+      ipAddress,
+      ...(requestId ? { requestId } : {}),
+      ...(userAgent ? { userAgent } : {}),
+    });
+    return this.requests.change(context, command);
+  }
+
+  @Post('requests/cancel')
+  @ApiOperation({ summary: '运营提交取消固定预约申请' })
+  @ApiHeader({ description: '同一用户内唯一，建议使用 UUID', name: 'Idempotency-Key' })
+  @ApiCreatedResponse({ type: FixedRequestCreateResultDto })
+  @ApiConflictResponse({ type: ApiErrorResponseDto })
+  async cancelRequest(
+    @Body() body: CancelFixedRequestDto,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @CurrentAuth() authorization: AccessTokenClaims,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent?: string,
+    @Headers('x-request-id') requestId?: string,
+  ): Promise<FixedRequestCreateResult> {
+    const command = parseCancelFixedRequest(body, idempotencyKey);
+    const context = await this.contexts.resolve(authorization, {
+      clientType: 'WECHAT_MINI_PROGRAM',
+      ipAddress,
+      ...(requestId ? { requestId } : {}),
+      ...(userAgent ? { userAgent } : {}),
+    });
+    return this.requests.cancel(context, command);
   }
 }

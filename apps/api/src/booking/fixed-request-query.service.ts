@@ -15,6 +15,7 @@ import type {
 } from './fixed-request-query.types';
 
 const REQUEST_SELECT = {
+  currentRuleId: true,
   effectiveFrom: true,
   host: { select: { hostCode: true, nickname: true, realName: true } },
   hostId: true,
@@ -113,6 +114,7 @@ export class FixedRequestQueryService {
       throw new FixedRequestStateConflictError();
     }
     return {
+      currentRuleId: record.currentRuleId,
       effectiveFrom: formatDateOnly(record.effectiveFrom),
       hostCode: record.host.hostCode,
       hostId: record.hostId,

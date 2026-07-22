@@ -5,6 +5,8 @@ import {
   parseAppointmentListRequest,
   parseBookingSlotsRequest,
   parseCancelBookingRequest,
+  parseCancelFixedRequest,
+  parseChangeFixedRequest,
   parseCreateBookingRequest,
   parseCreateFixedRequest,
   parseFixedAvailabilityRequest,
@@ -15,6 +17,7 @@ import {
 
 const artistId = '019f7a17-6845-7a90-94cb-e5f5caabd5f6';
 const hostId = '019f7a18-6845-7a90-94cb-e5f5caabd5f6';
+const ruleId = '019f7a19-6845-7a90-94cb-e5f5caabd5f6';
 
 describe('booking request parser', () => {
   it('parses strict slot query strings', () => {
@@ -130,6 +133,57 @@ describe('booking request parser', () => {
     ).toEqual({ page: 2, pageSize: 100, requestType: 'CHANGE', status: 'APPROVED' });
     expect(() => parseFixedRequestList({ pageSize: '101' })).toThrow(BookingRequestInvalidError);
     expect(() => parseFixedRequestList({ siteId: 'forged' })).toThrow(BookingRequestInvalidError);
+  });
+
+  it('parses strict fixed change and cancellation requests', () => {
+    expect(
+      parseChangeFixedRequest(
+        {
+          artistId,
+          currentRuleId: ruleId,
+          durationMinutes: 45,
+          effectiveFrom: '2026-07-28',
+          hostId,
+          reason: '调整固定时间',
+          startMinute: 600,
+          weekdays: [2, 4],
+        },
+        'fixed-change-0001',
+      ),
+    ).toEqual({
+      artistId,
+      currentRuleId: ruleId,
+      durationMinutes: 45,
+      effectiveFrom: new Date('2026-07-28T00:00:00.000Z'),
+      hostId,
+      idempotencyKey: 'fixed-change-0001',
+      reason: '调整固定时间',
+      startMinute: 600,
+      weekdays: [2, 4],
+    });
+    expect(
+      parseCancelFixedRequest(
+        {
+          currentRuleId: ruleId,
+          effectiveFrom: '2026-07-28',
+          hostId,
+          reason: '取消固定',
+        },
+        'fixed-cancel-0001',
+      ),
+    ).toEqual({
+      currentRuleId: ruleId,
+      effectiveFrom: new Date('2026-07-28T00:00:00.000Z'),
+      hostId,
+      idempotencyKey: 'fixed-cancel-0001',
+      reason: '取消固定',
+    });
+    expect(() =>
+      parseCancelFixedRequest(
+        { currentRuleId: ruleId, effectiveFrom: '2026-07-28', hostId, reason: '取消', siteId: 'x' },
+        'fixed-cancel-0001',
+      ),
+    ).toThrow(BookingRequestInvalidError);
   });
 
   it('parses strict fixed-request review decisions and concurrency fields', () => {

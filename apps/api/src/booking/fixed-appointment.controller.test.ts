@@ -10,6 +10,7 @@ import type { FixedRequestService } from './fixed-request.service';
 
 const artistId = '019f7a17-6845-7a90-94cb-e5f5caabd5f6';
 const hostId = '019f7a18-6845-7a90-94cb-e5f5caabd5f6';
+const ruleId = '019f7a19-6845-7a90-94cb-e5f5caabd5f6';
 const authorization: AccessTokenClaims = {
   expiresAt: new Date('2026-07-22T07:00:00.000Z'),
   roleAssignmentId: 'role-operator',
@@ -119,6 +120,59 @@ describe('FixedAppointmentController', () => {
       pageSize: 20,
       requestType: 'CREATE',
       status: 'PENDING',
+    });
+  });
+
+  it('submits fixed changes and cancellations through the operator context', async () => {
+    const commandContext = { actorName: '运营小周', ...authorization };
+    const resolve = vi.fn().mockResolvedValue(commandContext);
+    const change = vi.fn().mockResolvedValue({ request: { id: 'change-1' } });
+    const cancel = vi.fn().mockResolvedValue({ request: { id: 'cancel-1' } });
+    const controller = new FixedAppointmentController(
+      {} as FixedAvailabilityService,
+      { resolve } as unknown as MasterDataCommandContextService,
+      {} as FixedRequestQueryService,
+      {} as FixedRequestReviewService,
+      { cancel, change } as unknown as FixedRequestService,
+    );
+
+    await controller.changeRequest(
+      {
+        artistId,
+        currentRuleId: ruleId,
+        durationMinutes: 45,
+        effectiveFrom: '2026-07-28',
+        hostId,
+        reason: '调整固定时间',
+        startMinute: 600,
+        weekdays: [2, 4],
+      },
+      'fixed-change-0001',
+      authorization,
+      '127.0.0.1',
+    );
+    await controller.cancelRequest(
+      {
+        currentRuleId: ruleId,
+        effectiveFrom: '2026-07-29',
+        hostId,
+        reason: '取消固定',
+      },
+      'fixed-cancel-0001',
+      authorization,
+      '127.0.0.1',
+    );
+
+    expect(change).toHaveBeenCalledWith(
+      commandContext,
+      expect.objectContaining({ currentRuleId: ruleId, idempotencyKey: 'fixed-change-0001' }),
+    );
+    expect(cancel).toHaveBeenCalledWith(commandContext, {
+      currentRuleId: ruleId,
+      effectiveFrom: new Date('2026-07-29T00:00:00.000Z'),
+      hostId,
+      idempotencyKey: 'fixed-cancel-0001',
+      reason: '取消固定',
     });
   });
 

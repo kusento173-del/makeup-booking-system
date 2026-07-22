@@ -27,7 +27,11 @@ const rule = {
   weekdays: [{ isoWeekday: 2 }],
 };
 
-function createService(options?: { artistAvailable?: boolean; existing?: object | null }) {
+function createService(options?: {
+  artistAvailable?: boolean;
+  existing?: object | null;
+  ruleStillEffective?: boolean;
+}) {
   const transaction = {
     $queryRaw: vi.fn().mockResolvedValue([{ acquired: 1 }]),
     appointment: {
@@ -35,7 +39,12 @@ function createService(options?: { artistAvailable?: boolean; existing?: object 
       findFirst: vi.fn().mockResolvedValue(options?.existing ?? null),
       findMany: vi.fn().mockResolvedValue([]),
     },
-    fixedAppointmentRule: { findFirst: vi.fn().mockResolvedValue(rule) },
+    fixedAppointmentRule: {
+      findFirst: vi
+        .fn()
+        .mockResolvedValueOnce(rule)
+        .mockResolvedValue(options?.ruleStillEffective === false ? null : rule),
+    },
     hostOperatorRelation: {
       findFirst: vi.fn().mockResolvedValue({
         operator: { id: 'operator-1', realName: '运营甲' },
@@ -130,5 +139,15 @@ describe('FixedGenerationService', () => {
       skipped: { ARTIST_UNAVAILABLE: 1 },
     });
     expect(leave.transaction.appointment.create).not.toHaveBeenCalled();
+  });
+
+  it('does not generate after a concurrent rule change wins the schedule locks', async () => {
+    const changed = createService({ ruleStillEffective: false });
+
+    await expect(changed.service.run(now)).resolves.toMatchObject({
+      generated: 0,
+      skipped: { ALREADY_PROCESSED: 1 },
+    });
+    expect(changed.transaction.appointment.create).not.toHaveBeenCalled();
   });
 });

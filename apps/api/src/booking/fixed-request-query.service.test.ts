@@ -17,6 +17,7 @@ const context: VerifiedAuthorizationContext = {
   userId: 'operator-user-1',
 };
 const record = {
+  currentRuleId: null,
   effectiveFrom: new Date('2026-07-27T00:00:00.000Z'),
   host: { hostCode: 'ZB01001', nickname: '小雨', realName: '张三' },
   hostId: 'host-1',
@@ -67,6 +68,7 @@ describe('FixedRequestQueryService', () => {
     const result = await service.list(context, { page: 1, pageSize: 50, status: 'PENDING' }, now);
 
     expect(result.items[0]).toEqual({
+      currentRuleId: null,
       effectiveFrom: '2026-07-27',
       hostCode: 'ZB01001',
       hostId: 'host-1',

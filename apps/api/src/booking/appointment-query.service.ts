@@ -136,7 +136,7 @@ export class AppointmentQueryService {
 
   private item(appointment: ListRecord, now: Date): AppointmentListItem {
     if (
-      appointment.appointmentType !== 'SINGLE' ||
+      !['FIXED', 'SINGLE'].includes(appointment.appointmentType) ||
       (appointment.status !== 'BOOKED' &&
         appointment.status !== 'CANCELLED' &&
         appointment.status !== 'COMPLETED') ||
@@ -145,7 +145,7 @@ export class AppointmentQueryService {
       throw new BookingStateConflictError();
     }
     return {
-      appointmentType: 'SINGLE',
+      appointmentType: appointment.appointmentType as AppointmentListItem['appointmentType'],
       artistId: appointment.artistId,
       artistNickname: appointment.artistNicknameSnapshot,
       dailySequence: appointment.dailySequence,

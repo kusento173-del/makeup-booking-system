@@ -31,6 +31,7 @@ const command = {
   weekdays: [3, 1],
 };
 const record = {
+  currentRuleId: null,
   effectiveFrom: new Date('2026-07-27T00:00:00.000Z'),
   hostId: 'host-1',
   id: 'request-1',
@@ -47,13 +48,24 @@ const record = {
   targetWeekdays: [1, 3],
 };
 
-function createService(options?: { replay?: boolean; unavailable?: boolean }) {
+function createService(options?: { record?: object; replay?: boolean; unavailable?: boolean }) {
+  const responseRecord = options?.record ?? record;
   const transaction = {
     $queryRaw: vi.fn().mockResolvedValue([{ acquired: 1 }]),
     fixedAppointmentRequest: {
-      create: vi.fn().mockResolvedValue(record),
-      findUnique: vi.fn().mockResolvedValue(record),
+      create: vi.fn().mockResolvedValue(responseRecord),
+      findUnique: vi.fn().mockResolvedValue(responseRecord),
     },
+    fixedAppointmentRule: {
+      findUnique: vi.fn().mockResolvedValue({
+        artistId: 'artist-1',
+        hostId: 'host-1',
+        siteId: 'site-1',
+        status: 'ACTIVE',
+        validFrom: new Date('2026-07-23T00:00:00.000Z'),
+      }),
+    },
+    hostOperatorRelation: { findFirst: vi.fn().mockResolvedValue({ id: 'relation-1' }) },
     idempotencyRecord: {
       create: vi.fn().mockResolvedValue({}),
       delete: vi.fn().mockResolvedValue({}),
@@ -139,6 +151,7 @@ describe('FixedRequestService', () => {
         weekdays: [1, 3],
       },
       now,
+      {},
     );
     expect(transaction.fixedAppointmentRequest.create.mock.calls[0]?.[0]).toMatchObject({
       data: { reason: '长期固定直播安排', targetWeekdays: [1, 3] },
@@ -180,6 +193,81 @@ describe('FixedRequestService', () => {
         now,
       ),
     ).toThrow(FixedAvailabilityDateInvalidError);
+    expect(transaction.fixedAppointmentRequest.create).not.toHaveBeenCalled();
+  });
+
+  it('submits a change against the current rule while excluding that rule from availability', async () => {
+    const changeRecord = {
+      ...record,
+      currentRuleId: 'rule-1',
+      requestType: 'CHANGE',
+    };
+    const { availability, service, transaction } = createService({ record: changeRecord });
+
+    await expect(
+      service.change(context, { ...command, currentRuleId: 'rule-1' }, now),
+    ).resolves.toMatchObject({
+      request: { currentRuleId: 'rule-1', requestType: 'CHANGE' },
+    });
+
+    expect(availability.getAvailabilityWithClient).toHaveBeenCalledWith(
+      transaction,
+      context,
+      expect.objectContaining({ hostId: 'host-1' }),
+      now,
+      { excludeRuleId: 'rule-1' },
+    );
+    expect(transaction.fixedAppointmentRequest.create.mock.calls[0]?.[0]).toMatchObject({
+      data: { currentRuleId: 'rule-1', requestType: 'CHANGE' },
+    });
+  });
+
+  it('submits cancellation without reserving a replacement slot', async () => {
+    const cancelRecord = {
+      ...record,
+      currentRuleId: 'rule-1',
+      requestType: 'CANCEL',
+      targetArtistId: null,
+      targetDurationMinutes: null,
+      targetStartMinute: null,
+      targetWeekdays: [],
+    };
+    const { availability, service, transaction } = createService({ record: cancelRecord });
+
+    await expect(
+      service.cancel(
+        context,
+        {
+          currentRuleId: 'rule-1',
+          effectiveFrom: command.effectiveFrom,
+          hostId: 'host-1',
+          idempotencyKey: 'fixed-cancel-0001',
+          reason: '取消长期固定',
+        },
+        now,
+      ),
+    ).resolves.toMatchObject({ request: { requestType: 'CANCEL', targetArtistId: null } });
+
+    expect(availability.getAvailabilityWithClient).not.toHaveBeenCalled();
+    expect(transaction.hostOperatorRelation.findFirst).toHaveBeenCalledOnce();
+    expect(transaction.fixedAppointmentRequest.create.mock.calls[0]?.[0]).toMatchObject({
+      data: { currentRuleId: 'rule-1', requestType: 'CANCEL', targetWeekdays: [] },
+    });
+  });
+
+  it('requires a fixed artist change to be cancelled and reapplied instead', async () => {
+    const { service, transaction } = createService();
+    transaction.fixedAppointmentRule.findUnique.mockResolvedValue({
+      artistId: 'other-artist',
+      hostId: 'host-1',
+      siteId: 'site-1',
+      status: 'ACTIVE',
+      validFrom: new Date('2026-07-23T00:00:00.000Z'),
+    });
+
+    await expect(
+      service.change(context, { ...command, currentRuleId: 'rule-1' }, now),
+    ).rejects.toBeInstanceOf(FixedRequestUnavailableError);
     expect(transaction.fixedAppointmentRequest.create).not.toHaveBeenCalled();
   });
 });

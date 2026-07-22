@@ -7,7 +7,12 @@ import { toBusinessDate } from '../shift/business-date';
 import type { AppointmentDisplayStatus, AppointmentListInput } from './appointment-query.types';
 import type { BookingSlotInput } from './booking-slot.types';
 import type { FixedAvailabilityInput } from './fixed-availability.types';
-import type { CreateFixedRequestCommand, ReviewFixedRequestCommand } from './fixed-request.types';
+import type {
+  CancelFixedRequestCommand,
+  ChangeFixedRequestCommand,
+  CreateFixedRequestCommand,
+  ReviewFixedRequestCommand,
+} from './fixed-request.types';
 import type {
   FixedRequestListInput,
   FixedRequestStatus,
@@ -121,6 +126,53 @@ export function parseCreateFixedRequest(
     reason: input.reason,
     startMinute: integer(input.startMinute, false),
     weekdays: input.weekdays.map((weekday) => integer(weekday, false)),
+  };
+}
+
+export function parseChangeFixedRequest(
+  body: unknown,
+  idempotencyHeader: unknown,
+): ChangeFixedRequestCommand {
+  const input = record(body);
+  exactKeys(input, [
+    'artistId',
+    'currentRuleId',
+    'durationMinutes',
+    'effectiveFrom',
+    'hostId',
+    'reason',
+    'startMinute',
+    'weekdays',
+  ]);
+  if (!Array.isArray(input.weekdays) || typeof input.reason !== 'string') {
+    throw new BookingRequestInvalidError();
+  }
+  return {
+    artistId: uuid(input.artistId),
+    currentRuleId: uuid(input.currentRuleId),
+    durationMinutes: integer(input.durationMinutes, false),
+    effectiveFrom: dateOnly(input.effectiveFrom),
+    hostId: uuid(input.hostId),
+    idempotencyKey: idempotencyKey(idempotencyHeader),
+    reason: input.reason,
+    startMinute: integer(input.startMinute, false),
+    weekdays: input.weekdays.map((weekday) => integer(weekday, false)),
+  };
+}
+
+export function parseCancelFixedRequest(
+  body: unknown,
+  idempotencyHeader: unknown,
+): CancelFixedRequestCommand {
+  const input = record(body);
+  exactKeys(input, ['currentRuleId', 'effectiveFrom', 'hostId', 'reason']);
+  if (typeof input.reason !== 'string') throw new BookingRequestInvalidError();
+  return {
+    currentRuleId: uuid(input.currentRuleId),
+    effectiveFrom: dateOnly(input.effectiveFrom),
+    hostId: uuid(input.hostId),
+    idempotencyKey: idempotencyKey(idempotencyHeader),
+    reason: input.reason,
   };
 }
 

@@ -23,6 +23,7 @@ const context = {
   userId: 'customer-user-1',
 };
 const request = {
+  currentRuleId: null,
   effectiveFrom: new Date('2026-07-27T00:00:00.000Z'),
   hostId: 'host-1',
   id: 'request-1',
@@ -37,7 +38,13 @@ const request = {
   targetWeekdays: [1, 3],
 };
 
-function createService(options?: { request?: object | null; updatedCount?: number }) {
+function createService(options?: {
+  appointments?: readonly object[];
+  currentRule?: object | null;
+  request?: object | null;
+  updatedCount?: number;
+}) {
+  const appointments = options?.appointments ?? [];
   const transaction = {
     $queryRaw: vi.fn().mockResolvedValue([{ acquired: 1 }]),
     fixedAppointmentRequest: {
@@ -48,9 +55,16 @@ function createService(options?: { request?: object | null; updatedCount?: numbe
     },
     fixedAppointmentRule: {
       create: vi.fn().mockResolvedValue({ id: 'rule-1' }),
+      findUnique: vi.fn().mockResolvedValue(options?.currentRule ?? null),
+      updateMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
     fixedAppointmentRuleWeekday: {
       createMany: vi.fn().mockResolvedValue({ count: 2 }),
+      updateMany: vi.fn().mockResolvedValue({ count: 2 }),
+    },
+    appointment: {
+      findMany: vi.fn().mockResolvedValue(appointments),
+      updateMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
     outboxEvent: { create: vi.fn().mockResolvedValue({}) },
   };
@@ -91,6 +105,7 @@ describe('FixedRequestReviewService', () => {
     );
 
     expect(result).toEqual({
+      cancelledAppointmentCount: 0,
       fixedRuleId: 'rule-1',
       id: 'request-1',
       reviewComment: '同意固定',
@@ -142,7 +157,11 @@ describe('FixedRequestReviewService', () => {
         },
         now,
       ),
-    ).resolves.toMatchObject({ fixedRuleId: null, status: 'REJECTED' });
+    ).resolves.toMatchObject({
+      cancelledAppointmentCount: 0,
+      fixedRuleId: null,
+      status: 'REJECTED',
+    });
 
     expect(transaction.$queryRaw).toHaveBeenCalledOnce();
     expect(availability.getAvailabilityWithClient).not.toHaveBeenCalled();
@@ -179,5 +198,114 @@ describe('FixedRequestReviewService', () => {
         now,
       ),
     ).toThrow(FixedRequestReviewCommentInvalidError);
+  });
+
+  it('ends the old rule, cancels future instances and creates the replacement on change', async () => {
+    const changeRequest = {
+      ...request,
+      currentRuleId: 'old-rule',
+      requestType: 'CHANGE',
+    };
+    const currentRule = {
+      artistId: 'artist-1',
+      durationMinutes: 30,
+      hostId: 'host-1',
+      id: 'old-rule',
+      siteId: 'site-1',
+      startMinute: 480,
+      status: 'ACTIVE',
+      validFrom: new Date('2026-07-23T00:00:00.000Z'),
+      weekdays: [{ isoWeekday: 1 }, { isoWeekday: 3 }],
+    };
+    const appointment = {
+      appointmentDate: new Date('2026-07-27T00:00:00.000Z'),
+      artistId: 'artist-1',
+      hostId: 'host-1',
+      id: 'appointment-1',
+      rowVersion: 1,
+      siteId: 'site-1',
+      status: 'BOOKED',
+    };
+    const { audit, availability, service, transaction } = createService({
+      appointments: [appointment],
+      currentRule,
+      request: changeRequest,
+    });
+
+    await expect(
+      service.review(
+        context,
+        { decision: 'APPROVE', expectedRowVersion: 1, requestId: 'request-1' },
+        now,
+      ),
+    ).resolves.toMatchObject({ cancelledAppointmentCount: 1, fixedRuleId: 'rule-1' });
+
+    expect(availability.getAvailabilityWithClient).toHaveBeenCalledWith(
+      transaction,
+      context,
+      expect.any(Object),
+      now,
+      { excludeRequestId: 'request-1', excludeRuleId: 'old-rule' },
+    );
+    expect(transaction.fixedAppointmentRule.updateMany.mock.calls[0]?.[0]).toMatchObject({
+      data: {
+        endedByRequestId: 'request-1',
+        status: 'ENDED',
+        validUntil: changeRequest.effectiveFrom,
+      },
+    });
+    expect(transaction.fixedAppointmentRuleWeekday.updateMany).toHaveBeenCalledWith({
+      data: { validUntil: changeRequest.effectiveFrom },
+      where: { ruleId: 'old-rule', validUntil: null },
+    });
+    expect(transaction.appointment.updateMany.mock.calls[0]?.[0]).toMatchObject({
+      data: {
+        cancellationReasonCode: 'FIXED_RULE_CHANGED',
+        cancellationSourceId: 'request-1',
+        cancellationSourceType: 'FIXED_REQUEST',
+        status: 'CANCELLED',
+      },
+    });
+    expect(audit.append).toHaveBeenCalledTimes(2);
+    expect(transaction.outboxEvent.create).toHaveBeenCalledTimes(2);
+  });
+
+  it('ends the old rule without creating a replacement on cancellation', async () => {
+    const cancelRequest = {
+      ...request,
+      currentRuleId: 'old-rule',
+      requestType: 'CANCEL',
+      targetArtistId: null,
+      targetDurationMinutes: null,
+      targetStartMinute: null,
+      targetWeekdays: [],
+    };
+    const currentRule = {
+      artistId: 'artist-old',
+      durationMinutes: 30,
+      hostId: 'host-1',
+      id: 'old-rule',
+      siteId: 'site-1',
+      startMinute: 480,
+      status: 'ACTIVE',
+      validFrom: new Date('2026-07-23T00:00:00.000Z'),
+      weekdays: [{ isoWeekday: 1 }, { isoWeekday: 3 }],
+    };
+    const { availability, service, transaction } = createService({
+      currentRule,
+      request: cancelRequest,
+    });
+
+    await expect(
+      service.review(
+        context,
+        { decision: 'APPROVE', expectedRowVersion: 1, requestId: 'request-1' },
+        now,
+      ),
+    ).resolves.toMatchObject({ cancelledAppointmentCount: 0, fixedRuleId: null });
+
+    expect(availability.getAvailabilityWithClient).not.toHaveBeenCalled();
+    expect(transaction.fixedAppointmentRule.create).not.toHaveBeenCalled();
+    expect(transaction.fixedAppointmentRule.updateMany).toHaveBeenCalledOnce();
   });
 });

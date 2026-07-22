@@ -13,20 +13,38 @@ export interface CreateFixedRequestCommand {
   readonly weekdays: readonly number[];
 }
 
+export interface ChangeFixedRequestCommand extends CreateFixedRequestCommand {
+  readonly currentRuleId: string;
+}
+
+export interface CancelFixedRequestCommand {
+  readonly currentRuleId: string;
+  readonly effectiveFrom: Date;
+  readonly hostId: string;
+  readonly idempotencyKey: string;
+  readonly reason: string;
+}
+
+export type SubmitFixedRequestCommand =
+  | ({ readonly requestType: 'CANCEL' } & CancelFixedRequestCommand)
+  | ({ readonly requestType: 'CHANGE' } & ChangeFixedRequestCommand)
+  | ({ readonly requestType: 'CREATE' } & CreateFixedRequestCommand);
+
 export interface FixedRequestSummary {
+  readonly currentRuleId: string | null;
   readonly effectiveFrom: string;
   readonly hostId: string;
   readonly id: string;
   readonly reason: string;
-  readonly requestType: 'CREATE';
+  readonly requestType: 'CANCEL' | 'CHANGE' | 'CREATE';
   readonly rowVersion: number;
   readonly siteId: string;
   readonly status: 'PENDING';
   readonly submittedAt: string;
   readonly submittedByOperatorId: string;
-  readonly targetArtistId: string;
-  readonly targetDurationMinutes: number;
-  readonly targetStartMinute: number;
+  readonly targetArtistId: string | null;
+  readonly targetDurationMinutes: number | null;
+  readonly targetStartMinute: number | null;
   readonly targetWeekdays: readonly number[];
 }
 
@@ -45,6 +63,7 @@ export interface ReviewFixedRequestCommand {
 }
 
 export interface FixedRequestReviewResult {
+  readonly cancelledAppointmentCount: number;
   readonly fixedRuleId: string | null;
   readonly id: string;
   readonly reviewComment: string | null;

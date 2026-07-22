@@ -38,6 +38,7 @@ interface TimedAppointment {
 }
 
 export interface FixedAvailabilityQueryOptions {
+  readonly excludeRuleId?: string;
   readonly excludeRequestId?: string;
 }
 
@@ -50,16 +51,7 @@ export function validateFixedAvailabilityInput(
   now: Date,
 ): readonly number[] {
   validateBookingDuration(input.durationMinutes);
-  if (
-    Number.isNaN(input.requestedStartDate.getTime()) ||
-    input.requestedStartDate.getUTCHours() !== 0 ||
-    input.requestedStartDate.getUTCMinutes() !== 0 ||
-    input.requestedStartDate.getUTCSeconds() !== 0 ||
-    input.requestedStartDate.getUTCMilliseconds() !== 0 ||
-    input.requestedStartDate.getTime() < addDays(toBusinessDate(now), 1).getTime()
-  ) {
-    throw new FixedAvailabilityDateInvalidError();
-  }
+  validateFixedEffectiveDate(input.requestedStartDate, now);
   const weekdays = [...new Set(input.weekdays)].sort((left, right) => left - right);
   if (
     weekdays.length === 0 ||
@@ -69,6 +61,19 @@ export function validateFixedAvailabilityInput(
     throw new FixedAvailabilityWeekdaysInvalidError();
   }
   return weekdays;
+}
+
+export function validateFixedEffectiveDate(effectiveFrom: Date, now: Date): void {
+  if (
+    Number.isNaN(effectiveFrom.getTime()) ||
+    effectiveFrom.getUTCHours() !== 0 ||
+    effectiveFrom.getUTCMinutes() !== 0 ||
+    effectiveFrom.getUTCSeconds() !== 0 ||
+    effectiveFrom.getUTCMilliseconds() !== 0 ||
+    effectiveFrom.getTime() < addDays(toBusinessDate(now), 1).getTime()
+  ) {
+    throw new FixedAvailabilityDateInvalidError();
+  }
 }
 
 function appointmentMinute(instant: Date, date: Date): number {
@@ -155,7 +160,14 @@ export class FixedAvailabilityService {
               ...(options.excludeRequestId ? { id: { not: options.excludeRequestId } } : {}),
             },
           },
-          fixedRules: { select: { id: true }, take: 1, where: { status: 'ACTIVE' } },
+          fixedRules: {
+            select: { id: true },
+            take: 1,
+            where: {
+              status: 'ACTIVE',
+              ...(options.excludeRuleId ? { id: { not: options.excludeRuleId } } : {}),
+            },
+          },
           id: true,
           leaveRecords: {
             select: { endDate: true, startDate: true },
@@ -276,6 +288,7 @@ export class FixedAvailabilityService {
           startMinute: true,
         },
         where: {
+          ...(options.excludeRuleId ? { ruleId: { not: options.excludeRuleId } } : {}),
           isoWeekday: { in: [...weekdays] },
           OR: [{ artistId: input.artistId }, { hostId: input.hostId }],
           AND: [{ OR: [{ validUntil: null }, { validUntil: { gt: input.requestedStartDate } }] }],

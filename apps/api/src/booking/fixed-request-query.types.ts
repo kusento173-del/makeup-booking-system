@@ -9,6 +9,7 @@ export interface FixedRequestListInput {
 }
 
 export interface FixedRequestListItem {
+  readonly currentRuleId: string | null;
   readonly effectiveFrom: string;
   readonly hostCode: string;
   readonly hostId: string;

@@ -9,7 +9,7 @@ export interface AppointmentListInput {
 }
 
 export interface AppointmentListItem {
-  readonly appointmentType: 'SINGLE';
+  readonly appointmentType: 'FIXED' | 'SINGLE';
   readonly artistId: string;
   readonly artistNickname: string;
   readonly dailySequence: 1 | 2;

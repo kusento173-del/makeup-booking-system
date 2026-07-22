@@ -20,9 +20,11 @@ import type {
 } from './fixed-request.types';
 
 const REVIEW_SELECT = {
+  currentRuleId: true,
   effectiveFrom: true,
   hostId: true,
   id: true,
+  reason: true,
   requestType: true,
   rowVersion: true,
   siteId: true,
@@ -34,7 +36,31 @@ const REVIEW_SELECT = {
   targetWeekdays: true,
 } satisfies Prisma.FixedAppointmentRequestSelect;
 
+const RULE_SELECT = {
+  artistId: true,
+  durationMinutes: true,
+  hostId: true,
+  id: true,
+  siteId: true,
+  startMinute: true,
+  status: true,
+  validFrom: true,
+  weekdays: { select: { isoWeekday: true } },
+} satisfies Prisma.FixedAppointmentRuleSelect;
+
+const APPOINTMENT_SELECT = {
+  appointmentDate: true,
+  artistId: true,
+  hostId: true,
+  id: true,
+  rowVersion: true,
+  siteId: true,
+  status: true,
+} satisfies Prisma.AppointmentSelect;
+
 type ReviewRecord = Prisma.FixedAppointmentRequestGetPayload<{ select: typeof REVIEW_SELECT }>;
+type RuleRecord = Prisma.FixedAppointmentRuleGetPayload<{ select: typeof RULE_SELECT }>;
+type AppointmentRecord = Prisma.AppointmentGetPayload<{ select: typeof APPOINTMENT_SELECT }>;
 
 @Injectable()
 export class FixedRequestReviewService {
@@ -62,9 +88,10 @@ export class FixedRequestReviewService {
         if (!request) throw new FixedRequestNotFoundError();
         this.assertReviewable(context, command, request);
 
-        if (command.decision === 'APPROVE') {
-          await this.validateApproval(transaction, context, request, now);
-        }
+        const currentRule =
+          command.decision === 'APPROVE'
+            ? await this.validateApproval(transaction, context, request, now)
+            : null;
         const status = command.decision === 'APPROVE' ? 'APPROVED' : 'REJECTED';
         const updated = await transaction.fixedAppointmentRequest.updateMany({
           data: {
@@ -82,9 +109,23 @@ export class FixedRequestReviewService {
         });
         if (updated.count !== 1) throw new FixedRequestStateConflictError();
 
+        let cancelledAppointmentCount = 0;
+        if (command.decision === 'APPROVE' && currentRule) {
+          await this.endRule(transaction, request, currentRule);
+          cancelledAppointmentCount = await this.cancelFutureAppointments(
+            transaction,
+            context,
+            request,
+            currentRule,
+            now,
+          );
+        }
         const fixedRuleId =
-          command.decision === 'APPROVE' ? await this.createRule(transaction, request) : null;
+          command.decision === 'APPROVE' && request.requestType !== 'CANCEL'
+            ? await this.createRule(transaction, request)
+            : null;
         const result: FixedRequestReviewResult = {
+          cancelledAppointmentCount,
           fixedRuleId,
           id: request.id,
           reviewComment: comment,
@@ -111,31 +152,75 @@ export class FixedRequestReviewService {
     context: FixedRequestCommandContext,
     request: ReviewRecord,
     now: Date,
-  ): Promise<void> {
-    const target = this.target(request);
+  ): Promise<RuleRecord | null> {
     if (request.effectiveFrom <= toBusinessDate(now)) throw new FixedRequestUnavailableError();
-    await this.lockTarget(transaction, request, target);
-    const availability = await this.availability.getAvailabilityWithClient(
-      transaction,
-      context,
-      {
-        artistId: target.artistId,
-        durationMinutes: target.durationMinutes,
-        hostId: request.hostId,
-        requestedStartDate: request.effectiveFrom,
-        weekdays: request.targetWeekdays,
-      },
-      now,
-      { excludeRequestId: request.id },
-    );
-    const slot = availability.slots.find((item) => item.startMinute === target.startMinute);
+    const currentRule = await this.currentRule(transaction, request);
+    const target = request.requestType === 'CANCEL' ? null : this.target(request);
+    const appointments = currentRule
+      ? await transaction.appointment.findMany({
+          select: APPOINTMENT_SELECT,
+          where: {
+            appointmentDate: { gte: request.effectiveFrom },
+            fixedRuleId: currentRule.id,
+            status: 'BOOKED',
+          },
+        })
+      : [];
+    await this.lockSchedule(transaction, request, currentRule, target, appointments);
+
+    if (target) {
+      const availability = await this.availability.getAvailabilityWithClient(
+        transaction,
+        context,
+        {
+          artistId: target.artistId,
+          durationMinutes: target.durationMinutes,
+          hostId: request.hostId,
+          requestedStartDate: request.effectiveFrom,
+          weekdays: request.targetWeekdays,
+        },
+        now,
+        {
+          ...(currentRule ? { excludeRuleId: currentRule.id } : {}),
+          excludeRequestId: request.id,
+        },
+      );
+      const slot = availability.slots.find((item) => item.startMinute === target.startMinute);
+      if (
+        availability.unavailableReason !== null ||
+        !slot?.available ||
+        slot.earliestStartDate !== formatDateOnly(request.effectiveFrom)
+      ) {
+        throw new FixedRequestUnavailableError();
+      }
+    }
+    return currentRule;
+  }
+
+  private async currentRule(
+    transaction: Prisma.TransactionClient,
+    request: ReviewRecord,
+  ): Promise<RuleRecord | null> {
+    if (request.requestType === 'CREATE') {
+      if (request.currentRuleId !== null) throw new FixedRequestStateConflictError();
+      return null;
+    }
+    if (!request.currentRuleId) throw new FixedRequestStateConflictError();
+    const rule = await transaction.fixedAppointmentRule.findUnique({
+      select: RULE_SELECT,
+      where: { id: request.currentRuleId },
+    });
     if (
-      availability.unavailableReason !== null ||
-      !slot?.available ||
-      slot.earliestStartDate !== formatDateOnly(request.effectiveFrom)
+      !rule ||
+      rule.hostId !== request.hostId ||
+      rule.siteId !== request.siteId ||
+      rule.status !== 'ACTIVE' ||
+      rule.validFrom >= request.effectiveFrom ||
+      (request.requestType === 'CHANGE' && rule.artistId !== request.targetArtistId)
     ) {
       throw new FixedRequestUnavailableError();
     }
+    return rule;
   }
 
   private async createRule(
@@ -170,9 +255,108 @@ export class FixedRequestReviewService {
     return rule.id;
   }
 
+  private async endRule(
+    transaction: Prisma.TransactionClient,
+    request: ReviewRecord,
+    rule: RuleRecord,
+  ): Promise<void> {
+    const ended = await transaction.fixedAppointmentRule.updateMany({
+      data: {
+        endedByRequestId: request.id,
+        rowVersion: { increment: 1 },
+        status: 'ENDED',
+        validUntil: request.effectiveFrom,
+      },
+      where: { id: rule.id, status: 'ACTIVE' },
+    });
+    if (ended.count !== 1) throw new FixedRequestStateConflictError();
+    const weekdays = await transaction.fixedAppointmentRuleWeekday.updateMany({
+      data: { validUntil: request.effectiveFrom },
+      where: { ruleId: rule.id, validUntil: null },
+    });
+    if (weekdays.count !== rule.weekdays.length) throw new FixedRequestStateConflictError();
+  }
+
+  private async cancelFutureAppointments(
+    transaction: Prisma.TransactionClient,
+    context: FixedRequestCommandContext,
+    request: ReviewRecord,
+    rule: RuleRecord,
+    now: Date,
+  ): Promise<number> {
+    const appointments = await transaction.appointment.findMany({
+      orderBy: [{ appointmentDate: 'asc' }, { id: 'asc' }],
+      select: APPOINTMENT_SELECT,
+      where: {
+        appointmentDate: { gte: request.effectiveFrom },
+        fixedRuleId: rule.id,
+        status: 'BOOKED',
+      },
+    });
+    let cancelled = 0;
+    for (const appointment of appointments) {
+      const updated = await transaction.appointment.updateMany({
+        data: {
+          cancellationReasonCode:
+            request.requestType === 'CHANGE' ? 'FIXED_RULE_CHANGED' : 'FIXED_RULE_CANCELLED',
+          cancellationReasonText: request.reason,
+          cancellationSourceId: request.id,
+          cancellationSourceType: 'FIXED_REQUEST',
+          cancelledAt: now,
+          cancelledByUserId: context.userId,
+          rowVersion: { increment: 1 },
+          status: 'CANCELLED',
+        },
+        where: { id: appointment.id, rowVersion: appointment.rowVersion, status: 'BOOKED' },
+      });
+      if (updated.count !== 1) throw new FixedRequestStateConflictError();
+      await this.recordAppointmentCancellation(transaction, context, request, appointment, now);
+      cancelled += 1;
+    }
+    return cancelled;
+  }
+
+  private async recordAppointmentCancellation(
+    transaction: Prisma.TransactionClient,
+    context: FixedRequestCommandContext,
+    request: ReviewRecord,
+    appointment: AppointmentRecord,
+    now: Date,
+  ): Promise<void> {
+    await this.audit.append(transaction, context, {
+      action: 'FIXED_APPOINTMENT_CANCELLED_BY_RULE_REQUEST',
+      afterData: {
+        cancelledAt: now.toISOString(),
+        cancellationSourceId: request.id,
+        rowVersion: appointment.rowVersion + 1,
+        status: 'CANCELLED',
+      },
+      beforeData: { rowVersion: appointment.rowVersion, status: appointment.status },
+      objectId: appointment.id,
+      objectType: 'APPOINTMENT',
+      reason: request.reason,
+      siteId: appointment.siteId,
+    });
+    await transaction.outboxEvent.create({
+      data: {
+        aggregateId: appointment.id,
+        aggregateType: 'APPOINTMENT',
+        eventType: 'FIXED_APPOINTMENT_CANCELLED_BY_RULE_REQUEST',
+        payload: {
+          appointmentId: appointment.id,
+          artistId: appointment.artistId,
+          fixedRequestId: request.id,
+          hostId: appointment.hostId,
+          siteId: appointment.siteId,
+        },
+      },
+    });
+  }
+
   private target(request: ReviewRecord) {
     if (
-      request.requestType !== 'CREATE' ||
+      request.requestType === 'CANCEL' ||
+      !['CHANGE', 'CREATE'].includes(request.requestType) ||
       !request.targetArtistId ||
       request.targetStartMinute === null ||
       request.targetDurationMinutes === null ||
@@ -187,23 +371,57 @@ export class FixedRequestReviewService {
     };
   }
 
-  private async lockTarget(
+  private async lockSchedule(
     transaction: Prisma.TransactionClient,
     request: ReviewRecord,
-    target: ReturnType<FixedRequestReviewService['target']>,
+    currentRule: RuleRecord | null,
+    target: ReturnType<FixedRequestReviewService['target']> | null,
+    appointments: readonly AppointmentRecord[],
   ): Promise<void> {
     const keys = new Set<string>([`fixed:host:${request.hostId}`]);
-    for (const weekday of request.targetWeekdays) {
-      for (
-        let minute = target.startMinute;
-        minute < target.startMinute + target.durationMinutes;
-        minute += 15
-      ) {
-        keys.add(`fixed:artist:${target.artistId}:${weekday}:${minute}`);
-        keys.add(`fixed:host:${request.hostId}:${weekday}:${minute}`);
-      }
+    if (currentRule) {
+      keys.add(`fixed:rule:${currentRule.id}`);
+      this.addSlotLocks(
+        keys,
+        currentRule.hostId,
+        currentRule.artistId,
+        currentRule.weekdays.map(({ isoWeekday }) => isoWeekday),
+        currentRule.startMinute,
+        currentRule.durationMinutes,
+      );
+    }
+    if (target) {
+      this.addSlotLocks(
+        keys,
+        request.hostId,
+        target.artistId,
+        request.targetWeekdays,
+        target.startMinute,
+        target.durationMinutes,
+      );
+    }
+    for (const appointment of appointments) {
+      const date = formatDateOnly(appointment.appointmentDate);
+      keys.add(`appointment:artist:${appointment.artistId}:${date}`);
+      keys.add(`appointment:host:${appointment.hostId}:${date}`);
     }
     for (const key of [...keys].sort()) await acquireTransactionLock(transaction, key);
+  }
+
+  private addSlotLocks(
+    keys: Set<string>,
+    hostId: string,
+    artistId: string,
+    weekdays: readonly number[],
+    startMinute: number,
+    durationMinutes: number,
+  ): void {
+    for (const weekday of weekdays) {
+      for (let minute = startMinute; minute < startMinute + durationMinutes; minute += 15) {
+        keys.add(`fixed:artist:${artistId}:${weekday}:${minute}`);
+        keys.add(`fixed:host:${hostId}:${weekday}:${minute}`);
+      }
+    }
   }
 
   private assertReviewable(
@@ -237,6 +455,7 @@ export class FixedRequestReviewService {
     await this.audit.append(transaction, context, {
       action: eventType,
       afterData: {
+        cancelledAppointmentCount: result.cancelledAppointmentCount,
         fixedRuleId: result.fixedRuleId,
         reviewComment: result.reviewComment,
         status: result.status,
@@ -253,9 +472,11 @@ export class FixedRequestReviewService {
         aggregateType: 'FIXED_REQUEST',
         eventType,
         payload: {
+          cancelledAppointmentCount: result.cancelledAppointmentCount,
           fixedRuleId: result.fixedRuleId,
           hostId: request.hostId,
           requestId: request.id,
+          requestType: request.requestType,
           siteId: request.siteId,
           submittedByOperatorId: request.submittedByOperatorId,
         },

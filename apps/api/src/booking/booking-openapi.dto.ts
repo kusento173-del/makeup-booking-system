@@ -137,7 +137,29 @@ export class CreateFixedRequestDto {
   weekdays!: number[];
 }
 
+export class ChangeFixedRequestDto extends CreateFixedRequestDto {
+  @ApiProperty({ format: 'uuid' })
+  currentRuleId!: string;
+}
+
+export class CancelFixedRequestDto {
+  @ApiProperty({ format: 'uuid' })
+  currentRuleId!: string;
+
+  @ApiProperty({ format: 'date' })
+  effectiveFrom!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  hostId!: string;
+
+  @ApiProperty({ maxLength: 500 })
+  reason!: string;
+}
+
 export class FixedRequestSummaryDto {
+  @ApiProperty({ format: 'uuid', nullable: true })
+  currentRuleId!: string | null;
+
   @ApiProperty({ format: 'date' })
   effectiveFrom!: string;
 
@@ -150,7 +172,7 @@ export class FixedRequestSummaryDto {
   @ApiProperty()
   reason!: string;
 
-  @ApiProperty({ enum: ['CREATE'] })
+  @ApiProperty({ enum: ['CANCEL', 'CHANGE', 'CREATE'] })
   requestType!: string;
 
   @ApiProperty({ minimum: 1 })
@@ -168,14 +190,14 @@ export class FixedRequestSummaryDto {
   @ApiProperty({ format: 'uuid' })
   submittedByOperatorId!: string;
 
-  @ApiProperty({ format: 'uuid' })
-  targetArtistId!: string;
+  @ApiProperty({ format: 'uuid', nullable: true })
+  targetArtistId!: string | null;
 
-  @ApiProperty({ enum: [15, 30, 45, 60] })
-  targetDurationMinutes!: number;
+  @ApiProperty({ enum: [15, 30, 45, 60], nullable: true })
+  targetDurationMinutes!: number | null;
 
-  @ApiProperty({ maximum: 1425, minimum: 0, multipleOf: 15 })
-  targetStartMinute!: number;
+  @ApiProperty({ maximum: 1425, minimum: 0, multipleOf: 15, nullable: true })
+  targetStartMinute!: number | null;
 
   @ApiProperty({ isArray: true, maximum: 7, minimum: 1, type: Number })
   targetWeekdays!: number[];
@@ -190,6 +212,9 @@ export class FixedRequestCreateResultDto {
 }
 
 export class FixedRequestListItemDto {
+  @ApiProperty({ format: 'uuid', nullable: true })
+  currentRuleId!: string | null;
+
   @ApiProperty({ format: 'date' })
   effectiveFrom!: string;
 
@@ -280,6 +305,9 @@ export class ReviewFixedRequestDto {
 }
 
 export class FixedRequestReviewResultDto {
+  @ApiProperty({ minimum: 0 })
+  cancelledAppointmentCount!: number;
+
   @ApiProperty({ format: 'uuid', nullable: true })
   fixedRuleId!: string | null;
 
@@ -320,7 +348,7 @@ export class CreateBookingRequestDto {
 }
 
 export class AppointmentSummaryDto {
-  @ApiProperty({ enum: ['SINGLE'] })
+  @ApiProperty({ enum: ['FIXED', 'SINGLE'] })
   appointmentType!: string;
 
   @ApiProperty({ format: 'uuid' })

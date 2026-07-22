@@ -118,6 +118,16 @@ export class FixedGenerationService {
         });
         if (!rule) return 'ALREADY_PROCESSED';
         await this.lockSchedule(transaction, rule, date);
+        const stillEffective = await transaction.fixedAppointmentRule.findFirst({
+          select: { id: true },
+          where: {
+            id: rule.id,
+            validFrom: { lte: date },
+            OR: [{ validUntil: null }, { validUntil: { gt: date } }],
+            weekdays: { some: { isoWeekday: isoWeekdayForDate(date) } },
+          },
+        });
+        if (!stillEffective) return 'ALREADY_PROCESSED';
         const existing = await transaction.appointment.findFirst({
           select: { id: true },
           where: { appointmentDate: date, fixedRuleId: rule.id },
