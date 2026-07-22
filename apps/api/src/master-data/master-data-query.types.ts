@@ -8,6 +8,7 @@ export interface SiteSummary {
   readonly code: string;
   readonly id: string;
   readonly name: string;
+  readonly rowVersion: number;
   readonly status: SiteStatus;
   readonly timezone: string;
 }
@@ -18,6 +19,7 @@ export interface HostSummary {
   readonly nickname: string | null;
   readonly qualificationStatus: HostQualificationStatus;
   readonly realName: string;
+  readonly rowVersion: number;
   readonly siteId: string;
 }
 
@@ -27,6 +29,7 @@ export interface ArtistSummary {
   readonly initialShiftConfigured: boolean;
   readonly nickname: string;
   readonly realName: string;
+  readonly rowVersion: number;
   readonly siteId: string;
 }
 
@@ -34,6 +37,7 @@ export interface OperatorSummary {
   readonly employmentStatus: EmploymentStatus;
   readonly id: string;
   readonly realName: string;
+  readonly rowVersion: number;
   readonly siteId: string;
 }
 

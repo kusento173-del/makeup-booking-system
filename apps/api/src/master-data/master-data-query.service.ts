@@ -19,6 +19,7 @@ const HOST_SELECT = {
   nickname: true,
   qualificationStatus: true,
   realName: true,
+  rowVersion: true,
   siteId: true,
 } satisfies Prisma.HostProfileSelect;
 
@@ -28,6 +29,7 @@ const ARTIST_SELECT = {
   initialShiftConfiguredAt: true,
   nickname: true,
   realName: true,
+  rowVersion: true,
   siteId: true,
 } satisfies Prisma.ArtistProfileSelect;
 
@@ -35,6 +37,7 @@ const OPERATOR_SELECT = {
   employmentStatus: true,
   id: true,
   realName: true,
+  rowVersion: true,
   siteId: true,
 } satisfies Prisma.OperatorProfileSelect;
 
@@ -62,7 +65,14 @@ export class MasterDataQueryService {
       (client) =>
         client.site.findMany({
           orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-          select: { code: true, id: true, name: true, status: true, timezone: true },
+          select: {
+            code: true,
+            id: true,
+            name: true,
+            rowVersion: true,
+            status: true,
+            timezone: true,
+          },
           where: context.roleCode === 'ADMIN' ? {} : { status: 'ACTIVE' },
         }) as Promise<SiteSummary[]>,
     );

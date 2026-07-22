@@ -4,6 +4,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { ApiExceptionFilter } from './api-exception.filter';
 import { AuthSessionInvalidError } from './auth/auth-session.errors';
 import { AuthorizationDeniedError } from './auth/authorization-policy.service';
+import {
+  MasterDataNotFoundError,
+  MasterDataVersionConflictError,
+} from './master-data/master-data.errors';
 
 function createHost() {
   const send = vi.fn();
@@ -50,6 +54,26 @@ describe('ApiExceptionFilter', () => {
     expect(send).toHaveBeenCalledWith({
       error: { code: 'AUTHORIZATION_DENIED', message: '无权执行该操作' },
       statusCode: 403,
+    });
+  });
+
+  it('maps master-data absence and version conflicts without internal details', () => {
+    const missing = createHost();
+    const conflict = createHost();
+    const filter = new ApiExceptionFilter();
+
+    filter.catch(new MasterDataNotFoundError('Host'), missing.host);
+    filter.catch(new MasterDataVersionConflictError(), conflict.host);
+
+    expect(missing.response.status).toHaveBeenCalledWith(404);
+    expect(missing.send).toHaveBeenCalledWith({
+      error: { code: 'MASTER_DATA_NOT_FOUND', message: '目标数据不存在' },
+      statusCode: 404,
+    });
+    expect(conflict.response.status).toHaveBeenCalledWith(409);
+    expect(conflict.send).toHaveBeenCalledWith({
+      error: { code: 'MASTER_DATA_VERSION_CONFLICT', message: '数据状态冲突，请刷新后重试' },
+      statusCode: 409,
     });
   });
 });

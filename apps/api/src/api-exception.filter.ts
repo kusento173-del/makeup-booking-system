@@ -1,3 +1,4 @@
+import { Prisma } from '@makeup/database';
 import {
   ArgumentsHost,
   Catch,
@@ -23,6 +24,12 @@ import {
   WechatLoginFailedError,
 } from './auth/wechat-login.errors';
 import { MasterDataRequestInvalidError } from './master-data/master-data-request.parser';
+import {
+  MasterDataInactiveSiteError,
+  MasterDataNotFoundError,
+  MasterDataSiteMismatchError,
+  MasterDataVersionConflictError,
+} from './master-data/master-data.errors';
 
 interface ErrorResponse {
   readonly error: {
@@ -69,6 +76,25 @@ export class ApiExceptionFilter implements ExceptionFilter {
 
     if (exception instanceof AuthorizationDeniedError) {
       return this.response(HttpStatus.FORBIDDEN, exception.code, '无权执行该操作');
+    }
+
+    if (exception instanceof MasterDataNotFoundError) {
+      return this.response(HttpStatus.NOT_FOUND, exception.code, '目标数据不存在');
+    }
+
+    if (
+      exception instanceof MasterDataVersionConflictError ||
+      exception instanceof MasterDataInactiveSiteError ||
+      exception instanceof MasterDataSiteMismatchError
+    ) {
+      return this.response(HttpStatus.CONFLICT, exception.code, '数据状态冲突，请刷新后重试');
+    }
+
+    if (
+      exception instanceof Prisma.PrismaClientKnownRequestError &&
+      ['P2002', 'P2003', 'P2004'].includes(exception.code)
+    ) {
+      return this.response(HttpStatus.CONFLICT, 'MASTER_DATA_CONFLICT', '数据已存在或存在冲突');
     }
 
     if (

@@ -63,7 +63,7 @@ export class MasterDataCreateService {
       const qualificationEffectiveAt = new Date();
       const host = await transaction.hostProfile.create({
         data: {
-          hostCode: requiredMasterDataText(command.hostCode, 'hostCode'),
+          hostCode: requiredMasterDataText(command.hostCode, 'hostCode').toLocaleUpperCase('en-US'),
           nickname: optionalMasterDataText(command.nickname) ?? null,
           qualificationEffectiveAt,
           realName: requiredMasterDataText(command.realName, 'realName'),

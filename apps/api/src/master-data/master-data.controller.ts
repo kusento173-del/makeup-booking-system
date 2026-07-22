@@ -1,7 +1,9 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Ip, Post, Query, UseGuards } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
+  ApiBody,
+  ApiCreatedResponse,
   ApiForbiddenResponse,
   ApiOkResponse,
   ApiOperation,
@@ -14,8 +16,17 @@ import { ApiErrorResponseDto } from '../auth/auth-openapi.dto';
 import { AccessTokenGuard } from '../auth/access-token.guard';
 import type { AccessTokenClaims } from '../auth/auth-session.types';
 import { CurrentAuth } from '../auth/current-auth.decorator';
+import { MasterDataCommandContextService } from './master-data-command-context.service';
+import type { MasterDataCommandContext } from './master-data-command.types';
+import { MasterDataCreateService } from './master-data-create.service';
 import {
+  AssignOperatorRequestDto,
   ArtistPageDto,
+  CreatedMasterDataDto,
+  CreateArtistRequestDto,
+  CreateHostRequestDto,
+  CreateOperatorRequestDto,
+  CreateSiteRequestDto,
   DatedMasterDataListQueryDto,
   HostPageDto,
   MasterDataListQueryDto,
@@ -30,7 +41,15 @@ import type {
   OperatorSummary,
   SiteSummary,
 } from './master-data-query.types';
-import { assertNoMasterDataQuery, parseMasterDataListRequest } from './master-data-request.parser';
+import {
+  assertNoMasterDataQuery,
+  parseAssignOperatorRequest,
+  parseCreateArtistRequest,
+  parseCreateHostRequest,
+  parseCreateOperatorRequest,
+  parseCreateSiteRequest,
+  parseMasterDataListRequest,
+} from './master-data-request.parser';
 
 @ApiTags('主数据')
 @ApiBearerAuth('access-token')
@@ -40,7 +59,86 @@ import { assertNoMasterDataQuery, parseMasterDataListRequest } from './master-da
 @UseGuards(AccessTokenGuard)
 @Controller('master-data')
 export class MasterDataController {
-  constructor(private readonly queries: MasterDataQueryService) {}
+  constructor(
+    private readonly contexts: MasterDataCommandContextService,
+    private readonly creates: MasterDataCreateService,
+    private readonly queries: MasterDataQueryService,
+  ) {}
+
+  @Post('sites')
+  @ApiOperation({ summary: '新增场地（仅管理员）' })
+  @ApiBody({ type: CreateSiteRequestDto })
+  @ApiCreatedResponse({ type: CreatedMasterDataDto })
+  async createSite(
+    @Body() body: unknown,
+    @CurrentAuth() authorization: AccessTokenClaims,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent?: string,
+    @Headers('x-request-id') requestId?: string,
+  ): Promise<{ readonly id: string }> {
+    const context = await this.commandContext(authorization, ipAddress, userAgent, requestId);
+    return { id: await this.creates.createSite(context, parseCreateSiteRequest(body)) };
+  }
+
+  @Post('hosts')
+  @ApiOperation({ summary: '新增主播' })
+  @ApiBody({ type: CreateHostRequestDto })
+  @ApiCreatedResponse({ type: CreatedMasterDataDto })
+  async createHost(
+    @Body() body: unknown,
+    @CurrentAuth() authorization: AccessTokenClaims,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent?: string,
+    @Headers('x-request-id') requestId?: string,
+  ): Promise<{ readonly id: string }> {
+    const context = await this.commandContext(authorization, ipAddress, userAgent, requestId);
+    return { id: await this.creates.createHost(context, parseCreateHostRequest(body)) };
+  }
+
+  @Post('artists')
+  @ApiOperation({ summary: '新增化妆师' })
+  @ApiBody({ type: CreateArtistRequestDto })
+  @ApiCreatedResponse({ type: CreatedMasterDataDto })
+  async createArtist(
+    @Body() body: unknown,
+    @CurrentAuth() authorization: AccessTokenClaims,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent?: string,
+    @Headers('x-request-id') requestId?: string,
+  ): Promise<{ readonly id: string }> {
+    const context = await this.commandContext(authorization, ipAddress, userAgent, requestId);
+    return { id: await this.creates.createArtist(context, parseCreateArtistRequest(body)) };
+  }
+
+  @Post('operators')
+  @ApiOperation({ summary: '新增运营' })
+  @ApiBody({ type: CreateOperatorRequestDto })
+  @ApiCreatedResponse({ type: CreatedMasterDataDto })
+  async createOperator(
+    @Body() body: unknown,
+    @CurrentAuth() authorization: AccessTokenClaims,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent?: string,
+    @Headers('x-request-id') requestId?: string,
+  ): Promise<{ readonly id: string }> {
+    const context = await this.commandContext(authorization, ipAddress, userAgent, requestId);
+    return { id: await this.creates.createOperator(context, parseCreateOperatorRequest(body)) };
+  }
+
+  @Post('host-operator-relations')
+  @ApiOperation({ summary: '建立主播—运营有效期关系' })
+  @ApiBody({ type: AssignOperatorRequestDto })
+  @ApiCreatedResponse({ type: CreatedMasterDataDto })
+  async assignOperator(
+    @Body() body: unknown,
+    @CurrentAuth() authorization: AccessTokenClaims,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent?: string,
+    @Headers('x-request-id') requestId?: string,
+  ): Promise<{ readonly id: string }> {
+    const context = await this.commandContext(authorization, ipAddress, userAgent, requestId);
+    return { id: await this.creates.assignOperator(context, parseAssignOperatorRequest(body)) };
+  }
 
   @Get('sites')
   @ApiOperation({ summary: '查询当前角色可见场地' })
@@ -87,5 +185,19 @@ export class MasterDataController {
   ): Promise<MasterDataPage<OperatorSummary>> {
     const request = parseMasterDataListRequest(query, { includeAsOf: true });
     return this.queries.listOperators(authorization, request.asOf, request.page);
+  }
+
+  private commandContext(
+    authorization: AccessTokenClaims,
+    ipAddress: string,
+    userAgent?: string,
+    requestId?: string,
+  ): Promise<MasterDataCommandContext> {
+    return this.contexts.resolve(authorization, {
+      clientType: 'ADMIN_WEB',
+      ipAddress,
+      ...(requestId ? { requestId } : {}),
+      ...(userAgent ? { userAgent } : {}),
+    });
   }
 }

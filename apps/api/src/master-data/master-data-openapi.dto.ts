@@ -22,6 +22,75 @@ export class DatedMasterDataListQueryDto extends MasterDataListQueryDto {
   asOf?: string;
 }
 
+export class CreatedMasterDataDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+}
+
+export class CreateSiteRequestDto {
+  @ApiProperty({ maxLength: 32 })
+  code!: string;
+
+  @ApiProperty({ maxLength: 64 })
+  name!: string;
+
+  @ApiPropertyOptional({ default: 0, type: Number })
+  sortOrder?: number;
+
+  @ApiPropertyOptional({ default: 'Asia/Shanghai', maxLength: 64 })
+  timezone?: string;
+}
+
+export class CreateHostRequestDto {
+  @ApiProperty({ maxLength: 32 })
+  hostCode!: string;
+
+  @ApiPropertyOptional({ maxLength: 64, nullable: true })
+  nickname?: string | null;
+
+  @ApiProperty({ maxLength: 64 })
+  realName!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  siteId!: string;
+}
+
+export class CreateArtistRequestDto {
+  @ApiProperty({ maxLength: 64 })
+  nickname!: string;
+
+  @ApiProperty({ maxLength: 64 })
+  realName!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  siteId!: string;
+}
+
+export class CreateOperatorRequestDto {
+  @ApiProperty({ maxLength: 64 })
+  realName!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  siteId!: string;
+}
+
+export class AssignOperatorRequestDto {
+  @ApiPropertyOptional({ maxLength: 500 })
+  changeReason?: string;
+
+  @ApiProperty({ format: 'uuid' })
+  hostId!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  operatorId!: string;
+
+  @ApiProperty({ format: 'date' })
+  validFrom!: string;
+
+  @ApiPropertyOptional({ format: 'date' })
+  validUntil?: string;
+}
+
 export class SiteSummaryDto {
   @ApiProperty()
   code!: string;
@@ -31,6 +100,9 @@ export class SiteSummaryDto {
 
   @ApiProperty()
   name!: string;
+
+  @ApiProperty({ minimum: 1 })
+  rowVersion!: number;
 
   @ApiProperty({ enum: SITE_STATUSES })
   status!: string;
@@ -55,6 +127,9 @@ export class HostSummaryDto {
   @ApiProperty()
   realName!: string;
 
+  @ApiProperty({ minimum: 1 })
+  rowVersion!: number;
+
   @ApiProperty({ format: 'uuid' })
   siteId!: string;
 }
@@ -75,6 +150,9 @@ export class ArtistSummaryDto {
   @ApiProperty()
   realName!: string;
 
+  @ApiProperty({ minimum: 1 })
+  rowVersion!: number;
+
   @ApiProperty({ format: 'uuid' })
   siteId!: string;
 }
@@ -88,6 +166,9 @@ export class OperatorSummaryDto {
 
   @ApiProperty()
   realName!: string;
+
+  @ApiProperty({ minimum: 1 })
+  rowVersion!: number;
 
   @ApiProperty({ format: 'uuid' })
   siteId!: string;

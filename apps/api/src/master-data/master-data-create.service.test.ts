@@ -64,7 +64,7 @@ describe('MasterDataCreateService', () => {
     try {
       await expect(
         service.createHost(context, {
-          hostCode: ' ZB0001 ',
+          hostCode: ' zb0001 ',
           realName: ' 主播一 ',
           siteId: 'site-songjiang',
         }),
