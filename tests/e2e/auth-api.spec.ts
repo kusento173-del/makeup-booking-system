@@ -34,6 +34,7 @@ test('OpenAPI 契约包含完整认证路径和访问令牌方案', async ({ req
   };
   expect(Object.keys(document.paths ?? {})).toEqual(
     expect.arrayContaining([
+      '/auth/backoffice/login',
       '/auth/wechat/login',
       '/auth/wechat/bind',
       '/auth/role-selection',

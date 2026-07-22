@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   AuthRequestInvalidError,
   parseAccountBindingRequest,
+  parseBackofficeLoginRequest,
   parseRefreshRequest,
   parseRoleSelectionRequest,
   parseWechatLoginRequest,
@@ -11,6 +12,12 @@ import {
 describe('auth request parsers', () => {
   it('normalizes a strict WeChat login request', () => {
     expect(parseWechatLoginRequest({ code: '  wx-code  ' })).toBe('wx-code');
+  });
+
+  it('keeps the password exact while normalizing the backoffice login name later', () => {
+    expect(
+      parseBackofficeLoginRequest({ loginName: ' Admin.User ', password: '  pass phrase  ' }),
+    ).toEqual({ loginName: 'Admin.User', password: '  pass phrase  ' });
   });
 
   it('rejects unknown fields and malformed refresh requests', () => {

@@ -19,6 +19,7 @@ import {
   AccessTokenClaimsDto,
   ApiErrorResponseDto,
   AuthFlowResponseDto,
+  BackofficeLoginRequestDto,
   BindWechatAccountRequestDto,
   RefreshSessionRequestDto,
   SelectRoleRequestDto,
@@ -28,6 +29,7 @@ import {
 import { AuthRateLimitService } from './auth-rate-limit.service';
 import {
   parseAccountBindingRequest,
+  parseBackofficeLoginRequest,
   parseRefreshRequest,
   parseRoleSelectionRequest,
   parseWechatLoginRequest,
@@ -35,6 +37,7 @@ import {
 import { AuthSessionService } from './auth-session.service';
 import type { AccessTokenClaims, SessionTokenPair } from './auth-session.types';
 import { CurrentAuth } from './current-auth.decorator';
+import { BackofficeLoginService } from './backoffice-login.service';
 
 @ApiTags('认证')
 @ApiBadRequestResponse({ type: ApiErrorResponseDto })
@@ -43,10 +46,24 @@ import { CurrentAuth } from './current-auth.decorator';
 @Controller('auth')
 export class AuthController {
   constructor(
+    private readonly backofficeLogin: BackofficeLoginService,
     private readonly flow: AuthFlowService,
     private readonly rateLimits: AuthRateLimitService,
     private readonly sessions: AuthSessionService,
   ) {}
+
+  @Post('backoffice/login')
+  @HttpCode(200)
+  @ApiOperation({ summary: '客服或管理员密码登录' })
+  @ApiBody({ type: BackofficeLoginRequestDto })
+  @ApiOkResponse({ type: AuthFlowResponseDto })
+  async loginBackoffice(@Body() body: unknown, @Ip() ipAddress: string): Promise<AuthFlowResult> {
+    await this.rateLimits.assertAllowed('backoffice-login-ip', ipAddress, 120, 10 * 60);
+    const request = parseBackofficeLoginRequest(body);
+    return this.flow.completeVerifiedAccount(
+      await this.backofficeLogin.verify(request.loginName, request.password),
+    );
+  }
 
   @Post('wechat/login')
   @HttpCode(200)

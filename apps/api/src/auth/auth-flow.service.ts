@@ -1,13 +1,18 @@
 import { Injectable } from '@nestjs/common';
 
 import { AccountBindingService } from './account-binding.service';
-import type { BindWechatAccountCommand, BoundWechatAccount } from './account-binding.types';
+import type { BindWechatAccountCommand } from './account-binding.types';
 import { AuthSessionInvalidError } from './auth-session.errors';
 import { AuthSessionService } from './auth-session.service';
 import type { AuthFlowResult } from './auth-flow.types';
 import { RoleSelectionChallengeService } from './role-selection-challenge.service';
 import { WechatLoginService } from './wechat-login.service';
-import type { RecognizedWechatAccount } from './wechat-login.types';
+import type { LoginRole } from './wechat-login.types';
+
+interface VerifiedAccount {
+  readonly roles: readonly LoginRole[];
+  readonly userId: string;
+}
 
 @Injectable()
 export class AuthFlowService {
@@ -38,9 +43,7 @@ export class AuthFlowService {
     };
   }
 
-  private async completeVerifiedAccount(
-    account: RecognizedWechatAccount | BoundWechatAccount,
-  ): Promise<AuthFlowResult> {
+  async completeVerifiedAccount(account: VerifiedAccount): Promise<AuthFlowResult> {
     if (account.roles.length === 1) {
       const role = account.roles[0];
 

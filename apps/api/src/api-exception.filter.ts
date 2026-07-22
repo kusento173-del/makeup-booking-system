@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 
 import { AuthRequestInvalidError } from './auth/auth-request.parser';
+import { BackofficeLoginDeniedError } from './auth/backoffice-auth.errors';
 import {
   AuthRateLimitExceededError,
   RateLimitConfigurationError,
@@ -71,6 +72,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
     if (
       exception instanceof AuthSessionInvalidError ||
       exception instanceof AccountLoginDeniedError ||
+      exception instanceof BackofficeLoginDeniedError ||
       exception instanceof WechatLoginFailedError
     ) {
       return this.response(HttpStatus.UNAUTHORIZED, exception.code, '登录状态无效或账号不可用');

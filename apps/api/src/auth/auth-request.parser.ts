@@ -46,6 +46,24 @@ export function parseWechatLoginRequest(body: unknown): string {
   return requiredString(value, 'code', 256);
 }
 
+export function parseBackofficeLoginRequest(body: unknown): {
+  readonly loginName: string;
+  readonly password: string;
+} {
+  const value = record(body);
+  exactKeys(value, ['loginName', 'password']);
+  const password = value['password'];
+
+  if (typeof password !== 'string' || password.length > 128) {
+    throw new AuthRequestInvalidError();
+  }
+
+  return {
+    loginName: requiredString(value, 'loginName', 64),
+    password,
+  };
+}
+
 export function parseRefreshRequest(body: unknown): string {
   const value = record(body);
   exactKeys(value, ['refreshToken']);

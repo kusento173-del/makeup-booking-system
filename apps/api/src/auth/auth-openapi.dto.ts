@@ -7,6 +7,14 @@ export class WechatLoginRequestDto {
   code!: string;
 }
 
+export class BackofficeLoginRequestDto {
+  @ApiProperty({ description: '客服或管理员登录名', maxLength: 64 })
+  loginName!: string;
+
+  @ApiProperty({ format: 'password', maxLength: 128 })
+  password!: string;
+}
+
 export class RefreshSessionRequestDto {
   @ApiProperty({ description: '上一次登录或刷新返回的刷新令牌', maxLength: 256 })
   refreshToken!: string;

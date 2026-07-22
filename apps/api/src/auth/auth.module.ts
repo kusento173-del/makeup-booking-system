@@ -11,11 +11,13 @@ import { AuthFlowService } from './auth-flow.service';
 import { AuthRateLimitService } from './auth-rate-limit.service';
 import { AuthSessionService } from './auth-session.service';
 import { AuthorizationPolicyService } from './authorization-policy.service';
+import { BackofficeLoginService } from './backoffice-login.service';
 import { BindingChallengeService } from './binding-challenge.service';
 import { BindingCodeHasherService } from './binding-code-hasher.service';
 import { BindingCodeIssuerService } from './binding-code-issuer.service';
 import { BindingCodeVerifierService } from './binding-code-verifier.service';
 import { OpaqueTokenService } from './opaque-token.service';
+import { PasswordHasherService } from './password-hasher.service';
 import { RoleSelectionChallengeService } from './role-selection-challenge.service';
 import { WECHAT_LOGIN_ADAPTER } from './wechat-login.port';
 import { WechatLoginService } from './wechat-login.service';
@@ -32,11 +34,13 @@ import { WechatMiniProgramAdapter } from './wechat-mini-program.adapter';
     AuthRateLimitService,
     AuthSessionService,
     AuthorizationPolicyService,
+    BackofficeLoginService,
     BindingChallengeService,
     BindingCodeHasherService,
     BindingCodeIssuerService,
     BindingCodeVerifierService,
     OpaqueTokenService,
+    PasswordHasherService,
     RoleSelectionChallengeService,
     WechatLoginService,
     { provide: WECHAT_LOGIN_ADAPTER, useClass: WechatMiniProgramAdapter },
@@ -49,11 +53,13 @@ import { WechatMiniProgramAdapter } from './wechat-mini-program.adapter';
     AuthRateLimitService,
     AuthSessionService,
     AuthorizationPolicyService,
+    BackofficeLoginService,
     BindingChallengeService,
     BindingCodeHasherService,
     BindingCodeIssuerService,
     BindingCodeVerifierService,
     OpaqueTokenService,
+    PasswordHasherService,
     RoleSelectionChallengeService,
     WechatLoginService,
   ],

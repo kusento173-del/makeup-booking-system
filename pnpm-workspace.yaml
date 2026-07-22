@@ -60,6 +60,7 @@ strictPeerDependencies: true
 
 catalog:
   '@nestjs/swagger': 11.4.5
+  '@node-rs/argon2': 2.0.2
   '@playwright/test': 1.61.1
   '@prisma/adapter-pg': 7.9.0
   '@prisma/client': 7.9.0
