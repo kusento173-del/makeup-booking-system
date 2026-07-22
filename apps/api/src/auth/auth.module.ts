@@ -11,6 +11,7 @@ import { BindingCodeHasherService } from './binding-code-hasher.service';
 import { BindingCodeIssuerService } from './binding-code-issuer.service';
 import { BindingCodeVerifierService } from './binding-code-verifier.service';
 import { OpaqueTokenService } from './opaque-token.service';
+import { RoleSelectionChallengeService } from './role-selection-challenge.service';
 import { WECHAT_LOGIN_ADAPTER } from './wechat-login.port';
 import { WechatLoginService } from './wechat-login.service';
 import { WechatMiniProgramAdapter } from './wechat-mini-program.adapter';
@@ -27,6 +28,7 @@ import { WechatMiniProgramAdapter } from './wechat-mini-program.adapter';
     BindingCodeIssuerService,
     BindingCodeVerifierService,
     OpaqueTokenService,
+    RoleSelectionChallengeService,
     WechatLoginService,
     { provide: WECHAT_LOGIN_ADAPTER, useClass: WechatMiniProgramAdapter },
   ],
@@ -40,6 +42,7 @@ import { WechatMiniProgramAdapter } from './wechat-mini-program.adapter';
     BindingCodeIssuerService,
     BindingCodeVerifierService,
     OpaqueTokenService,
+    RoleSelectionChallengeService,
     WechatLoginService,
   ],
 })

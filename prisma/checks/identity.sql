@@ -9,9 +9,11 @@ DECLARE
     binding_host_id UUID;
     binding_code_id UUID;
     binding_challenge_id UUID;
+    role_selection_challenge_id UUID;
     role_id UUID;
     binding_hash TEXT;
     challenge_hash TEXT;
+    role_selection_hash TEXT;
     mobile_hash TEXT;
     refresh_hash TEXT;
 BEGIN
@@ -25,6 +27,7 @@ BEGIN
     refresh_hash := lpad(test_suffix, 64, 'c');
     binding_hash := lpad(test_suffix, 64, 'e');
     challenge_hash := lpad(test_suffix, 64, '9');
+    role_selection_hash := lpad(test_suffix, 64, '6');
 
     INSERT INTO "app_users" (
         "display_name",
@@ -347,6 +350,42 @@ BEGIN
     BEGIN
         DELETE FROM "auth_binding_challenges" WHERE "id" = binding_challenge_id;
         RAISE EXCEPTION 'Binding challenge history was deleted';
+    EXCEPTION
+        WHEN SQLSTATE '55000' THEN NULL;
+    END;
+
+    INSERT INTO "auth_role_selection_challenges" (
+        "user_id",
+        "token_hash",
+        "expires_at"
+    ) VALUES (
+        user_one_id,
+        role_selection_hash,
+        CURRENT_TIMESTAMP + INTERVAL '5 minutes'
+    ) RETURNING "id" INTO role_selection_challenge_id;
+
+    BEGIN
+        INSERT INTO "auth_role_selection_challenges" (
+            "user_id",
+            "token_hash",
+            "expires_at"
+        ) VALUES (
+            user_one_id,
+            lpad(test_suffix, 64, '5'),
+            CURRENT_TIMESTAMP + INTERVAL '5 minutes'
+        );
+        RAISE EXCEPTION 'Multiple active role-selection challenges for one user were accepted';
+    EXCEPTION
+        WHEN unique_violation THEN NULL;
+    END;
+
+    UPDATE "auth_role_selection_challenges"
+    SET "consumed_at" = CURRENT_TIMESTAMP
+    WHERE "id" = role_selection_challenge_id;
+
+    BEGIN
+        DELETE FROM "auth_role_selection_challenges" WHERE "id" = role_selection_challenge_id;
+        RAISE EXCEPTION 'Role-selection challenge history was deleted';
     EXCEPTION
         WHEN SQLSTATE '55000' THEN NULL;
     END;
