@@ -2,6 +2,7 @@ import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from 're
 
 import { ApiError } from './api-client';
 import type { SessionTokenPair } from './auth-session';
+import { currentBusinessDate } from './business-date';
 import { CreateRecordDialog } from './CreateRecordDialog';
 import { EditRecordDialog } from './EditRecordDialog';
 import { EndRelationDialog } from './EndRelationDialog';
@@ -28,6 +29,7 @@ import { RoleDialog } from './RoleDialog';
 interface ManagementPageProps {
   readonly onUnauthorized: () => void;
   readonly session: SessionTokenPair;
+  readonly view: ManagementView;
 }
 
 interface Column {
@@ -65,15 +67,6 @@ function roleNames(account: AccountSummary, siteNames: ReadonlyMap<string, strin
         : `客服（${role.siteId ? (siteNames.get(role.siteId) ?? '未知场地') : '未指定场地'}）`,
     )
     .join('、');
-}
-
-function businessDate(): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    day: '2-digit',
-    month: '2-digit',
-    timeZone: 'Asia/Shanghai',
-    year: 'numeric',
-  }).format(new Date());
 }
 
 function columns(view: ManagementView, siteNames: ReadonlyMap<string, string>): readonly Column[] {
@@ -187,8 +180,7 @@ function columns(view: ManagementView, siteNames: ReadonlyMap<string, string>): 
   }
 }
 
-export function ManagementPage({ onUnauthorized, session }: ManagementPageProps) {
-  const [view, setView] = useState<ManagementView>('hosts');
+export function ManagementPage({ onUnauthorized, session, view }: ManagementPageProps) {
   const [sites, setSites] = useState<readonly SiteSummary[]>([]);
   const [items, setItems] = useState<readonly ManagementItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -206,9 +198,6 @@ export function ManagementPage({ onUnauthorized, session }: ManagementPageProps)
   const [relationToEnd, setRelationToEnd] = useState<RelationSummary | null>(null);
   const [roleAccount, setRoleAccount] = useState<AccountSummary | null>(null);
 
-  const visibleNavigation = NAV_ITEMS.filter(
-    (item) => item.id !== 'accounts' || session.role.roleCode === 'ADMIN',
-  );
   const siteNames = useMemo(() => new Map(sites.map((site) => [site.id, site.name])), [sites]);
   const tableColumns = useMemo(() => columns(view, siteNames), [siteNames, view]);
   const pageCount = Math.max(1, Math.ceil(total / 50));
@@ -258,13 +247,6 @@ export function ManagementPage({ onUnauthorized, session }: ManagementPageProps)
       active = false;
     };
   }, [onUnauthorized, page, reloadVersion, search, session.accessToken, view]);
-
-  function switchView(next: ManagementView) {
-    setView(next);
-    setPage(1);
-    setDraftSearch('');
-    setSearch('');
-  }
 
   function submitSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -364,23 +346,7 @@ export function ManagementPage({ onUnauthorized, session }: ManagementPageProps)
   const title = NAV_ITEMS.find((item) => item.id === view)?.label ?? '主数据';
 
   return (
-    <div className="management-layout">
-      <aside className="sidebar" aria-label="管理菜单">
-        <div className="sidebar-brand">妆序</div>
-        <nav>
-          {visibleNavigation.map((item) => (
-            <button
-              aria-current={item.id === view ? 'page' : undefined}
-              key={item.id}
-              onClick={() => switchView(item.id)}
-              type="button"
-            >
-              {item.label}
-            </button>
-          ))}
-        </nav>
-      </aside>
-
+    <>
       <section className="management-main">
         <header className="management-header">
           <div>
@@ -482,7 +448,7 @@ export function ManagementPage({ onUnauthorized, session }: ManagementPageProps)
                             </button>
                           ) : view === 'relations' &&
                             ((item as RelationSummary).validUntil === null ||
-                              (item as RelationSummary).validUntil! > businessDate()) ? (
+                              (item as RelationSummary).validUntil! > currentBusinessDate()) ? (
                             <button
                               className="table-action danger-text"
                               onClick={() => {
@@ -632,6 +598,6 @@ export function ManagementPage({ onUnauthorized, session }: ManagementPageProps)
           </section>
         </div>
       ) : null}
-    </div>
+    </>
   );
 }

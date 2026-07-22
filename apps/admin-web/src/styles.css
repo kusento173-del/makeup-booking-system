@@ -581,6 +581,277 @@ tbody tr:hover {
   text-align: center;
 }
 
+.schedule-main {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+}
+
+.schedule-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.schedule-filters {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+}
+
+.compact-field {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  color: #536170;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.compact-field input,
+.compact-field select {
+  width: 170px;
+  height: 40px;
+  font-size: 15px;
+}
+
+.schedule-refresh {
+  height: 40px;
+}
+
+.date-strip {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(86px, 1fr));
+  gap: 6px;
+  overflow-x: auto;
+}
+
+.date-strip button {
+  min-width: 86px;
+  display: grid;
+  gap: 2px;
+  padding: 9px 10px;
+  border: 1px solid #cfd8df;
+  border-radius: 6px;
+  background: #fff;
+  color: #465562;
+  cursor: pointer;
+  text-align: left;
+}
+
+.date-strip button:hover {
+  border-color: #7993a2;
+}
+
+.date-strip button[aria-pressed='true'] {
+  border-color: #244f64;
+  background: #244f64;
+  color: #fff;
+}
+
+.date-strip span {
+  font-size: 13px;
+}
+
+.date-strip strong {
+  font-size: 16px;
+}
+
+.schedule-board {
+  overflow: hidden;
+  border: 1px solid #d7dee4;
+  border-radius: 9px;
+  background: #fff;
+}
+
+.schedule-summary {
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 18px;
+  border-bottom: 1px solid #dfe5ea;
+}
+
+.schedule-summary strong {
+  color: #243542;
+  font-size: 16px;
+}
+
+.schedule-summary span {
+  color: #62717e;
+  font-size: 14px;
+}
+
+.schedule-grid {
+  overflow-x: auto;
+  transition: opacity 120ms ease;
+}
+
+.schedule-grid.is-refreshing {
+  opacity: 0.55;
+}
+
+.schedule-grid-header,
+.artist-schedule-row {
+  min-width: 920px;
+  display: grid;
+  grid-template-columns: 130px 260px minmax(500px, 1fr);
+}
+
+.schedule-grid-header {
+  min-height: 42px;
+  align-items: center;
+  border-bottom: 1px solid #dfe5ea;
+  background: #f6f8f9;
+  color: #4b5a67;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.schedule-grid-header span,
+.artist-schedule-row > div {
+  padding-inline: 14px;
+}
+
+.schedule-grid-header span + span,
+.artist-schedule-row > div + div {
+  border-left: 1px solid #e1e6ea;
+}
+
+.artist-schedule-row {
+  min-height: 100px;
+  border-bottom: 1px solid #dfe5ea;
+}
+
+.artist-schedule-row:last-child {
+  border-bottom: 0;
+}
+
+.artist-summary,
+.artist-availability {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+}
+
+.artist-summary strong {
+  color: #172b39;
+  font-size: 17px;
+}
+
+.artist-summary span,
+.artist-availability span {
+  color: #657480;
+  font-size: 14px;
+}
+
+.artist-summary em {
+  width: fit-content;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: #fff0d8;
+  color: #8a5411;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.artist-availability strong {
+  color: #233d4c;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.artist-availability .unavailable-text {
+  color: #8b3a33;
+}
+
+.appointment-list {
+  display: flex;
+  align-items: center;
+  align-content: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding-block: 10px;
+}
+
+.appointment-card {
+  width: 174px;
+  min-height: 78px;
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  padding: 9px 10px;
+  border: 1px solid #b9ced8;
+  border-left: 4px solid #2d728f;
+  border-radius: 5px;
+  background: #f8fbfc;
+}
+
+.appointment-card.single {
+  border-color: #b8d2c9;
+  border-left-color: #2d7d67;
+  background: #f6fbf9;
+}
+
+.appointment-card.completed {
+  opacity: 0.62;
+}
+
+.appointment-time,
+.appointment-host,
+.appointment-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.appointment-time {
+  justify-content: space-between;
+}
+
+.appointment-time strong {
+  color: #112d3d;
+  font-size: 15px;
+}
+
+.appointment-time span {
+  color: #456677;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.appointment-host strong {
+  overflow: hidden;
+  color: #172b39;
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.appointment-host span,
+.appointment-meta {
+  color: #657480;
+  font-size: 12px;
+}
+
+.appointment-meta {
+  flex-wrap: wrap;
+}
+
+.empty-appointments {
+  color: #7b8892;
+  font-size: 14px;
+}
+
+.schedule-board .content-message p {
+  margin: 0 0 14px;
+}
+
 @media (max-width: 560px) {
   .login-card {
     padding: 28px 22px;
@@ -629,6 +900,24 @@ tbody tr:hover {
 
   .management-header {
     display: grid;
+  }
+
+  .schedule-header {
+    display: grid;
+  }
+
+  .schedule-filters {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .compact-field {
+    grid-column: 1 / -1;
+  }
+
+  .compact-field input,
+  .compact-field select {
+    width: 100%;
   }
 
   .header-actions {

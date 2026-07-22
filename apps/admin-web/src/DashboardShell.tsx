@@ -1,5 +1,9 @@
+import { useState } from 'react';
+
 import type { SessionTokenPair } from './auth-session';
+import { BackofficeNavigation, type BackofficeView } from './BackofficeNavigation';
 import { ManagementPage } from './ManagementPage';
+import { SchedulePage } from './SchedulePage';
 
 interface DashboardShellProps {
   readonly busy: boolean;
@@ -9,6 +13,8 @@ interface DashboardShellProps {
 }
 
 export function DashboardShell({ busy, onLogout, onUnauthorized, session }: DashboardShellProps) {
+  const [view, setView] = useState<BackofficeView>('schedule');
+
   return (
     <div className="dashboard-shell">
       <header className="topbar">
@@ -25,7 +31,19 @@ export function DashboardShell({ busy, onLogout, onUnauthorized, session }: Dash
           退出登录
         </button>
       </header>
-      <ManagementPage onUnauthorized={onUnauthorized} session={session} />
+      <div className="management-layout">
+        <BackofficeNavigation onSelect={setView} roleCode={session.role.roleCode} view={view} />
+        {view === 'schedule' ? (
+          <SchedulePage onUnauthorized={onUnauthorized} session={session} />
+        ) : (
+          <ManagementPage
+            key={view}
+            onUnauthorized={onUnauthorized}
+            session={session}
+            view={view}
+          />
+        )}
+      </div>
     </div>
   );
 }
