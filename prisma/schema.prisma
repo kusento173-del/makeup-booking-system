@@ -41,16 +41,18 @@ model AppUser {
   updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
   rowVersion       Int       @default(1) @map("row_version")
 
-  identities           UserIdentity[]
-  passwordCredential   PasswordCredential?
-  roles                UserRole[]                 @relation("UserRoleOwner")
-  assignedRoles        UserRole[]                 @relation("UserRoleAssigner")
-  sessions             AuthSession[]
-  operationLogs        OperationLog[]
-  hostProfile          HostProfile?
-  artistProfile        ArtistProfile?
-  operatorProfile      OperatorProfile?
-  qualificationChanges HostQualificationHistory[] @relation("HostQualificationChangedBy")
+  identities             UserIdentity[]
+  passwordCredential     PasswordCredential?
+  roles                  UserRole[]                 @relation("UserRoleOwner")
+  assignedRoles          UserRole[]                 @relation("UserRoleAssigner")
+  sessions               AuthSession[]
+  operationLogs          OperationLog[]
+  hostProfile            HostProfile?
+  artistProfile          ArtistProfile?
+  operatorProfile        OperatorProfile?
+  qualificationChanges   HostQualificationHistory[] @relation("HostQualificationChangedBy")
+  uploadedImportBatches  ImportBatch[]              @relation("ImportBatchUploader")
+  confirmedImportBatches ImportBatch[]              @relation("ImportBatchConfirmer")
 
   @@index([status], map: "app_users_status_idx")
   @@map("app_users")
@@ -142,14 +144,17 @@ model HostProfile {
   createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt                DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
   rowVersion               Int      @default(1) @map("row_version")
+  sourceImportBatchId      String?  @map("source_import_batch_id") @db.Uuid
 
   site                   Site                       @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   user                   AppUser?                   @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sourceImportBatch      ImportBatch?               @relation("HostSourceImportBatch", fields: [sourceImportBatchId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   operatorRelations      HostOperatorRelation[]
   qualificationHistories HostQualificationHistory[]
 
   @@index([realName], map: "host_profiles_real_name_idx")
   @@index([siteId, qualificationStatus], map: "host_profiles_site_status_idx")
+  @@index([sourceImportBatchId], map: "host_profiles_source_import_batch_idx")
   @@map("host_profiles")
 }
 
@@ -183,52 +188,61 @@ model ArtistProfile {
   createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt                DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
   rowVersion               Int       @default(1) @map("row_version")
+  sourceImportBatchId      String?   @map("source_import_batch_id") @db.Uuid
 
-  site Site     @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  user AppUser? @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  site              Site         @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  user              AppUser?     @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sourceImportBatch ImportBatch? @relation("ArtistSourceImportBatch", fields: [sourceImportBatchId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   @@index([realName], map: "artist_profiles_real_name_idx")
   @@index([siteId, employmentStatus], map: "artist_profiles_site_status_idx")
+  @@index([sourceImportBatchId], map: "artist_profiles_source_import_batch_idx")
   @@map("artist_profiles")
 }
 
 model OperatorProfile {
-  id               String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  userId           String?  @unique(map: "operator_profiles_user_id_uq") @map("user_id") @db.Uuid
-  realName         String   @map("real_name") @db.VarChar(64)
-  nameNormalized   String   @map("name_normalized") @db.VarChar(64)
-  siteId           String   @map("site_id") @db.Uuid
-  employmentStatus String   @default("ACTIVE") @map("employment_status") @db.VarChar(16)
-  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
-  rowVersion       Int      @default(1) @map("row_version")
+  id                  String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId              String?  @unique(map: "operator_profiles_user_id_uq") @map("user_id") @db.Uuid
+  realName            String   @map("real_name") @db.VarChar(64)
+  nameNormalized      String   @map("name_normalized") @db.VarChar(64)
+  siteId              String   @map("site_id") @db.Uuid
+  employmentStatus    String   @default("ACTIVE") @map("employment_status") @db.VarChar(16)
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  rowVersion          Int      @default(1) @map("row_version")
+  sourceImportBatchId String?  @map("source_import_batch_id") @db.Uuid
 
-  site          Site                   @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  user          AppUser?               @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  hostRelations HostOperatorRelation[]
+  site              Site                   @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  user              AppUser?               @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sourceImportBatch ImportBatch?           @relation("OperatorSourceImportBatch", fields: [sourceImportBatchId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  hostRelations     HostOperatorRelation[]
 
   @@unique([siteId, nameNormalized], map: "operator_profiles_active_name_site_uq", where: raw("((employment_status)::text = 'ACTIVE'::text)"))
   @@index([siteId, employmentStatus], map: "operator_profiles_site_status_idx")
+  @@index([sourceImportBatchId], map: "operator_profiles_source_import_batch_idx")
   @@map("operator_profiles")
 }
 
 model HostOperatorRelation {
-  id           String                    @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  hostId       String                    @map("host_id") @db.Uuid
-  operatorId   String                    @map("operator_id") @db.Uuid
-  validFrom    DateTime                  @map("valid_from") @db.Date
-  validUntil   DateTime?                 @map("valid_until") @db.Date
-  changeReason String?                   @map("change_reason") @db.VarChar(500)
-  activeRange  Unsupported("daterange")? @default(dbgenerated("daterange(valid_from, valid_until, '[)'::text)")) @map("active_range")
-  createdAt    DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt    DateTime                  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
-  rowVersion   Int                       @default(1) @map("row_version")
+  id                  String                    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  hostId              String                    @map("host_id") @db.Uuid
+  operatorId          String                    @map("operator_id") @db.Uuid
+  validFrom           DateTime                  @map("valid_from") @db.Date
+  validUntil          DateTime?                 @map("valid_until") @db.Date
+  changeReason        String?                   @map("change_reason") @db.VarChar(500)
+  activeRange         Unsupported("daterange")? @default(dbgenerated("daterange(valid_from, valid_until, '[)'::text)")) @map("active_range")
+  createdAt           DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime                  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  rowVersion          Int                       @default(1) @map("row_version")
+  sourceImportBatchId String?                   @map("source_import_batch_id") @db.Uuid
 
-  host     HostProfile     @relation(fields: [hostId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  operator OperatorProfile @relation(fields: [operatorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  host              HostProfile     @relation(fields: [hostId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  operator          OperatorProfile @relation(fields: [operatorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sourceImportBatch ImportBatch?    @relation("HostOperatorRelationSourceImportBatch", fields: [sourceImportBatchId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   @@index([hostId, validFrom(sort: Desc)], map: "host_operator_relations_host_valid_from_idx")
   @@index([operatorId, validFrom, validUntil], map: "host_operator_relations_operator_validity_idx")
+  @@index([sourceImportBatchId], map: "host_operator_relations_source_import_batch_idx")
   @@map("host_operator_relations")
 }
 
@@ -257,4 +271,63 @@ model OperationLog {
   @@index([siteId, createdAt(sort: Desc)], map: "operation_logs_site_created_idx")
   @@index([actorUserId, createdAt(sort: Desc)], map: "operation_logs_actor_created_idx")
   @@map("operation_logs")
+}
+
+model ImportBatch {
+  id                String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  importType        String    @map("import_type") @db.VarChar(32)
+  templateVersion   String    @map("template_version") @db.VarChar(16)
+  mode              String    @db.VarChar(16)
+  originalFilename  String    @map("original_filename") @db.VarChar(255)
+  fileSha256        String    @map("file_sha256") @db.Char(64)
+  storageKey        String    @map("storage_key") @db.VarChar(500)
+  status            String    @default("UPLOADED") @db.VarChar(32)
+  uploadedByUserId  String    @map("uploaded_by_user_id") @db.Uuid
+  confirmedByUserId String?   @map("confirmed_by_user_id") @db.Uuid
+  confirmedAt       DateTime? @map("confirmed_at") @db.Timestamptz(3)
+  summary           Json      @default("{}") @db.JsonB
+  failureReason     String?   @map("failure_reason") @db.VarChar(500)
+  startedAt         DateTime? @map("started_at") @db.Timestamptz(3)
+  completedAt       DateTime? @map("completed_at") @db.Timestamptz(3)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  rowVersion        Int       @default(1) @map("row_version")
+
+  uploadedBy                  AppUser                @relation("ImportBatchUploader", fields: [uploadedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  confirmedBy                 AppUser?               @relation("ImportBatchConfirmer", fields: [confirmedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  rows                        ImportRow[]
+  sourceHosts                 HostProfile[]          @relation("HostSourceImportBatch")
+  sourceArtists               ArtistProfile[]        @relation("ArtistSourceImportBatch")
+  sourceOperators             OperatorProfile[]      @relation("OperatorSourceImportBatch")
+  sourceHostOperatorRelations HostOperatorRelation[] @relation("HostOperatorRelationSourceImportBatch")
+
+  @@index([importType, fileSha256, status], map: "import_batches_type_hash_status_idx")
+  @@index([status, createdAt(sort: Desc)], map: "import_batches_status_created_idx")
+  @@index([uploadedByUserId, createdAt(sort: Desc)], map: "import_batches_uploader_created_idx")
+  @@map("import_batches")
+}
+
+model ImportRow {
+  id               String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  importBatchId    String    @map("import_batch_id") @db.Uuid
+  sheetName        String    @map("sheet_name") @db.VarChar(128)
+  rowNumber        Int       @map("row_number")
+  businessKey      String?   @map("business_key") @db.VarChar(160)
+  rawData          Json      @map("raw_data") @db.JsonB
+  normalizedData   Json      @map("normalized_data") @db.JsonB
+  validationStatus String    @map("validation_status") @db.VarChar(16)
+  errors           Json      @default("[]") @db.JsonB
+  plannedAction    String?   @map("planned_action") @db.VarChar(32)
+  targetEntityId   String?   @map("target_entity_id") @db.Uuid
+  appliedAt        DateTime? @map("applied_at") @db.Timestamptz(3)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  rowVersion       Int       @default(1) @map("row_version")
+
+  importBatch ImportBatch @relation(fields: [importBatchId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([importBatchId, sheetName, rowNumber], map: "import_rows_batch_sheet_row_uq")
+  @@index([importBatchId, validationStatus], map: "import_rows_batch_validation_idx")
+  @@index([targetEntityId], map: "import_rows_target_entity_idx")
+  @@map("import_rows")
 }
