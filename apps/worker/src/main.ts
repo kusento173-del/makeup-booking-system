@@ -4,6 +4,7 @@ import { Logger } from '@nestjs/common';
 
 import { ExportScheduler } from './export.scheduler';
 import { FixedGenerationScheduler } from './fixed-generation.scheduler';
+import { NotificationOutboxScheduler } from './notification-outbox.scheduler';
 
 function loadEnvironment(): void {
   try {
@@ -34,13 +35,23 @@ const exportScheduler = new ExportScheduler(
   },
   logger,
 );
+const notificationOutboxScheduler = new NotificationOutboxScheduler(
+  {
+    apiUrl,
+    intervalMs: Number(process.env.NOTIFICATION_OUTBOX_INTERVAL_MS ?? '2000'),
+    token,
+  },
+  logger,
+);
 scheduler.start();
 exportScheduler.start();
+notificationOutboxScheduler.start();
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, () => {
     scheduler.stop();
     exportScheduler.stop();
+    notificationOutboxScheduler.stop();
     process.exitCode = 0;
   });
 }

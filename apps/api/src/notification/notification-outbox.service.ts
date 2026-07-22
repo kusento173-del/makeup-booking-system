@@ -7,6 +7,7 @@ import {
   NOTIFICATION_EVENT_TYPES,
   type NotificationChannel,
   type NotificationEventType,
+  type NotificationOutboxBatchResult,
   type NotificationOutboxResult,
 } from './notification.types';
 
@@ -72,6 +73,27 @@ type AppointmentRecord = Prisma.AppointmentGetPayload<{ select: typeof APPOINTME
 @Injectable()
 export class NotificationOutboxService {
   constructor(private readonly database: DatabaseService) {}
+
+  async runBatch(
+    channel: NotificationChannel,
+    limit = 100,
+    now = new Date(),
+  ): Promise<NotificationOutboxBatchResult> {
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) {
+      throw new Error('Notification outbox batch limit is invalid');
+    }
+    let deferredEventCount = 0;
+    let processedEventCount = 0;
+    let taskCount = 0;
+    for (let index = 0; index < limit; index += 1) {
+      const result = await this.runOne(channel, now);
+      if (result.status === 'EMPTY') break;
+      processedEventCount += 1;
+      taskCount += result.taskCount;
+      if (result.status === 'DEFERRED') deferredEventCount += 1;
+    }
+    return { deferredEventCount, processedEventCount, taskCount };
+  }
 
   runOne(channel: NotificationChannel, now = new Date()): Promise<NotificationOutboxResult> {
     return this.database.transaction(async (transaction) => {

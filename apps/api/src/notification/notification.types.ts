@@ -15,3 +15,9 @@ export interface NotificationOutboxResult {
   readonly status: 'CREATED' | 'DEFERRED' | 'EMPTY';
   readonly taskCount: number;
 }
+
+export interface NotificationOutboxBatchResult {
+  readonly deferredEventCount: number;
+  readonly processedEventCount: number;
+  readonly taskCount: number;
+}

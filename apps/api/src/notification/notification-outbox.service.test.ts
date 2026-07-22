@@ -87,6 +87,23 @@ function createService(options?: {
 }
 
 describe('NotificationOutboxService', () => {
+  it('drains a bounded batch until no supported event remains', async () => {
+    const { service } = createService({ event: null });
+    vi.spyOn(service, 'runOne')
+      .mockResolvedValueOnce({ eventId: 'event-1', status: 'CREATED', taskCount: 3 })
+      .mockResolvedValueOnce({ eventId: 'event-2', status: 'DEFERRED', taskCount: 0 })
+      .mockResolvedValueOnce({ eventId: null, status: 'EMPTY', taskCount: 0 });
+
+    await expect(service.runBatch('WECHAT_MINI_PROGRAM', 100, now)).resolves.toEqual({
+      deferredEventCount: 1,
+      processedEventCount: 2,
+      taskCount: 3,
+    });
+    await expect(service.runBatch('WECHAT_MINI_PROGRAM', 101, now)).rejects.toThrow(
+      'Notification outbox batch limit is invalid',
+    );
+  });
+
   it('creates host, artist and current-operator tasks before publishing an appointment event', async () => {
     const { service, transaction } = createService();
 
