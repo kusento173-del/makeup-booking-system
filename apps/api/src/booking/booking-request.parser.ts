@@ -1,4 +1,4 @@
-import type { CreateBookingCommand } from './booking-create.types';
+import type { CancelBookingCommand, CreateBookingCommand } from './booking-create.types';
 import type { BookingSlotInput } from './booking-slot.types';
 
 export class BookingRequestInvalidError extends Error {
@@ -95,5 +95,23 @@ export function parseCreateBookingRequest(
     hostId: uuid(input.hostId),
     idempotencyKey: idempotencyKey(idempotencyHeader),
     startMinute: integer(input.startMinute, false),
+  };
+}
+
+export function parseCancelBookingRequest(
+  appointmentId: unknown,
+  body: unknown,
+): CancelBookingCommand {
+  const input = record(body);
+  exactKeys(input, ['expectedRowVersion', 'reason']);
+  const expectedRowVersion = integer(input.expectedRowVersion, false);
+  if (expectedRowVersion < 1) throw new BookingRequestInvalidError();
+  if (input.reason !== undefined && typeof input.reason !== 'string') {
+    throw new BookingRequestInvalidError();
+  }
+  return {
+    appointmentId: uuid(appointmentId),
+    expectedRowVersion,
+    ...(input.reason !== undefined ? { reason: input.reason } : {}),
   };
 }

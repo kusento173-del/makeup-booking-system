@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   BookingRequestInvalidError,
   parseBookingSlotsRequest,
+  parseCancelBookingRequest,
   parseCreateBookingRequest,
 } from './booking-request.parser';
 
@@ -60,5 +61,21 @@ describe('booking request parser', () => {
     expect(() => parseCreateBookingRequest({ ...body, siteId: 'forged' }, 'key')).toThrow(
       BookingRequestInvalidError,
     );
+  });
+
+  it('parses cancellation concurrency fields and rejects forged fields', () => {
+    expect(
+      parseCancelBookingRequest(artistId, { expectedRowVersion: 2, reason: '临时有事' }),
+    ).toEqual({
+      appointmentId: artistId,
+      expectedRowVersion: 2,
+      reason: '临时有事',
+    });
+    expect(() => parseCancelBookingRequest(artistId, { expectedRowVersion: 0 })).toThrow(
+      BookingRequestInvalidError,
+    );
+    expect(() =>
+      parseCancelBookingRequest(artistId, { expectedRowVersion: 1, status: 'CANCELLED' }),
+    ).toThrow(BookingRequestInvalidError);
   });
 });

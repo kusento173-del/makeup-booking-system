@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Ip, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Ip, Param, Post, Query, UseGuards } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -20,14 +20,25 @@ import { ApiErrorResponseDto } from '../auth/auth-openapi.dto';
 import type { AccessTokenClaims } from '../auth/auth-session.types';
 import { CurrentAuth } from '../auth/current-auth.decorator';
 import { MasterDataCommandContextService } from '../master-data/master-data-command-context.service';
+import { BookingCancelService } from './booking-cancel.service';
 import { BookingCreateService } from './booking-create.service';
-import type { BookingCommandContext, BookingCreateResult } from './booking-create.types';
+import type {
+  BookingCancellationResult,
+  BookingCommandContext,
+  BookingCreateResult,
+} from './booking-create.types';
 import {
+  BookingCancellationResultDto,
   BookingCreateResultDto,
   BookingSlotResultDto,
+  CancelBookingRequestDto,
   CreateBookingRequestDto,
 } from './booking-openapi.dto';
-import { parseBookingSlotsRequest, parseCreateBookingRequest } from './booking-request.parser';
+import {
+  parseBookingSlotsRequest,
+  parseCancelBookingRequest,
+  parseCreateBookingRequest,
+} from './booking-request.parser';
 import { BookingSlotService } from './booking-slot.service';
 import type { BookingSlotResult } from './booking-slot.types';
 
@@ -40,10 +51,30 @@ import type { BookingSlotResult } from './booking-slot.types';
 @Controller()
 export class BookingController {
   constructor(
+    private readonly canceller: BookingCancelService,
     private readonly contexts: MasterDataCommandContextService,
     private readonly creator: BookingCreateService,
     private readonly slots: BookingSlotService,
   ) {}
+
+  @Post('appointments/:appointmentId/cancel')
+  @ApiOperation({ summary: '取消化妆预约' })
+  @ApiBody({ type: CancelBookingRequestDto })
+  @ApiOkResponse({ type: BookingCancellationResultDto })
+  @ApiConflictResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  async cancel(
+    @Param('appointmentId') appointmentId: string,
+    @Body() body: unknown,
+    @CurrentAuth() authorization: AccessTokenClaims,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent?: string,
+    @Headers('x-request-id') requestId?: string,
+  ): Promise<BookingCancellationResult> {
+    const command = parseCancelBookingRequest(appointmentId, body);
+    const context = await this.context(authorization, ipAddress, userAgent, requestId);
+    return this.canceller.cancel(context, command);
+  }
 
   @Get('booking-slots')
   @ApiOperation({ summary: '查询主播与化妆师指定日期的可预约档期' })

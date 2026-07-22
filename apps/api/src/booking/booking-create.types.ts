@@ -43,3 +43,16 @@ export interface BookingCreateResult {
   readonly appointment: AppointmentSummary;
   readonly replayed: boolean;
 }
+
+export interface CancelBookingCommand {
+  readonly appointmentId: string;
+  readonly expectedRowVersion: number;
+  readonly reason?: string;
+}
+
+export interface BookingCancellationResult {
+  readonly cancelledAt: string;
+  readonly id: string;
+  readonly rowVersion: number;
+  readonly status: 'CANCELLED';
+}

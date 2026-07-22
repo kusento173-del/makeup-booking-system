@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { AccessTokenClaims } from '../auth/auth-session.types';
 import type { MasterDataCommandContextService } from '../master-data/master-data-command-context.service';
 import type { BookingCreateService } from './booking-create.service';
+import type { BookingCancelService } from './booking-cancel.service';
 import type { BookingCommandContext } from './booking-create.types';
 import { BookingController } from './booking.controller';
 import type { BookingSlotService } from './booking-slot.service';
@@ -23,6 +24,7 @@ describe('BookingController', () => {
   it('queries slots using only verified identity and strict parsed filters', async () => {
     const getSlots = vi.fn().mockResolvedValue({ slots: [] });
     const controller = new BookingController(
+      {} as BookingCancelService,
       {} as MasterDataCommandContextService,
       {} as BookingCreateService,
       { getSlots } as unknown as BookingSlotService,
@@ -45,6 +47,7 @@ describe('BookingController', () => {
     const resolve = vi.fn().mockResolvedValue(context);
     const create = vi.fn().mockResolvedValue({ appointment: { id: 'appointment-1' } });
     const controller = new BookingController(
+      {} as BookingCancelService,
       { resolve } as unknown as MasterDataCommandContextService,
       { create } as unknown as BookingCreateService,
       {} as BookingSlotService,
@@ -84,6 +87,7 @@ describe('BookingController', () => {
     } as const;
     const resolve = vi.fn().mockResolvedValue({ actorName: '松江客服', ...customerService });
     const controller = new BookingController(
+      {} as BookingCancelService,
       { resolve } as unknown as MasterDataCommandContextService,
       { create: vi.fn().mockResolvedValue({}) } as unknown as BookingCreateService,
       {} as BookingSlotService,
@@ -99,6 +103,30 @@ describe('BookingController', () => {
     expect(resolve).toHaveBeenCalledWith(customerService, {
       clientType: 'ADMIN_WEB',
       ipAddress: '127.0.0.1',
+    });
+  });
+
+  it('cancels with strict concurrency fields through the same trusted context', async () => {
+    const resolve = vi.fn().mockResolvedValue(context);
+    const cancel = vi.fn().mockResolvedValue({ id: 'appointment-1', status: 'CANCELLED' });
+    const controller = new BookingController(
+      { cancel } as unknown as BookingCancelService,
+      { resolve } as unknown as MasterDataCommandContextService,
+      {} as BookingCreateService,
+      {} as BookingSlotService,
+    );
+
+    await controller.cancel(
+      artistId,
+      { expectedRowVersion: 1, reason: ' 临时有事 ' },
+      authorization,
+      '127.0.0.1',
+    );
+
+    expect(cancel).toHaveBeenCalledWith(context, {
+      appointmentId: artistId,
+      expectedRowVersion: 1,
+      reason: ' 临时有事 ',
     });
   });
 });

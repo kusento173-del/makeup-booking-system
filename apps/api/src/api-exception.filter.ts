@@ -31,6 +31,9 @@ import {
 import { AvailabilityArtistNotFoundError } from './availability/artist-availability.errors';
 import {
   BookingArtistUnavailableError,
+  BookingAppointmentNotFoundError,
+  BookingCancellationCutoffError,
+  BookingCancellationReasonInvalidError,
   BookingDailyLimitReachedError,
   BookingHostUnavailableError,
   BookingIdempotencyConflictError,
@@ -138,6 +141,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
       exception instanceof BookingDurationInvalidError ||
       exception instanceof BookingStartInvalidError ||
       exception instanceof BookingIdempotencyKeyInvalidError ||
+      exception instanceof BookingCancellationReasonInvalidError ||
       exception instanceof LeaveRequestInvalidError ||
       exception instanceof MasterDataRequestInvalidError ||
       exception instanceof OvertimeRequestInvalidError ||
@@ -157,6 +161,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
     if (
       exception instanceof MasterDataNotFoundError ||
       exception instanceof AvailabilityArtistNotFoundError ||
+      exception instanceof BookingAppointmentNotFoundError ||
       exception instanceof BookingHostNotFoundError ||
       exception instanceof BackofficeAccountNotFoundError ||
       exception instanceof LeaveNotFoundError ||
@@ -190,6 +195,10 @@ export class ApiExceptionFilter implements ExceptionFilter {
 
     if (exception instanceof BookingHostUnavailableError) {
       return this.response(HttpStatus.CONFLICT, exception.code, '该主播当天不可预约');
+    }
+
+    if (exception instanceof BookingCancellationCutoffError) {
+      return this.response(HttpStatus.CONFLICT, exception.code, '预约当天 0 点后不能取消');
     }
 
     if (

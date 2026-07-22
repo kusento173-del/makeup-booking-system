@@ -6,6 +6,7 @@ import { AuthSessionInvalidError } from './auth/auth-session.errors';
 import { AuthorizationDeniedError } from './auth/authorization-policy.service';
 import {
   BookingArtistUnavailableError,
+  BookingCancellationCutoffError,
   BookingDailyLimitReachedError,
   BookingSecondConfirmationRequiredError,
   BookingSlotConflictError,
@@ -188,6 +189,7 @@ describe('ApiExceptionFilter', () => {
     [new BookingDailyLimitReachedError(), '该主播当天最多预约两次'],
     [new BookingSlotConflictError(), '该时段刚被占用，请重新选择'],
     [new BookingArtistUnavailableError('ARTIST_ON_LEAVE'), '该化妆师当天不可预约'],
+    [new BookingCancellationCutoffError(), '预约当天 0 点后不能取消'],
   ])('maps actionable booking conflicts to stable user messages', (error, message) => {
     const { host, response, send } = createHost();
 

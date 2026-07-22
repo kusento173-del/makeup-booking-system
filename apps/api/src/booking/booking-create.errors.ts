@@ -71,3 +71,27 @@ export class BookingStateConflictError extends Error {
     this.name = 'BookingStateConflictError';
   }
 }
+
+export class BookingAppointmentNotFoundError extends Error {
+  readonly code = 'BOOKING_APPOINTMENT_NOT_FOUND';
+  constructor() {
+    super('Appointment was not found');
+    this.name = 'BookingAppointmentNotFoundError';
+  }
+}
+
+export class BookingCancellationCutoffError extends Error {
+  readonly code = 'BOOKING_CANCELLATION_CUTOFF';
+  constructor() {
+    super('The appointment can no longer be cancelled by this role');
+    this.name = 'BookingCancellationCutoffError';
+  }
+}
+
+export class BookingCancellationReasonInvalidError extends Error {
+  readonly code = 'BOOKING_CANCELLATION_REASON_INVALID';
+  constructor() {
+    super('Cancellation reason is invalid');
+    this.name = 'BookingCancellationReasonInvalidError';
+  }
+}

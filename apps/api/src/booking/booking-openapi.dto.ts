@@ -136,3 +136,25 @@ export class BookingCreateResultDto {
   @ApiProperty()
   replayed!: boolean;
 }
+
+export class CancelBookingRequestDto {
+  @ApiProperty({ minimum: 1 })
+  expectedRowVersion!: number;
+
+  @ApiPropertyOptional({ maxLength: 500 })
+  reason?: string;
+}
+
+export class BookingCancellationResultDto {
+  @ApiProperty({ format: 'date-time' })
+  cancelledAt!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ minimum: 2 })
+  rowVersion!: number;
+
+  @ApiProperty({ enum: ['CANCELLED'] })
+  status!: string;
+}
