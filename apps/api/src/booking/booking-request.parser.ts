@@ -6,6 +6,7 @@ import type {
 import { toBusinessDate } from '../shift/business-date';
 import type { AppointmentDisplayStatus, AppointmentListInput } from './appointment-query.types';
 import type { BookingSlotInput } from './booking-slot.types';
+import type { FixedAvailabilityInput } from './fixed-availability.types';
 
 export class BookingRequestInvalidError extends Error {
   readonly code = 'INVALID_REQUEST';
@@ -71,6 +72,20 @@ export function parseBookingSlotsRequest(query: unknown): BookingSlotInput {
     date: dateOnly(input.date),
     durationMinutes: integer(input.durationMinutes, true),
     hostId: uuid(input.hostId),
+  };
+}
+
+export function parseFixedAvailabilityRequest(query: unknown): FixedAvailabilityInput {
+  const input = record(query);
+  exactKeys(input, ['artistId', 'durationMinutes', 'hostId', 'requestedStartDate', 'weekdays']);
+  if (typeof input.weekdays !== 'string') throw new BookingRequestInvalidError();
+  const weekdayValues = input.weekdays.split(',').map((value) => integer(value.trim(), true));
+  return {
+    artistId: uuid(input.artistId),
+    durationMinutes: integer(input.durationMinutes, true),
+    hostId: uuid(input.hostId),
+    requestedStartDate: dateOnly(input.requestedStartDate),
+    weekdays: weekdayValues,
   };
 }
 

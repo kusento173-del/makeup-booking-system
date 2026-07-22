@@ -11,9 +11,11 @@ import { BookingCancelService } from './booking-cancel.service';
 import { BookingSlotService } from './booking-slot.service';
 import { BookingController } from './booking.controller';
 import { AppointmentQueryService } from './appointment-query.service';
+import { FixedAppointmentController } from './fixed-appointment.controller';
+import { FixedAvailabilityService } from './fixed-availability.service';
 
 @Module({
-  controllers: [BookingController],
+  controllers: [BookingController, FixedAppointmentController],
   imports: [AuditModule, AuthModule, AvailabilityModule, DatabaseModule, MasterDataModule],
   providers: [
     AppointmentQueryService,
@@ -21,6 +23,7 @@ import { AppointmentQueryService } from './appointment-query.service';
     BookingCreateService,
     BookingRescheduleService,
     BookingSlotService,
+    FixedAvailabilityService,
   ],
   exports: [
     AppointmentQueryService,
@@ -28,6 +31,7 @@ import { AppointmentQueryService } from './appointment-query.service';
     BookingCreateService,
     BookingRescheduleService,
     BookingSlotService,
+    FixedAvailabilityService,
   ],
 })
 export class BookingModule {}

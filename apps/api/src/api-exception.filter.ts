@@ -50,6 +50,10 @@ import {
   BookingDurationInvalidError,
   BookingStartInvalidError,
 } from './booking/booking-time.errors';
+import {
+  FixedAvailabilityDateInvalidError,
+  FixedAvailabilityWeekdaysInvalidError,
+} from './booking/fixed-availability.errors';
 import { MasterDataRequestInvalidError } from './master-data/master-data-request.parser';
 import {
   BackofficeAccountConflictError,
@@ -140,6 +144,8 @@ export class ApiExceptionFilter implements ExceptionFilter {
       exception instanceof BookingDateInvalidError ||
       exception instanceof BookingDurationInvalidError ||
       exception instanceof BookingStartInvalidError ||
+      exception instanceof FixedAvailabilityDateInvalidError ||
+      exception instanceof FixedAvailabilityWeekdaysInvalidError ||
       exception instanceof BookingIdempotencyKeyInvalidError ||
       exception instanceof BookingCancellationReasonInvalidError ||
       exception instanceof LeaveRequestInvalidError ||

@@ -53,6 +53,67 @@ export class BookingSlotResultDto {
   unavailableReason!: string | null;
 }
 
+export class FixedAvailabilitySlotDto {
+  @ApiProperty()
+  available!: boolean;
+
+  @ApiProperty({ format: 'date', nullable: true })
+  earliestStartDate!: string | null;
+
+  @ApiProperty({ maximum: 1440, minimum: 15, multipleOf: 15 })
+  endMinute!: number;
+
+  @ApiProperty({ isArray: true, maximum: 7, minimum: 1, type: Number })
+  fixedConflictWeekdays!: number[];
+
+  @ApiProperty({ format: 'date', isArray: true, type: String })
+  singleConflictDates!: string[];
+
+  @ApiProperty({ maximum: 1425, minimum: 0, multipleOf: 15 })
+  startMinute!: number;
+}
+
+export class FixedAvailabilityResultDto {
+  @ApiProperty({ format: 'uuid' })
+  artistId!: string;
+
+  @ApiProperty({ format: 'date', isArray: true, type: String })
+  artistLeaveDates!: string[];
+
+  @ApiProperty({ enum: [15, 30, 45, 60] })
+  durationMinutes!: number;
+
+  @ApiProperty({ format: 'uuid' })
+  hostId!: string;
+
+  @ApiProperty({ format: 'date', isArray: true, type: String })
+  hostLeaveDates!: string[];
+
+  @ApiProperty({ format: 'date' })
+  requestedStartDate!: string;
+
+  @ApiProperty({ isArray: true, type: FixedAvailabilitySlotDto })
+  slots!: FixedAvailabilitySlotDto[];
+
+  @ApiProperty({
+    enum: [
+      'ARTIST_INACTIVE',
+      'HOST_HAS_ACTIVE_FIXED_RULE',
+      'HOST_HAS_PENDING_FIXED_REQUEST',
+      'HOST_INELIGIBLE',
+      'NO_STABLE_TIME_SLOT',
+      'NON_WORKING_WEEKDAY',
+      'SHIFT_NOT_CONFIGURED',
+      'SITE_INACTIVE',
+    ],
+    nullable: true,
+  })
+  unavailableReason!: string | null;
+
+  @ApiProperty({ isArray: true, maximum: 7, minimum: 1, type: Number })
+  weekdays!: number[];
+}
+
 export class CreateBookingRequestDto {
   @ApiProperty({ format: 'uuid' })
   artistId!: string;

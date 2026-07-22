@@ -6,6 +6,7 @@ import {
   parseBookingSlotsRequest,
   parseCancelBookingRequest,
   parseCreateBookingRequest,
+  parseFixedAvailabilityRequest,
   parseRescheduleBookingRequest,
 } from './booking-request.parser';
 
@@ -44,6 +45,34 @@ describe('booking request parser', () => {
       idempotencyKey: 'booking-key-0001',
       startMinute: 570,
     });
+  });
+
+  it('parses a strict fixed-availability query', () => {
+    expect(
+      parseFixedAvailabilityRequest({
+        artistId,
+        durationMinutes: '30',
+        hostId,
+        requestedStartDate: '2026-07-27',
+        weekdays: '1, 3,5',
+      }),
+    ).toEqual({
+      artistId,
+      durationMinutes: 30,
+      hostId,
+      requestedStartDate: new Date('2026-07-27T00:00:00.000Z'),
+      weekdays: [1, 3, 5],
+    });
+    expect(() =>
+      parseFixedAvailabilityRequest({
+        artistId,
+        durationMinutes: '30',
+        hostId,
+        requestedStartDate: '2026-07-27',
+        siteId: 'forged',
+        weekdays: '1,3',
+      }),
+    ).toThrow(BookingRequestInvalidError);
   });
 
   it.each([
