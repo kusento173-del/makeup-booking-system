@@ -41,15 +41,16 @@ model AppUser {
   updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
   rowVersion       Int       @default(1) @map("row_version")
 
-  identities         UserIdentity[]
-  passwordCredential PasswordCredential?
-  roles              UserRole[]          @relation("UserRoleOwner")
-  assignedRoles      UserRole[]          @relation("UserRoleAssigner")
-  sessions           AuthSession[]
-  operationLogs      OperationLog[]
-  hostProfile        HostProfile?
-  artistProfile      ArtistProfile?
-  operatorProfile    OperatorProfile?
+  identities           UserIdentity[]
+  passwordCredential   PasswordCredential?
+  roles                UserRole[]                 @relation("UserRoleOwner")
+  assignedRoles        UserRole[]                 @relation("UserRoleAssigner")
+  sessions             AuthSession[]
+  operationLogs        OperationLog[]
+  hostProfile          HostProfile?
+  artistProfile        ArtistProfile?
+  operatorProfile      OperatorProfile?
+  qualificationChanges HostQualificationHistory[] @relation("HostQualificationChangedBy")
 
   @@index([status], map: "app_users_status_idx")
   @@map("app_users")
@@ -142,13 +143,32 @@ model HostProfile {
   updatedAt                DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
   rowVersion               Int      @default(1) @map("row_version")
 
-  site              Site                   @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  user              AppUser?               @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  operatorRelations HostOperatorRelation[]
+  site                   Site                       @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  user                   AppUser?                   @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  operatorRelations      HostOperatorRelation[]
+  qualificationHistories HostQualificationHistory[]
 
   @@index([realName], map: "host_profiles_real_name_idx")
   @@index([siteId, qualificationStatus], map: "host_profiles_site_status_idx")
   @@map("host_profiles")
+}
+
+model HostQualificationHistory {
+  id              String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  hostId          String   @map("host_id") @db.Uuid
+  fromStatus      String?  @map("from_status") @db.VarChar(16)
+  toStatus        String   @map("to_status") @db.VarChar(16)
+  effectiveAt     DateTime @map("effective_at") @db.Timestamptz(3)
+  changedByUserId String?  @map("changed_by_user_id") @db.Uuid
+  reason          String?  @db.VarChar(500)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  host      HostProfile @relation(fields: [hostId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  changedBy AppUser?    @relation("HostQualificationChangedBy", fields: [changedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([hostId, effectiveAt(sort: Desc)], map: "host_qualification_histories_host_effective_idx")
+  @@index([changedByUserId, createdAt(sort: Desc)], map: "host_qualification_histories_actor_created_idx")
+  @@map("host_qualification_histories")
 }
 
 model ArtistProfile {

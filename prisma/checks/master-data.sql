@@ -5,6 +5,7 @@ DECLARE
     songjiang_id UUID;
     wuxi_id UUID;
     host_id UUID;
+    qualification_history_id UUID;
     operator_id UUID;
     test_suffix TEXT := txid_current()::text;
     host_code_one TEXT;
@@ -34,6 +35,42 @@ BEGIN
     INSERT INTO "host_profiles" ("host_code", "real_name", "site_id")
     VALUES (host_code_one, '同名主播', songjiang_id)
     RETURNING "id" INTO host_id;
+
+    INSERT INTO "host_qualification_histories" (
+        "host_id",
+        "to_status",
+        "effective_at"
+    ) VALUES (host_id, 'ACTIVE', CURRENT_TIMESTAMP)
+    RETURNING "id" INTO qualification_history_id;
+
+    BEGIN
+        INSERT INTO "host_qualification_histories" (
+            "host_id",
+            "from_status",
+            "to_status",
+            "effective_at"
+        ) VALUES (host_id, 'ACTIVE', 'ACTIVE', CURRENT_TIMESTAMP);
+        RAISE EXCEPTION 'No-op host qualification transition was accepted';
+    EXCEPTION
+        WHEN check_violation THEN NULL;
+    END;
+
+    BEGIN
+        UPDATE "host_qualification_histories"
+        SET "to_status" = 'SUSPENDED'
+        WHERE "id" = qualification_history_id;
+        RAISE EXCEPTION 'Host qualification history update was accepted';
+    EXCEPTION
+        WHEN SQLSTATE '55000' THEN NULL;
+    END;
+
+    BEGIN
+        DELETE FROM "host_qualification_histories"
+        WHERE "id" = qualification_history_id;
+        RAISE EXCEPTION 'Host qualification history delete was accepted';
+    EXCEPTION
+        WHEN SQLSTATE '55000' THEN NULL;
+    END;
 
     INSERT INTO "host_profiles" ("host_code", "real_name", "site_id")
     VALUES (host_code_two, '同名主播', songjiang_id);

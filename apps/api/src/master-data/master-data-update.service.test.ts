@@ -63,12 +63,14 @@ describe('MasterDataUpdateService', () => {
     };
     const after = { ...before, nickname: '小一', rowVersion: 4 };
     const updateMany = vi.fn().mockResolvedValue({ count: 1 });
+    const createQualificationHistory = vi.fn();
     const transaction = {
       hostProfile: {
         findUnique: vi.fn().mockResolvedValue(before),
         findUniqueOrThrow: vi.fn().mockResolvedValue(after),
         updateMany,
       },
+      hostQualificationHistory: { create: createQualificationHistory },
     };
     const { append, service } = createService(transaction);
 
@@ -104,6 +106,70 @@ describe('MasterDataUpdateService', () => {
         reason: '补充昵称',
       }),
     );
+    expect(createQualificationHistory).not.toHaveBeenCalled();
+  });
+
+  it('records a qualification transition with the host update and audit', async () => {
+    const effectiveAt = new Date('2026-07-22T02:00:00.000Z');
+    vi.useFakeTimers({ now: effectiveAt });
+    const before = {
+      hostCode: 'ZB0001',
+      id: 'host-1',
+      nickname: null,
+      qualificationStatus: 'ACTIVE' as const,
+      realName: '主播一',
+      rowVersion: 3,
+      siteId: 'site-songjiang',
+    };
+    const after = { ...before, qualificationStatus: 'SUSPENDED' as const, rowVersion: 4 };
+    const createQualificationHistory = vi.fn().mockResolvedValue({ id: 'history-1' });
+    const transaction = {
+      hostProfile: {
+        findUnique: vi.fn().mockResolvedValue(before),
+        findUniqueOrThrow: vi.fn().mockResolvedValue(after),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+      hostQualificationHistory: { create: createQualificationHistory },
+    };
+    const { append, service } = createService(transaction);
+
+    try {
+      await expect(
+        service.updateHost(customerServiceContext, {
+          expectedRowVersion: 3,
+          id: 'host-1',
+          qualificationStatus: 'SUSPENDED',
+          realName: '主播一',
+          reason: '暂停预约资格',
+          siteId: 'site-songjiang',
+        }),
+      ).resolves.toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
+
+    expect(transaction.hostProfile.updateMany).toHaveBeenCalledWith({
+      data: {
+        nickname: null,
+        qualificationEffectiveAt: effectiveAt,
+        qualificationStatus: 'SUSPENDED',
+        realName: '主播一',
+        rowVersion: { increment: 1 },
+        siteId: 'site-songjiang',
+      },
+      where: { id: 'host-1', rowVersion: 3 },
+    });
+    expect(createQualificationHistory).toHaveBeenCalledWith({
+      data: {
+        changedByUserId: 'user-1',
+        effectiveAt,
+        fromStatus: 'ACTIVE',
+        hostId: 'host-1',
+        reason: '暂停预约资格',
+        toStatus: 'SUSPENDED',
+      },
+    });
+    expect(append).toHaveBeenCalledOnce();
   });
 
   it('rejects a stale row version without appending an audit entry', async () => {

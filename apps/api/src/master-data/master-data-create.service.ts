@@ -60,10 +60,12 @@ export class MasterDataCreateService {
 
     return this.database.transaction(async (transaction) => {
       await this.assertActiveSite(transaction, command.siteId);
+      const qualificationEffectiveAt = new Date();
       const host = await transaction.hostProfile.create({
         data: {
           hostCode: requiredMasterDataText(command.hostCode, 'hostCode'),
           nickname: optionalMasterDataText(command.nickname) ?? null,
+          qualificationEffectiveAt,
           realName: requiredMasterDataText(command.realName, 'realName'),
           siteId: command.siteId,
         },
@@ -74,6 +76,15 @@ export class MasterDataCreateService {
           qualificationStatus: true,
           realName: true,
           siteId: true,
+        },
+      });
+
+      await transaction.hostQualificationHistory.create({
+        data: {
+          changedByUserId: context.userId,
+          effectiveAt: qualificationEffectiveAt,
+          hostId: host.id,
+          toStatus: host.qualificationStatus,
         },
       });
 

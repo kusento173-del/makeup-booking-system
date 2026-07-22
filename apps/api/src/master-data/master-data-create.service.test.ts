@@ -43,6 +43,8 @@ function createService(transaction: object) {
 
 describe('MasterDataCreateService', () => {
   it('creates a host and appends its audit in the same caller transaction', async () => {
+    const qualificationEffectiveAt = new Date('2026-07-22T01:00:00.000Z');
+    vi.useFakeTimers({ now: qualificationEffectiveAt });
     const create = vi.fn().mockResolvedValue({
       hostCode: 'ZB0001',
       id: 'host-1',
@@ -51,30 +53,45 @@ describe('MasterDataCreateService', () => {
       realName: '主播一',
       siteId: 'site-songjiang',
     });
+    const createQualificationHistory = vi.fn().mockResolvedValue({ id: 'history-1' });
     const transaction = {
       hostProfile: { create },
+      hostQualificationHistory: { create: createQualificationHistory },
       site: { findUnique: vi.fn().mockResolvedValue({ status: 'ACTIVE' }) },
     };
     const { append, service } = createService(transaction);
 
-    await expect(
-      service.createHost(context, {
-        hostCode: ' ZB0001 ',
-        realName: ' 主播一 ',
-        siteId: 'site-songjiang',
-      }),
-    ).resolves.toBe('host-1');
+    try {
+      await expect(
+        service.createHost(context, {
+          hostCode: ' ZB0001 ',
+          realName: ' 主播一 ',
+          siteId: 'site-songjiang',
+        }),
+      ).resolves.toBe('host-1');
+    } finally {
+      vi.useRealTimers();
+    }
 
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: {
           hostCode: 'ZB0001',
           nickname: null,
+          qualificationEffectiveAt,
           realName: '主播一',
           siteId: 'site-songjiang',
         },
       }),
     );
+    expect(createQualificationHistory).toHaveBeenCalledWith({
+      data: {
+        changedByUserId: 'user-1',
+        effectiveAt: qualificationEffectiveAt,
+        hostId: 'host-1',
+        toStatus: 'ACTIVE',
+      },
+    });
     expect(append).toHaveBeenCalledWith(
       transaction,
       expect.objectContaining({

@@ -94,6 +94,8 @@ export class MasterDataUpdateService {
   }
 
   updateHost(context: MasterDataCommandContext, command: UpdateHostCommand): Promise<void> {
+    const reason = requiredMasterDataText(command.reason, 'reason');
+
     return this.database.transaction(async (transaction) => {
       const before = await transaction.hostProfile.findUnique({
         select: {
@@ -114,12 +116,12 @@ export class MasterDataUpdateService {
 
       this.assertCurrentAndTargetSite(context, before.siteId, command.siteId);
       await this.assertActiveMoveTarget(transaction, before.siteId, command.siteId);
+      const qualificationChanged = before.qualificationStatus !== command.qualificationStatus;
+      const qualificationEffectiveAt = qualificationChanged ? new Date() : undefined;
       const result = await transaction.hostProfile.updateMany({
         data: {
           nickname: optionalMasterDataText(command.nickname) ?? null,
-          ...(before.qualificationStatus === command.qualificationStatus
-            ? {}
-            : { qualificationEffectiveAt: new Date() }),
+          ...(qualificationEffectiveAt ? { qualificationEffectiveAt } : {}),
           qualificationStatus: command.qualificationStatus,
           realName: requiredMasterDataText(command.realName, 'realName'),
           rowVersion: { increment: 1 },
@@ -128,6 +130,19 @@ export class MasterDataUpdateService {
         where: { id: command.id, rowVersion: command.expectedRowVersion },
       });
       assertUpdated(result.count);
+
+      if (qualificationEffectiveAt) {
+        await transaction.hostQualificationHistory.create({
+          data: {
+            changedByUserId: context.userId,
+            effectiveAt: qualificationEffectiveAt,
+            fromStatus: before.qualificationStatus,
+            hostId: before.id,
+            reason,
+            toStatus: command.qualificationStatus,
+          },
+        });
+      }
 
       const after = await transaction.hostProfile.findUniqueOrThrow({
         select: {
@@ -148,7 +163,7 @@ export class MasterDataUpdateService {
         beforeData: before,
         objectId: before.id,
         objectType: 'HOST',
-        reason: requiredMasterDataText(command.reason, 'reason'),
+        reason,
         siteId: after.siteId,
       });
     });
