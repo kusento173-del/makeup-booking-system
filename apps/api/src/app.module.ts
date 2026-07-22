@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 
+import { AvailabilityModule } from './availability/availability.module';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { DatabaseModule } from './database/database.module';
@@ -12,6 +13,7 @@ import { ShiftModule } from './shift/shift.module';
 
 @Module({
   imports: [
+    AvailabilityModule,
     AuditModule,
     AuthModule,
     DatabaseModule,

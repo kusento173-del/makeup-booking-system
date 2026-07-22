@@ -8,7 +8,7 @@ import {
 } from '../auth/authorization-policy.service';
 import type { VerifiedAuthorizationContext } from '../auth/authorization.types';
 import { DatabaseService } from '../database/database.service';
-import { formatDateOnly, toBusinessDate } from '../shift/business-date';
+import { formatDateOnly, isoWeekdayForDate, toBusinessDate } from '../shift/business-date';
 import { validateShiftDefinition } from '../shift/shift-time';
 import {
   OvertimeArtistNotFoundError,
@@ -97,10 +97,6 @@ function validateDate(value: Date, now: Date): void {
 
 function validateDefinition(definition: OvertimeDefinition): void {
   validateShiftDefinition({ ...definition, workdays: [1] });
-}
-
-function isoWeekday(date: Date): number {
-  return date.getUTCDay() || 7;
 }
 
 @Injectable()
@@ -257,7 +253,9 @@ export class OvertimeService {
       },
     });
     if (!shift) throw new OvertimeShiftNotConfiguredError();
-    if (shift.workdays.includes(isoWeekday(overtimeDate))) throw new OvertimeWorkingDayError();
+    if (shift.workdays.includes(isoWeekdayForDate(overtimeDate))) {
+      throw new OvertimeWorkingDayError();
+    }
   }
 
   private async create(

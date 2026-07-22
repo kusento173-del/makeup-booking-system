@@ -16,3 +16,7 @@ export function toBusinessDate(now: Date): Date {
 export function formatDateOnly(value: Date): string {
   return value.toISOString().slice(0, 10);
 }
+
+export function isoWeekdayForDate(value: Date): number {
+  return value.getUTCDay() || 7;
+}
