@@ -6,6 +6,7 @@ import { BookingModule } from '../booking/booking.module';
 import { DatabaseModule } from '../database/database.module';
 import { MasterDataModule } from '../master-data/master-data.module';
 import { ExportController } from './export.controller';
+import { ExportCleanupService } from './export-cleanup.service';
 import { ExportFileService } from './export-file.service';
 import { ExportProcessorService } from './export-processor.service';
 import { ExportService } from './export.service';
@@ -14,7 +15,7 @@ import { InternalExportController } from './internal-export.controller';
 @Module({
   controllers: [ExportController, InternalExportController],
   imports: [AuditModule, AuthModule, BookingModule, DatabaseModule, MasterDataModule],
-  providers: [ExportFileService, ExportProcessorService, ExportService],
-  exports: [ExportFileService, ExportProcessorService, ExportService],
+  providers: [ExportCleanupService, ExportFileService, ExportProcessorService, ExportService],
+  exports: [ExportCleanupService, ExportFileService, ExportProcessorService, ExportService],
 })
 export class ExportModule {}

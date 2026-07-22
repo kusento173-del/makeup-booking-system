@@ -25,6 +25,7 @@ const job = {
   scope: 'SINGLE_SITE',
   siteId,
   status: 'SUCCEEDED',
+  storageDeletedAt: null as Date | null,
   storageKey: `local/${jobId}.xlsx`,
 };
 const customerService = {
@@ -84,6 +85,17 @@ describe('ExportFileService', () => {
     const tamperedService = await setup({ ...job, fileSha256: '0'.repeat(64) });
     await expect(
       tamperedService.get(customerService, jobId, new Date('2026-07-23T12:00:00.000Z')),
+    ).rejects.toBeInstanceOf(ExportFileUnavailableError);
+  });
+
+  it('rejects a file already marked as deleted', async () => {
+    const service = await setup({
+      ...job,
+      storageDeletedAt: new Date('2026-07-24T12:00:00.000Z'),
+    });
+
+    await expect(
+      service.get(customerService, jobId, new Date('2026-07-23T12:00:00.000Z')),
     ).rejects.toBeInstanceOf(ExportFileUnavailableError);
   });
 });

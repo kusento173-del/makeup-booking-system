@@ -45,6 +45,7 @@ const EXPORT_SELECT = {
   site: { select: { name: true } },
   siteId: true,
   status: true,
+  storageDeletedAt: true,
 } satisfies Prisma.ExportJobSelect;
 
 type ExportRecord = Prisma.ExportJobGetPayload<{ select: typeof EXPORT_SELECT }>;
@@ -294,7 +295,10 @@ export class ExportService {
     return {
       completedAt: job.completedAt?.toISOString() ?? null,
       createdAt: job.createdAt.toISOString(),
-      downloadable: job.status === 'SUCCEEDED' && Boolean(job.expiresAt && job.expiresAt > now),
+      downloadable:
+        job.status === 'SUCCEEDED' &&
+        job.storageDeletedAt === null &&
+        Boolean(job.expiresAt && job.expiresAt > now),
       expiresAt: job.expiresAt?.toISOString() ?? null,
       failureReason: job.failureReason,
       id: job.id,

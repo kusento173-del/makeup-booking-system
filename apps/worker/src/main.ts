@@ -28,6 +28,7 @@ const scheduler = new FixedGenerationScheduler(
 const exportScheduler = new ExportScheduler(
   {
     apiUrl,
+    cleanupIntervalMs: Number(process.env.EXPORT_CLEANUP_INTERVAL_MS ?? '3600000'),
     intervalMs: Number(process.env.EXPORT_POLL_INTERVAL_MS ?? '5000'),
     token,
   },

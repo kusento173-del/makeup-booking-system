@@ -1,6 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 
 import { Prisma } from '@makeup/database';
 import { Injectable, Logger } from '@nestjs/common';
@@ -8,6 +7,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { AuditCommandService } from '../audit/audit-command.service';
 import { DatabaseService } from '../database/database.service';
 import { formatDateOnly, instantToBusinessDateMinute } from '../shift/business-date';
+import { exportStorageRoot, localExportStorageKey, localExportStoragePath } from './export-storage';
 import { buildScheduleWorkbook, type ScheduleExportRow } from './schedule-workbook';
 
 const EXCEL_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -56,10 +56,11 @@ export class ExportProcessorService {
 
       const rows = await this.rows(job.scheduleDate, job.scope, job.siteId);
       const buffer = await buildScheduleWorkbook(rows);
-      const storageRoot = this.storageRoot();
+      const storageRoot = exportStorageRoot();
       await mkdir(storageRoot, { recursive: true });
-      finalPath = resolve(storageRoot, `${job.id}.xlsx`);
-      temporaryPath = resolve(storageRoot, `.${job.id}.${randomUUID()}.tmp`);
+      const storageKey = localExportStorageKey(job.id);
+      finalPath = localExportStoragePath(job.id, storageKey);
+      temporaryPath = `${finalPath}.${randomUUID()}.tmp`;
       await writeFile(temporaryPath, buffer, { flag: 'wx' });
       await rename(temporaryPath, finalPath);
       temporaryPath = null;
@@ -78,7 +79,7 @@ export class ExportProcessorService {
             rowCount: rows.length,
             rowVersion: { increment: 1 },
             status: 'SUCCEEDED',
-            storageKey: `local/${job.id}.xlsx`,
+            storageKey,
           },
           where: { id: job.id, rowVersion: job.rowVersion, status: 'PROCESSING' },
         });
@@ -212,9 +213,5 @@ export class ExportProcessorService {
         },
       );
     });
-  }
-
-  private storageRoot(): string {
-    return resolve(process.env.EXPORT_STORAGE_DIR ?? resolve(process.cwd(), 'var', 'exports'));
   }
 }

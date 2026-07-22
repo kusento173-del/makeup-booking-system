@@ -1,6 +1,5 @@
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 
 import { Injectable } from '@nestjs/common';
 
@@ -11,8 +10,7 @@ import {
 import type { VerifiedAuthorizationContext } from '../auth/authorization.types';
 import { DatabaseService } from '../database/database.service';
 import { ExportFileUnavailableError, ExportNotFoundError } from './export.errors';
-
-const LOCAL_STORAGE_KEY = /^local\/([0-9a-f-]{36})\.xlsx$/;
+import { localExportStoragePath } from './export-storage';
 
 export interface AuthorizedExportFile {
   readonly buffer: Buffer;
@@ -45,6 +43,7 @@ export class ExportFileService {
           scope: true,
           siteId: true,
           status: true,
+          storageDeletedAt: true,
           storageKey: true,
         },
         where: { id: exportJobId },
@@ -59,6 +58,7 @@ export class ExportFileService {
     }
     if (
       job.status !== 'SUCCEEDED' ||
+      job.storageDeletedAt !== null ||
       !job.expiresAt ||
       job.expiresAt <= now ||
       !job.outputFilename ||
@@ -70,9 +70,12 @@ export class ExportFileService {
       throw new ExportFileUnavailableError();
     }
 
-    const match = LOCAL_STORAGE_KEY.exec(job.storageKey);
-    if (!match || match[1] !== job.id) throw new ExportFileUnavailableError();
-    const path = resolve(this.storageRoot(), `${job.id}.xlsx`);
+    let path: string;
+    try {
+      path = localExportStoragePath(job.id, job.storageKey);
+    } catch {
+      throw new ExportFileUnavailableError();
+    }
     const buffer = await readFile(path).catch(() => {
       throw new ExportFileUnavailableError();
     });
@@ -83,9 +86,5 @@ export class ExportFileService {
       throw new ExportFileUnavailableError();
     }
     return { buffer, contentType: job.contentType, filename: job.outputFilename };
-  }
-
-  private storageRoot(): string {
-    return resolve(process.env.EXPORT_STORAGE_DIR ?? resolve(process.cwd(), 'var', 'exports'));
   }
 }
