@@ -2,6 +2,11 @@ import { Injectable } from '@nestjs/common';
 
 import { ArtistAvailabilityService } from '../availability/artist-availability.service';
 import type { ArtistDayAvailability } from '../availability/artist-availability.types';
+import {
+  AuthorizationDeniedError,
+  AuthorizationPolicyService,
+} from '../auth/authorization-policy.service';
+import type { VerifiedAuthorizationContext } from '../auth/authorization.types';
 import { DatabaseService } from '../database/database.service';
 import { businessDateMinuteToInstant, formatDateOnly } from '../shift/business-date';
 import { BookingHostNotFoundError, BookingSiteMismatchError } from './booking-slot.errors';
@@ -16,10 +21,16 @@ import { listFreeStartMinutes, validateBookingDate, validateBookingDuration } fr
 export class BookingSlotService {
   constructor(
     private readonly availability: ArtistAvailabilityService,
+    private readonly authorization: AuthorizationPolicyService,
     private readonly database: DatabaseService,
   ) {}
 
-  async getSlots(input: BookingSlotInput, now = new Date()): Promise<BookingSlotResult> {
+  async getSlots(
+    context: VerifiedAuthorizationContext,
+    input: BookingSlotInput,
+    now = new Date(),
+  ): Promise<BookingSlotResult> {
+    this.authorization.assertRole(context, ['HOST', 'OPERATOR', 'CUSTOMER_SERVICE', 'ADMIN']);
     validateBookingDate(input.date, now);
     validateBookingDuration(input.durationMinutes);
     const [availability, host] = await Promise.all([
@@ -38,14 +49,25 @@ export class BookingSlotService {
               },
             },
             qualificationStatus: true,
+            operatorRelations: {
+              orderBy: { validFrom: 'desc' },
+              select: { operator: { select: { userId: true } } },
+              take: 1,
+              where: {
+                validFrom: { lte: input.date },
+                OR: [{ validUntil: null }, { validUntil: { gt: input.date } }],
+              },
+            },
             site: { select: { status: true } },
             siteId: true,
+            userId: true,
           },
           where: { id: input.hostId },
         }),
       ),
     ]);
     if (!host) throw new BookingHostNotFoundError();
+    this.assertActorScope(context, host);
     if (host.siteId !== availability.siteId) throw new BookingSiteMismatchError();
     if (host.qualificationStatus !== 'ACTIVE') {
       return this.unavailable(input, availability, 'HOST_INELIGIBLE');
@@ -97,6 +119,35 @@ export class BookingSlotService {
       }),
       null,
     );
+  }
+
+  private assertActorScope(
+    context: VerifiedAuthorizationContext,
+    host: {
+      readonly operatorRelations: readonly {
+        readonly operator: { readonly userId: string | null };
+      }[];
+      readonly siteId: string;
+      readonly userId: string | null;
+    },
+  ): void {
+    switch (context.roleCode) {
+      case 'HOST':
+        if (host.userId !== context.userId) throw new AuthorizationDeniedError();
+        return;
+      case 'OPERATOR':
+        if (host.operatorRelations[0]?.operator.userId !== context.userId) {
+          throw new AuthorizationDeniedError();
+        }
+        return;
+      case 'CUSTOMER_SERVICE':
+        this.authorization.assertSiteScope(context, host.siteId);
+        return;
+      case 'ADMIN':
+        return;
+      case 'ARTIST':
+        throw new AuthorizationDeniedError();
+    }
   }
 
   private unavailable(

@@ -4,6 +4,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { ApiExceptionFilter } from './api-exception.filter';
 import { AuthSessionInvalidError } from './auth/auth-session.errors';
 import { AuthorizationDeniedError } from './auth/authorization-policy.service';
+import {
+  BookingArtistUnavailableError,
+  BookingDailyLimitReachedError,
+  BookingSecondConfirmationRequiredError,
+  BookingSlotConflictError,
+} from './booking/booking-create.errors';
 import { LeaveNotFoundError, LeaveStateConflictError } from './leave/leave.errors';
 import { LastAdministratorError } from './master-data/backoffice-account.errors';
 import {
@@ -173,6 +179,23 @@ describe('ApiExceptionFilter', () => {
     expect(conflict.response.status).toHaveBeenCalledWith(409);
     expect(conflict.send).toHaveBeenCalledWith({
       error: { code: 'OVERTIME_WORKING_DAY', message: '数据状态冲突，请刷新后重试' },
+      statusCode: 409,
+    });
+  });
+
+  it.each([
+    [new BookingSecondConfirmationRequiredError(), '这是当天第二次预约，请确认后重试'],
+    [new BookingDailyLimitReachedError(), '该主播当天最多预约两次'],
+    [new BookingSlotConflictError(), '该时段刚被占用，请重新选择'],
+    [new BookingArtistUnavailableError('ARTIST_ON_LEAVE'), '该化妆师当天不可预约'],
+  ])('maps actionable booking conflicts to stable user messages', (error, message) => {
+    const { host, response, send } = createHost();
+
+    new ApiExceptionFilter().catch(error, host);
+
+    expect(response.status).toHaveBeenCalledWith(409);
+    expect(send).toHaveBeenCalledWith({
+      error: { code: error.code, message },
       statusCode: 409,
     });
   });

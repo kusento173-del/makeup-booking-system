@@ -28,6 +28,25 @@ import {
   WechatLoginConfigurationError,
   WechatLoginFailedError,
 } from './auth/wechat-login.errors';
+import { AvailabilityArtistNotFoundError } from './availability/artist-availability.errors';
+import {
+  BookingArtistUnavailableError,
+  BookingDailyLimitReachedError,
+  BookingHostUnavailableError,
+  BookingIdempotencyConflictError,
+  BookingIdempotencyIncompleteError,
+  BookingIdempotencyKeyInvalidError,
+  BookingSecondConfirmationRequiredError,
+  BookingSlotConflictError,
+  BookingStateConflictError,
+} from './booking/booking-create.errors';
+import { BookingRequestInvalidError } from './booking/booking-request.parser';
+import { BookingHostNotFoundError, BookingSiteMismatchError } from './booking/booking-slot.errors';
+import {
+  BookingDateInvalidError,
+  BookingDurationInvalidError,
+  BookingStartInvalidError,
+} from './booking/booking-time.errors';
 import { MasterDataRequestInvalidError } from './master-data/master-data-request.parser';
 import {
   BackofficeAccountConflictError,
@@ -114,6 +133,11 @@ export class ApiExceptionFilter implements ExceptionFilter {
 
     if (
       exception instanceof AuthRequestInvalidError ||
+      exception instanceof BookingRequestInvalidError ||
+      exception instanceof BookingDateInvalidError ||
+      exception instanceof BookingDurationInvalidError ||
+      exception instanceof BookingStartInvalidError ||
+      exception instanceof BookingIdempotencyKeyInvalidError ||
       exception instanceof LeaveRequestInvalidError ||
       exception instanceof MasterDataRequestInvalidError ||
       exception instanceof OvertimeRequestInvalidError ||
@@ -132,6 +156,8 @@ export class ApiExceptionFilter implements ExceptionFilter {
 
     if (
       exception instanceof MasterDataNotFoundError ||
+      exception instanceof AvailabilityArtistNotFoundError ||
+      exception instanceof BookingHostNotFoundError ||
       exception instanceof BackofficeAccountNotFoundError ||
       exception instanceof LeaveNotFoundError ||
       exception instanceof OvertimeArtistNotFoundError ||
@@ -146,8 +172,37 @@ export class ApiExceptionFilter implements ExceptionFilter {
       return this.response(HttpStatus.NOT_FOUND, exception.code, '绑定目标不存在');
     }
 
+    if (exception instanceof BookingSecondConfirmationRequiredError) {
+      return this.response(HttpStatus.CONFLICT, exception.code, '这是当天第二次预约，请确认后重试');
+    }
+
+    if (exception instanceof BookingDailyLimitReachedError) {
+      return this.response(HttpStatus.CONFLICT, exception.code, '该主播当天最多预约两次');
+    }
+
+    if (exception instanceof BookingSlotConflictError) {
+      return this.response(HttpStatus.CONFLICT, exception.code, '该时段刚被占用，请重新选择');
+    }
+
+    if (exception instanceof BookingArtistUnavailableError) {
+      return this.response(HttpStatus.CONFLICT, exception.code, '该化妆师当天不可预约');
+    }
+
+    if (exception instanceof BookingHostUnavailableError) {
+      return this.response(HttpStatus.CONFLICT, exception.code, '该主播当天不可预约');
+    }
+
+    if (
+      exception instanceof BookingIdempotencyConflictError ||
+      exception instanceof BookingIdempotencyIncompleteError
+    ) {
+      return this.response(HttpStatus.CONFLICT, exception.code, '预约请求状态冲突，请刷新后重试');
+    }
+
     if (
       exception instanceof MasterDataVersionConflictError ||
+      exception instanceof BookingSiteMismatchError ||
+      exception instanceof BookingStateConflictError ||
       exception instanceof MasterDataDateRangeError ||
       exception instanceof MasterDataInactiveSiteError ||
       exception instanceof MasterDataSiteMismatchError ||

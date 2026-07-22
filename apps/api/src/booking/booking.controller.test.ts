@@ -1,0 +1,104 @@
+import { describe, expect, it, vi } from 'vitest';
+
+import type { AccessTokenClaims } from '../auth/auth-session.types';
+import type { MasterDataCommandContextService } from '../master-data/master-data-command-context.service';
+import type { BookingCreateService } from './booking-create.service';
+import type { BookingCommandContext } from './booking-create.types';
+import { BookingController } from './booking.controller';
+import type { BookingSlotService } from './booking-slot.service';
+
+const artistId = '019f7a17-6845-7a90-94cb-e5f5caabd5f6';
+const hostId = '019f7a18-6845-7a90-94cb-e5f5caabd5f6';
+const authorization: AccessTokenClaims = {
+  expiresAt: new Date('2026-07-22T07:00:00.000Z'),
+  roleAssignmentId: 'role-host',
+  roleCode: 'HOST',
+  sessionId: 'session-1',
+  siteId: 'site-1',
+  userId: 'user-host',
+};
+const context: BookingCommandContext = { actorName: '小雨', ...authorization };
+
+describe('BookingController', () => {
+  it('queries slots using only verified identity and strict parsed filters', async () => {
+    const getSlots = vi.fn().mockResolvedValue({ slots: [] });
+    const controller = new BookingController(
+      {} as MasterDataCommandContextService,
+      {} as BookingCreateService,
+      { getSlots } as unknown as BookingSlotService,
+    );
+
+    await controller.listSlots(
+      { artistId, date: '2026-07-23', durationMinutes: '30', hostId },
+      authorization,
+    );
+
+    expect(getSlots).toHaveBeenCalledWith(authorization, {
+      artistId,
+      date: new Date('2026-07-23T00:00:00.000Z'),
+      durationMinutes: 30,
+      hostId,
+    });
+  });
+
+  it('creates through a trusted mini-program context and header idempotency key', async () => {
+    const resolve = vi.fn().mockResolvedValue(context);
+    const create = vi.fn().mockResolvedValue({ appointment: { id: 'appointment-1' } });
+    const controller = new BookingController(
+      { resolve } as unknown as MasterDataCommandContextService,
+      { create } as unknown as BookingCreateService,
+      {} as BookingSlotService,
+    );
+
+    await controller.create(
+      { artistId, date: '2026-07-23', durationMinutes: 30, hostId, startMinute: 570 },
+      'booking-key-0001',
+      authorization,
+      '127.0.0.1',
+      'miniapp',
+      'request-1',
+    );
+
+    expect(resolve).toHaveBeenCalledWith(authorization, {
+      clientType: 'WECHAT_MINI_PROGRAM',
+      ipAddress: '127.0.0.1',
+      requestId: 'request-1',
+      userAgent: 'miniapp',
+    });
+    expect(create).toHaveBeenCalledWith(context, {
+      artistId,
+      confirmedSecondBooking: false,
+      date: new Date('2026-07-23T00:00:00.000Z'),
+      durationMinutes: 30,
+      hostId,
+      idempotencyKey: 'booking-key-0001',
+      startMinute: 570,
+    });
+  });
+
+  it('marks customer service requests as backoffice traffic', async () => {
+    const customerService = {
+      ...authorization,
+      roleCode: 'CUSTOMER_SERVICE',
+      userId: 'user-customer-service',
+    } as const;
+    const resolve = vi.fn().mockResolvedValue({ actorName: '松江客服', ...customerService });
+    const controller = new BookingController(
+      { resolve } as unknown as MasterDataCommandContextService,
+      { create: vi.fn().mockResolvedValue({}) } as unknown as BookingCreateService,
+      {} as BookingSlotService,
+    );
+
+    await controller.create(
+      { artistId, date: '2026-07-23', durationMinutes: 30, hostId, startMinute: 570 },
+      'booking-key-0001',
+      customerService,
+      '127.0.0.1',
+    );
+
+    expect(resolve).toHaveBeenCalledWith(customerService, {
+      clientType: 'ADMIN_WEB',
+      ipAddress: '127.0.0.1',
+    });
+  });
+});
