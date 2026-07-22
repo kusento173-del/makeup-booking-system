@@ -25,3 +25,7 @@ export function isoWeekdayForDate(value: Date): number {
 export function businessDateMinuteToInstant(date: Date, minute: number): Date {
   return new Date(date.getTime() + (minute - BUSINESS_UTC_OFFSET_MINUTES) * 60_000);
 }
+
+export function instantToBusinessDateMinute(date: Date, instant: Date): number {
+  return Math.round((instant.getTime() - date.getTime()) / 60_000) + BUSINESS_UTC_OFFSET_MINUTES;
+}

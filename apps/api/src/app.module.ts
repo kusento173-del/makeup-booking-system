@@ -10,6 +10,7 @@ import { LeaveModule } from './leave/leave.module';
 import { MasterDataModule } from './master-data/master-data.module';
 import { OvertimeModule } from './overtime/overtime.module';
 import { RedisModule } from './redis/redis.module';
+import { ScheduleModule } from './schedule/schedule.module';
 import { ShiftModule } from './shift/shift.module';
 
 @Module({
@@ -23,6 +24,7 @@ import { ShiftModule } from './shift/shift.module';
     MasterDataModule,
     OvertimeModule,
     RedisModule,
+    ScheduleModule,
     ShiftModule,
   ],
   controllers: [HealthController],

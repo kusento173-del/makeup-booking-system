@@ -108,6 +108,11 @@ import {
 } from './shift/shift.errors';
 import { ShiftRequestInvalidError } from './shift/shift-request.parser';
 import { ShiftDefinitionInvalidError } from './shift/shift-time';
+import {
+  ScheduleDateOutOfRangeError,
+  ScheduleRequestInvalidError,
+  ScheduleSiteRequiredError,
+} from './schedule/schedule-board.errors';
 
 interface ErrorResponse {
   readonly error: {
@@ -164,7 +169,10 @@ export class ApiExceptionFilter implements ExceptionFilter {
       exception instanceof ShiftDefinitionInvalidError ||
       exception instanceof ShiftChangeReasonInvalidError ||
       exception instanceof LeaveReasonInvalidError ||
-      exception instanceof OvertimeReasonInvalidError
+      exception instanceof OvertimeReasonInvalidError ||
+      exception instanceof ScheduleDateOutOfRangeError ||
+      exception instanceof ScheduleRequestInvalidError ||
+      exception instanceof ScheduleSiteRequiredError
     ) {
       return this.response(HttpStatus.BAD_REQUEST, exception.code, '请求内容不正确');
     }
