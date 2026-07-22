@@ -20,6 +20,8 @@ import { ApiErrorResponseDto } from '../auth/auth-openapi.dto';
 import type { AccessTokenClaims } from '../auth/auth-session.types';
 import { CurrentAuth } from '../auth/current-auth.decorator';
 import { MasterDataCommandContextService } from '../master-data/master-data-command-context.service';
+import { AppointmentQueryService } from './appointment-query.service';
+import type { AppointmentPage } from './appointment-query.types';
 import { BookingCancelService } from './booking-cancel.service';
 import { BookingCreateService } from './booking-create.service';
 import type {
@@ -36,9 +38,11 @@ import {
   CancelBookingRequestDto,
   CreateBookingRequestDto,
   RescheduleBookingRequestDto,
+  AppointmentPageDto,
 } from './booking-openapi.dto';
 import {
   parseBookingSlotsRequest,
+  parseAppointmentListRequest,
   parseCancelBookingRequest,
   parseCreateBookingRequest,
   parseRescheduleBookingRequest,
@@ -56,12 +60,28 @@ import type { BookingSlotResult } from './booking-slot.types';
 @Controller()
 export class BookingController {
   constructor(
+    private readonly appointmentQueries: AppointmentQueryService,
     private readonly canceller: BookingCancelService,
     private readonly contexts: MasterDataCommandContextService,
     private readonly creator: BookingCreateService,
     private readonly rescheduler: BookingRescheduleService,
     private readonly slots: BookingSlotService,
   ) {}
+
+  @Get('appointments')
+  @ApiOperation({ summary: '按角色范围查询今日、未来或历史预约' })
+  @ApiQuery({ format: 'date', name: 'fromDate', required: false, type: String })
+  @ApiQuery({ format: 'date', name: 'toDate', required: false, type: String })
+  @ApiQuery({ minimum: 1, name: 'page', required: false, type: Number })
+  @ApiQuery({ maximum: 100, minimum: 1, name: 'pageSize', required: false, type: Number })
+  @ApiQuery({ enum: ['BOOKED', 'CANCELLED', 'COMPLETED'], name: 'status', required: false })
+  @ApiOkResponse({ type: AppointmentPageDto })
+  listAppointments(
+    @Query() query: unknown,
+    @CurrentAuth() authorization: AccessTokenClaims,
+  ): Promise<AppointmentPage> {
+    return this.appointmentQueries.list(authorization, parseAppointmentListRequest(query));
+  }
 
   @Post('appointments/:appointmentId/cancel')
   @ApiOperation({ summary: '取消化妆预约' })

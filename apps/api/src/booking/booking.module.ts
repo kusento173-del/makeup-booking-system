@@ -10,17 +10,20 @@ import { BookingRescheduleService } from './booking-reschedule.service';
 import { BookingCancelService } from './booking-cancel.service';
 import { BookingSlotService } from './booking-slot.service';
 import { BookingController } from './booking.controller';
+import { AppointmentQueryService } from './appointment-query.service';
 
 @Module({
   controllers: [BookingController],
   imports: [AuditModule, AuthModule, AvailabilityModule, DatabaseModule, MasterDataModule],
   providers: [
+    AppointmentQueryService,
     BookingCancelService,
     BookingCreateService,
     BookingRescheduleService,
     BookingSlotService,
   ],
   exports: [
+    AppointmentQueryService,
     BookingCancelService,
     BookingCreateService,
     BookingRescheduleService,

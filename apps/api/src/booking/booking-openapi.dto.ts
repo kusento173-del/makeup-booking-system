@@ -192,3 +192,22 @@ export class BookingRescheduleResultDto {
   @ApiProperty()
   replayed!: boolean;
 }
+
+export class AppointmentListItemDto extends AppointmentSummaryDto {
+  @ApiProperty({ format: 'uuid', nullable: true })
+  rescheduledFromAppointmentId!: string | null;
+}
+
+export class AppointmentPageDto {
+  @ApiProperty({ isArray: true, type: AppointmentListItemDto })
+  items!: AppointmentListItemDto[];
+
+  @ApiProperty({ minimum: 1 })
+  page!: number;
+
+  @ApiProperty({ maximum: 100, minimum: 1 })
+  pageSize!: number;
+
+  @ApiProperty({ minimum: 0 })
+  total!: number;
+}

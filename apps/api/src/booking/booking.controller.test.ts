@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { AccessTokenClaims } from '../auth/auth-session.types';
 import type { MasterDataCommandContextService } from '../master-data/master-data-command-context.service';
+import type { AppointmentQueryService } from './appointment-query.service';
 import type { BookingCreateService } from './booking-create.service';
 import type { BookingCancelService } from './booking-cancel.service';
 import type { BookingCommandContext } from './booking-create.types';
@@ -22,9 +23,34 @@ const authorization: AccessTokenClaims = {
 const context: BookingCommandContext = { actorName: '小雨', ...authorization };
 
 describe('BookingController', () => {
+  it('lists appointments using verified identity and a strict date range', async () => {
+    const list = vi.fn().mockResolvedValue({ items: [], page: 1, pageSize: 50, total: 0 });
+    const controller = new BookingController(
+      { list } as unknown as AppointmentQueryService,
+      {} as BookingCancelService,
+      {} as MasterDataCommandContextService,
+      {} as BookingCreateService,
+      {} as BookingRescheduleService,
+      {} as BookingSlotService,
+    );
+
+    await controller.listAppointments(
+      { fromDate: '2026-07-23', pageSize: '50', toDate: '2026-07-29' },
+      authorization,
+    );
+
+    expect(list).toHaveBeenCalledWith(authorization, {
+      fromDate: new Date('2026-07-23T00:00:00.000Z'),
+      page: 1,
+      pageSize: 50,
+      toDate: new Date('2026-07-29T00:00:00.000Z'),
+    });
+  });
+
   it('queries slots using only verified identity and strict parsed filters', async () => {
     const getSlots = vi.fn().mockResolvedValue({ slots: [] });
     const controller = new BookingController(
+      {} as AppointmentQueryService,
       {} as BookingCancelService,
       {} as MasterDataCommandContextService,
       {} as BookingCreateService,
@@ -49,6 +75,7 @@ describe('BookingController', () => {
     const resolve = vi.fn().mockResolvedValue(context);
     const create = vi.fn().mockResolvedValue({ appointment: { id: 'appointment-1' } });
     const controller = new BookingController(
+      {} as AppointmentQueryService,
       {} as BookingCancelService,
       { resolve } as unknown as MasterDataCommandContextService,
       { create } as unknown as BookingCreateService,
@@ -90,6 +117,7 @@ describe('BookingController', () => {
     } as const;
     const resolve = vi.fn().mockResolvedValue({ actorName: '松江客服', ...customerService });
     const controller = new BookingController(
+      {} as AppointmentQueryService,
       {} as BookingCancelService,
       { resolve } as unknown as MasterDataCommandContextService,
       { create: vi.fn().mockResolvedValue({}) } as unknown as BookingCreateService,
@@ -114,6 +142,7 @@ describe('BookingController', () => {
     const resolve = vi.fn().mockResolvedValue(context);
     const cancel = vi.fn().mockResolvedValue({ id: 'appointment-1', status: 'CANCELLED' });
     const controller = new BookingController(
+      {} as AppointmentQueryService,
       { cancel } as unknown as BookingCancelService,
       { resolve } as unknown as MasterDataCommandContextService,
       {} as BookingCreateService,
@@ -139,6 +168,7 @@ describe('BookingController', () => {
     const resolve = vi.fn().mockResolvedValue(context);
     const reschedule = vi.fn().mockResolvedValue({ appointment: { id: 'replacement-1' } });
     const controller = new BookingController(
+      {} as AppointmentQueryService,
       {} as BookingCancelService,
       { resolve } as unknown as MasterDataCommandContextService,
       {} as BookingCreateService,

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   BookingRequestInvalidError,
+  parseAppointmentListRequest,
   parseBookingSlotsRequest,
   parseCancelBookingRequest,
   parseCreateBookingRequest,
@@ -119,6 +120,27 @@ describe('booking request parser', () => {
         },
         'reschedule-key-0001',
       ),
+    ).toThrow(BookingRequestInvalidError);
+  });
+
+  it('parses bounded appointment date ranges and defaults to the Shanghai business date', () => {
+    expect(parseAppointmentListRequest({}, new Date('2026-07-22T16:30:00.000Z'))).toEqual({
+      fromDate: new Date('2026-07-23T00:00:00.000Z'),
+      page: 1,
+      pageSize: 50,
+      toDate: new Date('2026-07-23T00:00:00.000Z'),
+    });
+    expect(
+      parseAppointmentListRequest({
+        fromDate: '2026-07-01',
+        page: '2',
+        pageSize: '100',
+        status: 'CANCELLED',
+        toDate: '2026-07-31',
+      }),
+    ).toMatchObject({ page: 2, pageSize: 100, status: 'CANCELLED' });
+    expect(() =>
+      parseAppointmentListRequest({ fromDate: '2026-07-01', toDate: '2026-08-01' }),
     ).toThrow(BookingRequestInvalidError);
   });
 });

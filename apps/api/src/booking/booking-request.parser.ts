@@ -3,6 +3,8 @@ import type {
   CreateBookingCommand,
   RescheduleBookingCommand,
 } from './booking-create.types';
+import { toBusinessDate } from '../shift/business-date';
+import type { AppointmentDisplayStatus, AppointmentListInput } from './appointment-query.types';
 import type { BookingSlotInput } from './booking-slot.types';
 
 export class BookingRequestInvalidError extends Error {
@@ -156,5 +158,31 @@ export function parseRescheduleBookingRequest(
     idempotencyKey: idempotencyKey(idempotencyHeader),
     ...(input.reason !== undefined ? { reason: input.reason } : {}),
     startMinute: integer(input.startMinute, false),
+  };
+}
+
+export function parseAppointmentListRequest(
+  query: unknown,
+  now = new Date(),
+): AppointmentListInput {
+  const input = record(query);
+  exactKeys(input, ['fromDate', 'page', 'pageSize', 'status', 'toDate']);
+  const fromDate = input.fromDate === undefined ? toBusinessDate(now) : dateOnly(input.fromDate);
+  const toDate = input.toDate === undefined ? fromDate : dateOnly(input.toDate);
+  const rangeDays = Math.round((toDate.getTime() - fromDate.getTime()) / 86_400_000) + 1;
+  if (rangeDays < 1 || rangeDays > 31) throw new BookingRequestInvalidError();
+  const page = input.page === undefined ? 1 : integer(input.page, true);
+  const pageSize = input.pageSize === undefined ? 50 : integer(input.pageSize, true);
+  if (page < 1 || pageSize < 1 || pageSize > 100) throw new BookingRequestInvalidError();
+  const statuses: readonly AppointmentDisplayStatus[] = ['BOOKED', 'CANCELLED', 'COMPLETED'];
+  if (input.status !== undefined && !statuses.includes(input.status as AppointmentDisplayStatus)) {
+    throw new BookingRequestInvalidError();
+  }
+  return {
+    fromDate,
+    page,
+    pageSize,
+    ...(input.status ? { status: input.status as AppointmentDisplayStatus } : {}),
+    toDate,
   };
 }
