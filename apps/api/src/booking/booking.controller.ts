@@ -26,19 +26,24 @@ import type {
   BookingCancellationResult,
   BookingCommandContext,
   BookingCreateResult,
+  BookingRescheduleResult,
 } from './booking-create.types';
 import {
   BookingCancellationResultDto,
   BookingCreateResultDto,
+  BookingRescheduleResultDto,
   BookingSlotResultDto,
   CancelBookingRequestDto,
   CreateBookingRequestDto,
+  RescheduleBookingRequestDto,
 } from './booking-openapi.dto';
 import {
   parseBookingSlotsRequest,
   parseCancelBookingRequest,
   parseCreateBookingRequest,
+  parseRescheduleBookingRequest,
 } from './booking-request.parser';
+import { BookingRescheduleService } from './booking-reschedule.service';
 import { BookingSlotService } from './booking-slot.service';
 import type { BookingSlotResult } from './booking-slot.types';
 
@@ -54,6 +59,7 @@ export class BookingController {
     private readonly canceller: BookingCancelService,
     private readonly contexts: MasterDataCommandContextService,
     private readonly creator: BookingCreateService,
+    private readonly rescheduler: BookingRescheduleService,
     private readonly slots: BookingSlotService,
   ) {}
 
@@ -74,6 +80,31 @@ export class BookingController {
     const command = parseCancelBookingRequest(appointmentId, body);
     const context = await this.context(authorization, ipAddress, userAgent, requestId);
     return this.canceller.cancel(context, command);
+  }
+
+  @Post('appointments/:appointmentId/reschedule')
+  @ApiOperation({ summary: '改期或更换实际预约化妆师' })
+  @ApiHeader({
+    description: '同一用户内唯一，建议使用 UUID',
+    name: 'Idempotency-Key',
+    required: true,
+  })
+  @ApiBody({ type: RescheduleBookingRequestDto })
+  @ApiCreatedResponse({ type: BookingRescheduleResultDto })
+  @ApiConflictResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  async reschedule(
+    @Param('appointmentId') appointmentId: string,
+    @Body() body: unknown,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @CurrentAuth() authorization: AccessTokenClaims,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent?: string,
+    @Headers('x-request-id') requestId?: string,
+  ): Promise<BookingRescheduleResult> {
+    const command = parseRescheduleBookingRequest(appointmentId, body, idempotencyKey);
+    const context = await this.context(authorization, ipAddress, userAgent, requestId);
+    return this.rescheduler.reschedule(context, command);
   }
 
   @Get('booking-slots')

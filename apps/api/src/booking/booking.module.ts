@@ -6,6 +6,7 @@ import { AuthModule } from '../auth/auth.module';
 import { DatabaseModule } from '../database/database.module';
 import { MasterDataModule } from '../master-data/master-data.module';
 import { BookingCreateService } from './booking-create.service';
+import { BookingRescheduleService } from './booking-reschedule.service';
 import { BookingCancelService } from './booking-cancel.service';
 import { BookingSlotService } from './booking-slot.service';
 import { BookingController } from './booking.controller';
@@ -13,7 +14,17 @@ import { BookingController } from './booking.controller';
 @Module({
   controllers: [BookingController],
   imports: [AuditModule, AuthModule, AvailabilityModule, DatabaseModule, MasterDataModule],
-  providers: [BookingCancelService, BookingCreateService, BookingSlotService],
-  exports: [BookingCancelService, BookingCreateService, BookingSlotService],
+  providers: [
+    BookingCancelService,
+    BookingCreateService,
+    BookingRescheduleService,
+    BookingSlotService,
+  ],
+  exports: [
+    BookingCancelService,
+    BookingCreateService,
+    BookingRescheduleService,
+    BookingSlotService,
+  ],
 })
 export class BookingModule {}

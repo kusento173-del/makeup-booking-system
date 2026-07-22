@@ -91,6 +91,13 @@ const HOST_SELECT = {
 type AppointmentRecord = Prisma.AppointmentGetPayload<{ select: typeof APPOINTMENT_SELECT }>;
 type HostRecord = Prisma.HostProfileGetPayload<{ select: typeof HOST_SELECT }>;
 
+export interface BookingCreationOptions {
+  readonly appointmentId?: string;
+  readonly auditAction?: string;
+  readonly eventType?: string;
+  readonly rescheduledFromAppointmentId?: string;
+}
+
 @Injectable()
 export class BookingCreateService {
   constructor(
@@ -117,84 +124,20 @@ export class BookingCreateService {
         const replay = await this.prepareIdempotency(
           transaction,
           context.userId,
+          IDEMPOTENCY_SCOPE,
           idempotencyKey,
           requestHash,
           now,
         );
         if (replay) return { appointment: replay, replayed: true };
-
-        const host = await this.host(transaction, command);
-        this.assertActorScope(context, host);
-        this.assertHostAvailable(host);
-
-        const artist = await this.availability.getDayWithClient(
+        const summary = await this.createFresh(transaction, context, command);
+        await this.completeIdempotency(
           transaction,
-          command.artistId,
-          command.date,
+          context.userId,
+          IDEMPOTENCY_SCOPE,
+          idempotencyKey,
+          summary.id,
         );
-        if (host.siteId !== artist.siteId) throw new BookingSiteMismatchError();
-        if (!artist.available) throw new BookingArtistUnavailableError(artist.reason);
-        if (!this.intervalFits(artist.intervals, command.startMinute, command.durationMinutes)) {
-          throw new BookingSlotConflictError();
-        }
-
-        const startAt = businessDateMinuteToInstant(command.date, command.startMinute);
-        const endAt = new Date(startAt.getTime() + command.durationMinutes * 60_000);
-        const active = await transaction.appointment.findMany({
-          orderBy: { dailySequence: 'asc' },
-          select: {
-            artistId: true,
-            dailySequence: true,
-            endAt: true,
-            hostId: true,
-            startAt: true,
-          },
-          where: {
-            appointmentDate: command.date,
-            OR: [{ artistId: command.artistId }, { hostId: command.hostId }],
-            status: { in: [...ACTIVE_STATUSES] },
-          },
-        });
-        if (active.some((item) => startAt < item.endAt && item.startAt < endAt)) {
-          throw new BookingSlotConflictError();
-        }
-        const hostAppointments = active.filter((item) => item.hostId === command.hostId);
-        if (hostAppointments.length >= 2) throw new BookingDailyLimitReachedError();
-        if (hostAppointments.length === 1 && !command.confirmedSecondBooking) {
-          throw new BookingSecondConfirmationRequiredError();
-        }
-        const dailySequence = hostAppointments.some((item) => item.dailySequence === 1) ? 2 : 1;
-        const operator = host.operatorRelations[0]?.operator ?? null;
-        if (
-          operator &&
-          (operator.siteId !== host.siteId || operator.employmentStatus !== 'ACTIVE')
-        ) {
-          throw new BookingStateConflictError();
-        }
-
-        const appointment = await transaction.appointment.create({
-          data: {
-            appointmentDate: command.date,
-            artistId: command.artistId,
-            artistNicknameSnapshot: artist.artistNickname,
-            createdByRole: context.roleCode,
-            createdByUserId: context.userId,
-            dailySequence,
-            durationMinutes: command.durationMinutes,
-            endAt,
-            hostCodeSnapshot: host.hostCode,
-            hostId: host.id,
-            hostNameSnapshot: host.nickname ?? host.realName,
-            operatorIdAtBooking: operator?.id ?? null,
-            operatorNameSnapshot: operator?.realName ?? null,
-            siteId: host.siteId,
-            siteNameSnapshot: host.site.name,
-            startAt,
-          },
-          select: APPOINTMENT_SELECT,
-        });
-        const summary = this.toSummary(appointment);
-        await this.recordSideEffects(transaction, context, summary, idempotencyKey);
         return { appointment: summary, replayed: false };
       })
       .catch((error: unknown) => {
@@ -208,7 +151,89 @@ export class BookingCreateService {
       });
   }
 
-  private normalizeIdempotencyKey(value: string): string {
+  async createFresh(
+    transaction: Prisma.TransactionClient,
+    context: BookingCommandContext,
+    command: CreateBookingCommand,
+    options: BookingCreationOptions = {},
+  ): Promise<AppointmentSummary> {
+    const host = await this.host(transaction, command);
+    this.assertActorScope(context, host);
+    this.assertHostAvailable(host);
+
+    const artist = await this.availability.getDayWithClient(
+      transaction,
+      command.artistId,
+      command.date,
+    );
+    if (host.siteId !== artist.siteId) throw new BookingSiteMismatchError();
+    if (!artist.available) throw new BookingArtistUnavailableError(artist.reason);
+    if (!this.intervalFits(artist.intervals, command.startMinute, command.durationMinutes)) {
+      throw new BookingSlotConflictError();
+    }
+
+    const startAt = businessDateMinuteToInstant(command.date, command.startMinute);
+    const endAt = new Date(startAt.getTime() + command.durationMinutes * 60_000);
+    const active = await transaction.appointment.findMany({
+      orderBy: { dailySequence: 'asc' },
+      select: {
+        artistId: true,
+        dailySequence: true,
+        endAt: true,
+        hostId: true,
+        startAt: true,
+      },
+      where: {
+        appointmentDate: command.date,
+        OR: [{ artistId: command.artistId }, { hostId: command.hostId }],
+        status: { in: [...ACTIVE_STATUSES] },
+      },
+    });
+    if (active.some((item) => startAt < item.endAt && item.startAt < endAt)) {
+      throw new BookingSlotConflictError();
+    }
+    const hostAppointments = active.filter((item) => item.hostId === command.hostId);
+    if (hostAppointments.length >= 2) throw new BookingDailyLimitReachedError();
+    if (hostAppointments.length === 1 && !command.confirmedSecondBooking) {
+      throw new BookingSecondConfirmationRequiredError();
+    }
+    const dailySequence = hostAppointments.some((item) => item.dailySequence === 1) ? 2 : 1;
+    const operator = host.operatorRelations[0]?.operator ?? null;
+    if (operator && (operator.siteId !== host.siteId || operator.employmentStatus !== 'ACTIVE')) {
+      throw new BookingStateConflictError();
+    }
+
+    const appointment = await transaction.appointment.create({
+      data: {
+        ...(options.appointmentId ? { id: options.appointmentId } : {}),
+        appointmentDate: command.date,
+        artistId: command.artistId,
+        artistNicknameSnapshot: artist.artistNickname,
+        createdByRole: context.roleCode,
+        createdByUserId: context.userId,
+        dailySequence,
+        durationMinutes: command.durationMinutes,
+        endAt,
+        hostCodeSnapshot: host.hostCode,
+        hostId: host.id,
+        hostNameSnapshot: host.nickname ?? host.realName,
+        operatorIdAtBooking: operator?.id ?? null,
+        operatorNameSnapshot: operator?.realName ?? null,
+        ...(options.rescheduledFromAppointmentId
+          ? { rescheduledFromAppointmentId: options.rescheduledFromAppointmentId }
+          : {}),
+        siteId: host.siteId,
+        siteNameSnapshot: host.site.name,
+        startAt,
+      },
+      select: APPOINTMENT_SELECT,
+    });
+    const summary = this.toSummary(appointment);
+    await this.recordSideEffects(transaction, context, summary, options);
+    return summary;
+  }
+
+  normalizeIdempotencyKey(value: string): string {
     const normalized = value.normalize('NFKC').trim();
     if (!IDEMPOTENCY_KEY_PATTERN.test(normalized)) {
       throw new BookingIdempotencyKeyInvalidError();
@@ -216,7 +241,7 @@ export class BookingCreateService {
     return normalized;
   }
 
-  private requestHash(command: CreateBookingCommand): string {
+  requestHash(command: CreateBookingCommand): string {
     return createHash('sha256')
       .update(
         JSON.stringify({
@@ -246,15 +271,16 @@ export class BookingCreateService {
     for (const key of keys) await acquireTransactionLock(transaction, key);
   }
 
-  private async prepareIdempotency(
+  async prepareIdempotency(
     transaction: Prisma.TransactionClient,
     userId: string,
+    scope: string,
     idempotencyKey: string,
     requestHash: string,
     now: Date,
   ): Promise<AppointmentSummary | null> {
     const where = {
-      userId_scope_idempotencyKey: { idempotencyKey, scope: IDEMPOTENCY_SCOPE, userId },
+      userId_scope_idempotencyKey: { idempotencyKey, scope, userId },
     };
     const existing = await transaction.idempotencyRecord.findUnique({ where });
     if (existing && existing.expiresAt <= now) {
@@ -276,7 +302,7 @@ export class BookingCreateService {
         expiresAt: new Date(now.getTime() + 24 * 60 * 60_000),
         idempotencyKey,
         requestHash,
-        scope: IDEMPOTENCY_SCOPE,
+        scope,
         userId,
       },
     });
@@ -356,10 +382,10 @@ export class BookingCreateService {
     transaction: Prisma.TransactionClient,
     context: BookingCommandContext,
     appointment: AppointmentSummary,
-    idempotencyKey: string,
+    options: BookingCreationOptions,
   ): Promise<void> {
     await this.audit.append(transaction, context, {
-      action: 'APPOINTMENT_CREATED',
+      action: options.auditAction ?? 'APPOINTMENT_CREATED',
       afterData: {
         appointmentType: appointment.appointmentType,
         artistId: appointment.artistId,
@@ -379,7 +405,7 @@ export class BookingCreateService {
       data: {
         aggregateId: appointment.id,
         aggregateType: 'APPOINTMENT',
-        eventType: 'APPOINTMENT_CREATED',
+        eventType: options.eventType ?? 'APPOINTMENT_CREATED',
         payload: {
           appointmentId: appointment.id,
           artistId: appointment.artistId,
@@ -389,18 +415,27 @@ export class BookingCreateService {
         },
       },
     });
+  }
+
+  async completeIdempotency(
+    transaction: Prisma.TransactionClient,
+    userId: string,
+    scope: string,
+    idempotencyKey: string,
+    appointmentId: string,
+  ): Promise<void> {
     const updated = await transaction.idempotencyRecord.updateMany({
       data: {
-        resourceId: appointment.id,
+        resourceId: appointmentId,
         resourceType: 'APPOINTMENT',
-        responseBody: { appointmentId: appointment.id },
+        responseBody: { appointmentId },
         responseStatus: 201,
       },
       where: {
         idempotencyKey,
         resourceId: null,
-        scope: IDEMPOTENCY_SCOPE,
-        userId: context.userId,
+        scope,
+        userId,
       },
     });
     if (updated.count !== 1) throw new BookingStateConflictError();

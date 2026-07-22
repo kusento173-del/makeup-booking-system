@@ -1,4 +1,8 @@
-import type { CancelBookingCommand, CreateBookingCommand } from './booking-create.types';
+import type {
+  CancelBookingCommand,
+  CreateBookingCommand,
+  RescheduleBookingCommand,
+} from './booking-create.types';
 import type { BookingSlotInput } from './booking-slot.types';
 
 export class BookingRequestInvalidError extends Error {
@@ -113,5 +117,44 @@ export function parseCancelBookingRequest(
     appointmentId: uuid(appointmentId),
     expectedRowVersion,
     ...(input.reason !== undefined ? { reason: input.reason } : {}),
+  };
+}
+
+export function parseRescheduleBookingRequest(
+  appointmentId: unknown,
+  body: unknown,
+  idempotencyHeader: unknown,
+): RescheduleBookingCommand {
+  const input = record(body);
+  exactKeys(input, [
+    'artistId',
+    'confirmedSecondBooking',
+    'date',
+    'durationMinutes',
+    'expectedRowVersion',
+    'reason',
+    'startMinute',
+  ]);
+  const expectedRowVersion = integer(input.expectedRowVersion, false);
+  if (expectedRowVersion < 1) throw new BookingRequestInvalidError();
+  if (
+    input.confirmedSecondBooking !== undefined &&
+    typeof input.confirmedSecondBooking !== 'boolean'
+  ) {
+    throw new BookingRequestInvalidError();
+  }
+  if (input.reason !== undefined && typeof input.reason !== 'string') {
+    throw new BookingRequestInvalidError();
+  }
+  return {
+    appointmentId: uuid(appointmentId),
+    artistId: uuid(input.artistId),
+    confirmedSecondBooking: input.confirmedSecondBooking ?? false,
+    date: dateOnly(input.date),
+    durationMinutes: integer(input.durationMinutes, false),
+    expectedRowVersion,
+    idempotencyKey: idempotencyKey(idempotencyHeader),
+    ...(input.reason !== undefined ? { reason: input.reason } : {}),
+    startMinute: integer(input.startMinute, false),
   };
 }

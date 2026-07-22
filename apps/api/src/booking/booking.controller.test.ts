@@ -6,6 +6,7 @@ import type { BookingCreateService } from './booking-create.service';
 import type { BookingCancelService } from './booking-cancel.service';
 import type { BookingCommandContext } from './booking-create.types';
 import { BookingController } from './booking.controller';
+import type { BookingRescheduleService } from './booking-reschedule.service';
 import type { BookingSlotService } from './booking-slot.service';
 
 const artistId = '019f7a17-6845-7a90-94cb-e5f5caabd5f6';
@@ -27,6 +28,7 @@ describe('BookingController', () => {
       {} as BookingCancelService,
       {} as MasterDataCommandContextService,
       {} as BookingCreateService,
+      {} as BookingRescheduleService,
       { getSlots } as unknown as BookingSlotService,
     );
 
@@ -50,6 +52,7 @@ describe('BookingController', () => {
       {} as BookingCancelService,
       { resolve } as unknown as MasterDataCommandContextService,
       { create } as unknown as BookingCreateService,
+      {} as BookingRescheduleService,
       {} as BookingSlotService,
     );
 
@@ -90,6 +93,7 @@ describe('BookingController', () => {
       {} as BookingCancelService,
       { resolve } as unknown as MasterDataCommandContextService,
       { create: vi.fn().mockResolvedValue({}) } as unknown as BookingCreateService,
+      {} as BookingRescheduleService,
       {} as BookingSlotService,
     );
 
@@ -113,6 +117,7 @@ describe('BookingController', () => {
       { cancel } as unknown as BookingCancelService,
       { resolve } as unknown as MasterDataCommandContextService,
       {} as BookingCreateService,
+      {} as BookingRescheduleService,
       {} as BookingSlotService,
     );
 
@@ -127,6 +132,44 @@ describe('BookingController', () => {
       appointmentId: artistId,
       expectedRowVersion: 1,
       reason: ' 临时有事 ',
+    });
+  });
+
+  it('reschedules using a path identity, row version and idempotency header', async () => {
+    const resolve = vi.fn().mockResolvedValue(context);
+    const reschedule = vi.fn().mockResolvedValue({ appointment: { id: 'replacement-1' } });
+    const controller = new BookingController(
+      {} as BookingCancelService,
+      { resolve } as unknown as MasterDataCommandContextService,
+      {} as BookingCreateService,
+      { reschedule } as unknown as BookingRescheduleService,
+      {} as BookingSlotService,
+    );
+
+    await controller.reschedule(
+      artistId,
+      {
+        artistId,
+        confirmedSecondBooking: true,
+        date: '2026-07-24',
+        durationMinutes: 45,
+        expectedRowVersion: 1,
+        startMinute: 570,
+      },
+      'reschedule-key-0001',
+      authorization,
+      '127.0.0.1',
+    );
+
+    expect(reschedule).toHaveBeenCalledWith(context, {
+      appointmentId: artistId,
+      artistId,
+      confirmedSecondBooking: true,
+      date: new Date('2026-07-24T00:00:00.000Z'),
+      durationMinutes: 45,
+      expectedRowVersion: 1,
+      idempotencyKey: 'reschedule-key-0001',
+      startMinute: 570,
     });
   });
 });

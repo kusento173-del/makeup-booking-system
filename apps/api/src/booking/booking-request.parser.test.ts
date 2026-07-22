@@ -5,6 +5,7 @@ import {
   parseBookingSlotsRequest,
   parseCancelBookingRequest,
   parseCreateBookingRequest,
+  parseRescheduleBookingRequest,
 } from './booking-request.parser';
 
 const artistId = '019f7a17-6845-7a90-94cb-e5f5caabd5f6';
@@ -76,6 +77,48 @@ describe('booking request parser', () => {
     );
     expect(() =>
       parseCancelBookingRequest(artistId, { expectedRowVersion: 1, status: 'CANCELLED' }),
+    ).toThrow(BookingRequestInvalidError);
+  });
+
+  it('parses rescheduling without accepting a forged host identity', () => {
+    expect(
+      parseRescheduleBookingRequest(
+        hostId,
+        {
+          artistId,
+          confirmedSecondBooking: true,
+          date: '2026-07-24',
+          durationMinutes: 45,
+          expectedRowVersion: 2,
+          reason: '改到下午',
+          startMinute: 780,
+        },
+        'reschedule-key-0001',
+      ),
+    ).toEqual({
+      appointmentId: hostId,
+      artistId,
+      confirmedSecondBooking: true,
+      date: new Date('2026-07-24T00:00:00.000Z'),
+      durationMinutes: 45,
+      expectedRowVersion: 2,
+      idempotencyKey: 'reschedule-key-0001',
+      reason: '改到下午',
+      startMinute: 780,
+    });
+    expect(() =>
+      parseRescheduleBookingRequest(
+        hostId,
+        {
+          artistId,
+          date: '2026-07-24',
+          durationMinutes: 45,
+          expectedRowVersion: 2,
+          hostId,
+          startMinute: 780,
+        },
+        'reschedule-key-0001',
+      ),
     ).toThrow(BookingRequestInvalidError);
   });
 });

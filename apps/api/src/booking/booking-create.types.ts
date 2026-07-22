@@ -56,3 +56,21 @@ export interface BookingCancellationResult {
   readonly rowVersion: number;
   readonly status: 'CANCELLED';
 }
+
+export interface RescheduleBookingCommand {
+  readonly appointmentId: string;
+  readonly artistId: string;
+  readonly confirmedSecondBooking: boolean;
+  readonly date: Date;
+  readonly durationMinutes: number;
+  readonly expectedRowVersion: number;
+  readonly idempotencyKey: string;
+  readonly reason?: string;
+  readonly startMinute: number;
+}
+
+export interface BookingRescheduleResult {
+  readonly appointment: AppointmentSummary;
+  readonly original: BookingCancellationResult;
+  readonly replayed: boolean;
+}

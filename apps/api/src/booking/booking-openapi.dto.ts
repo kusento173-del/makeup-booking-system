@@ -158,3 +158,37 @@ export class BookingCancellationResultDto {
   @ApiProperty({ enum: ['CANCELLED'] })
   status!: string;
 }
+
+export class RescheduleBookingRequestDto {
+  @ApiProperty({ format: 'uuid' })
+  artistId!: string;
+
+  @ApiPropertyOptional({ default: false })
+  confirmedSecondBooking?: boolean;
+
+  @ApiProperty({ format: 'date' })
+  date!: string;
+
+  @ApiProperty({ enum: [15, 30, 45, 60] })
+  durationMinutes!: number;
+
+  @ApiProperty({ minimum: 1 })
+  expectedRowVersion!: number;
+
+  @ApiPropertyOptional({ maxLength: 500 })
+  reason?: string;
+
+  @ApiProperty({ maximum: 1425, minimum: 0, multipleOf: 15 })
+  startMinute!: number;
+}
+
+export class BookingRescheduleResultDto {
+  @ApiProperty({ type: AppointmentSummaryDto })
+  appointment!: AppointmentSummaryDto;
+
+  @ApiProperty({ type: BookingCancellationResultDto })
+  original!: BookingCancellationResultDto;
+
+  @ApiProperty()
+  replayed!: boolean;
+}
