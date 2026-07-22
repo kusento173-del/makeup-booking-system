@@ -119,6 +119,11 @@ void main().catch((error: unknown) => {
     console.error('必须在交互式终端中运行；为保护密码，不接受管道或命令参数。');
   } else {
     console.error('首次管理员创建失败，请确认数据库已启动且本地环境配置正确。');
+    const errorCode =
+      typeof error === 'object' && error !== null && 'code' in error
+        ? String(error.code)
+        : 'UNKNOWN';
+    console.error(`诊断代码：${errorCode}`);
   }
 
   process.exitCode = 1;

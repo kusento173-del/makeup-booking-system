@@ -1,7 +1,7 @@
-import { Prisma } from '@makeup/database';
 import { Injectable } from '@nestjs/common';
 
 import { DatabaseService } from '../database/database.service';
+import { acquireTransactionLock } from '../database/transaction-lock';
 import { toLoginRoles } from './auth-role.mapper';
 import { BackofficeLoginDeniedError } from './backoffice-auth.errors';
 import { normalizeBackofficeLoginName } from './backoffice-login-name';
@@ -26,9 +26,7 @@ export class BackofficeLoginService {
   async verify(loginName: string, password: string): Promise<VerifiedBackofficeAccount> {
     const normalizedLoginName = this.normalizeLoginName(loginName);
     const account = await this.database.transaction(async (transaction) => {
-      await transaction.$queryRaw(
-        Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${`BACKOFFICE:${normalizedLoginName}`}, 0))`,
-      );
+      await acquireTransactionLock(transaction, `BACKOFFICE:${normalizedLoginName}`);
       const identity = await transaction.userIdentity.findUnique({
         select: {
           status: true,

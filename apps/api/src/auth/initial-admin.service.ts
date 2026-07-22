@@ -1,8 +1,8 @@
-import { Prisma } from '@makeup/database';
 import { Injectable } from '@nestjs/common';
 
 import { AuditCommandService } from '../audit/audit-command.service';
 import { DatabaseService } from '../database/database.service';
+import { acquireTransactionLock } from '../database/transaction-lock';
 import { normalizeBackofficeLoginName } from './backoffice-login-name';
 import {
   InitialAdminAlreadyExistsError,
@@ -40,9 +40,7 @@ export class InitialAdminService {
     const passwordHash = await this.passwords.hash(password);
 
     return this.database.transaction(async (transaction) => {
-      await transaction.$queryRaw(
-        Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended('INITIAL_ADMIN', 0))`,
-      );
+      await acquireTransactionLock(transaction, 'INITIAL_ADMIN');
       const activeAdministratorCount = await transaction.userRole.count({
         where: { revokedAt: null, roleCode: 'ADMIN' },
       });

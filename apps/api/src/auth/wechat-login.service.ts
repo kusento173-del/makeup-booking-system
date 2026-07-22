@@ -1,7 +1,8 @@
-import { Prisma } from '@makeup/database';
+import type { Prisma } from '@makeup/database';
 import { Inject, Injectable } from '@nestjs/common';
 
 import { DatabaseService } from '../database/database.service';
+import { acquireTransactionLock } from '../database/transaction-lock';
 import { toLoginRoles } from './auth-role.mapper';
 import { BindingChallengeService } from './binding-challenge.service';
 import { AccountLoginDeniedError } from './wechat-login.errors';
@@ -24,9 +25,7 @@ export class WechatLoginService {
     const identity = await this.wechat.exchangeCode(jsCode);
 
     return this.database.transaction(async (transaction) => {
-      await transaction.$queryRaw(
-        Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${this.lockKey(identity)}, 0))`,
-      );
+      await acquireTransactionLock(transaction, this.lockKey(identity));
       const existingIdentity = await transaction.userIdentity.findUnique({
         select: {
           status: true,

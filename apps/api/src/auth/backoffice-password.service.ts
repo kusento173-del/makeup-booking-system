@@ -1,8 +1,8 @@
-import { Prisma } from '@makeup/database';
 import { Injectable } from '@nestjs/common';
 
 import { AuditCommandService } from '../audit/audit-command.service';
 import { DatabaseService } from '../database/database.service';
+import { acquireTransactionLock } from '../database/transaction-lock';
 import type { AccessTokenClaims } from './auth-session.types';
 import { AuthRequestInvalidError } from './auth-request.parser';
 import { BackofficeLoginDeniedError } from './backoffice-auth.errors';
@@ -37,9 +37,7 @@ export class BackofficePasswordService {
     const { authorization } = command;
 
     await this.database.transaction(async (transaction) => {
-      await transaction.$queryRaw(
-        Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${`PASSWORD_CHANGE:${authorization.userId}`}, 0))`,
-      );
+      await acquireTransactionLock(transaction, `PASSWORD_CHANGE:${authorization.userId}`);
       const user = await transaction.appUser.findUnique({
         select: {
           displayName: true,

@@ -24,6 +24,18 @@ test('当前身份接口默认拒绝未登录请求', async ({ request }) => {
   });
 });
 
+test('后台登录对不存在的账号返回统一错误且事务锁可以正常执行', async ({ request }) => {
+  const response = await request.post(`${apiUrl}/auth/backoffice/login`, {
+    data: { loginName: 'missing.admin', password: 'not-the-password' },
+  });
+
+  expect(response.status()).toBe(401);
+  await expect(response.json()).resolves.toEqual({
+    error: { code: 'BACKOFFICE_LOGIN_DENIED', message: '登录状态无效或账号不可用' },
+    statusCode: 401,
+  });
+});
+
 test('OpenAPI 契约包含完整认证路径和访问令牌方案', async ({ request }) => {
   const response = await request.get(`${apiUrl}/openapi.json`);
 
