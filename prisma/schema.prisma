@@ -26,6 +26,7 @@ model Site {
   operationLogs       OperationLog[]
   bindingCodes        AccountBindingCode[]
   shiftChangeRequests ArtistShiftChangeRequest[]
+  artistOvertimes     ArtistOvertime[]
 
   @@index([status, sortOrder], map: "sites_status_sort_order_idx")
   @@map("sites")
@@ -63,6 +64,10 @@ model AppUser {
   createdShiftTemplates   ArtistShiftTemplate[]        @relation("ArtistShiftCreatedBy")
   submittedShiftChanges   ArtistShiftChangeRequest[]   @relation("ArtistShiftSubmittedBy")
   reviewedShiftChanges    ArtistShiftChangeRequest[]   @relation("ArtistShiftReviewedBy")
+  submittedOvertimes      ArtistOvertime[]             @relation("ArtistOvertimeSubmittedBy")
+  reviewedOvertimes       ArtistOvertime[]             @relation("ArtistOvertimeReviewedBy")
+  createdLeaveRecords     LeaveRecord[]                @relation("LeaveRecordCreatedBy")
+  cancelledLeaveRecords   LeaveRecord[]                @relation("LeaveRecordCancelledBy")
 
   @@index([status], map: "app_users_status_idx")
   @@map("app_users")
@@ -198,6 +203,7 @@ model HostProfile {
   operatorRelations      HostOperatorRelation[]
   qualificationHistories HostQualificationHistory[]
   bindingCodes           AccountBindingCode[]
+  leaveRecords           LeaveRecord[]
 
   @@index([realName], map: "host_profiles_real_name_idx")
   @@index([siteId, qualificationStatus], map: "host_profiles_site_status_idx")
@@ -243,6 +249,8 @@ model ArtistProfile {
   bindingCodes        AccountBindingCode[]
   shiftTemplates      ArtistShiftTemplate[]
   shiftChangeRequests ArtistShiftChangeRequest[]
+  overtimes           ArtistOvertime[]
+  leaveRecords        LeaveRecord[]
 
   @@index([realName], map: "artist_profiles_real_name_idx")
   @@index([siteId, employmentStatus], map: "artist_profiles_site_status_idx")
@@ -315,6 +323,70 @@ model ArtistShiftChangeRequest {
   @@index([submittedByUserId], map: "artist_shift_change_requests_submitted_by_idx")
   @@index([reviewedByUserId], map: "artist_shift_change_requests_reviewed_by_idx")
   @@map("artist_shift_change_requests")
+}
+
+model ArtistOvertime {
+  id                       String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  artistId                 String    @map("artist_id") @db.Uuid
+  siteId                   String    @map("site_id") @db.Uuid
+  overtimeDate             DateTime  @map("overtime_date") @db.Date
+  workStartMinute          Int       @map("work_start_minute") @db.SmallInt
+  breakStartMinute         Int?      @map("break_start_minute") @db.SmallInt
+  breakEndMinute           Int?      @map("break_end_minute") @db.SmallInt
+  workEndMinute            Int       @map("work_end_minute") @db.SmallInt
+  reason                   String    @db.VarChar(500)
+  status                   String    @default("PENDING") @db.VarChar(16)
+  submittedByUserId        String    @map("submitted_by_user_id") @db.Uuid
+  submittedAt              DateTime  @default(now()) @map("submitted_at") @db.Timestamptz(3)
+  reviewedByUserId         String?   @map("reviewed_by_user_id") @db.Uuid
+  reviewedAt               DateTime? @map("reviewed_at") @db.Timestamptz(3)
+  reviewComment            String?   @map("review_comment") @db.VarChar(500)
+  affectedAppointmentCount Int       @default(0) @map("affected_appointment_count")
+  createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  rowVersion               Int       @default(1) @map("row_version")
+
+  artist      ArtistProfile @relation(fields: [artistId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  site        Site          @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  submittedBy AppUser       @relation("ArtistOvertimeSubmittedBy", fields: [submittedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  reviewedBy  AppUser?      @relation("ArtistOvertimeReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([artistId, overtimeDate], map: "artist_overtimes_active_artist_date_uq", where: raw("((status)::text = ANY ((ARRAY['PENDING'::character varying, 'APPROVED'::character varying])::text[]))"))
+  @@index([siteId, status, overtimeDate], map: "artist_overtimes_site_status_date_idx")
+  @@index([submittedByUserId], map: "artist_overtimes_submitted_by_idx")
+  @@index([reviewedByUserId], map: "artist_overtimes_reviewed_by_idx")
+  @@map("artist_overtimes")
+}
+
+model LeaveRecord {
+  id                       String                    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  subjectType              String                    @map("subject_type") @db.VarChar(16)
+  hostId                   String?                   @map("host_id") @db.Uuid
+  artistId                 String?                   @map("artist_id") @db.Uuid
+  startDate                DateTime                  @map("start_date") @db.Date
+  endDate                  DateTime                  @map("end_date") @db.Date
+  leaveRange               Unsupported("daterange")? @default(dbgenerated("daterange(start_date, (end_date + 1), '[)'::text)")) @map("leave_range")
+  status                   String                    @default("ACTIVE") @db.VarChar(16)
+  reason                   String?                   @db.VarChar(500)
+  createdByUserId          String                    @map("created_by_user_id") @db.Uuid
+  createdAt                DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
+  cancelledByUserId        String?                   @map("cancelled_by_user_id") @db.Uuid
+  cancelledAt              DateTime?                 @map("cancelled_at") @db.Timestamptz(3)
+  cancellationReason       String?                   @map("cancellation_reason") @db.VarChar(500)
+  affectedAppointmentCount Int                       @default(0) @map("affected_appointment_count")
+  updatedAt                DateTime                  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  rowVersion               Int                       @default(1) @map("row_version")
+
+  host        HostProfile?   @relation(fields: [hostId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  artist      ArtistProfile? @relation(fields: [artistId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  createdBy   AppUser        @relation("LeaveRecordCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  cancelledBy AppUser?       @relation("LeaveRecordCancelledBy", fields: [cancelledByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([hostId, startDate, endDate], map: "leave_records_host_dates_idx")
+  @@index([artistId, startDate, endDate], map: "leave_records_artist_dates_idx")
+  @@index([createdByUserId], map: "leave_records_created_by_idx")
+  @@index([cancelledByUserId], map: "leave_records_cancelled_by_idx")
+  @@map("leave_records")
 }
 
 model OperatorProfile {

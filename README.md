@@ -53,7 +53,7 @@ pnpm check
 pnpm e2e
 ```
 
-`infra:up` 会启动 PostgreSQL 18.4 和 Redis 8.8.0 并等待健康检查通过；`db:migrate` 会执行所有尚未应用的 Prisma 迁移；`db:check` 会在回滚事务中验证主数据、身份、审计、导入和班次关键约束；`infra:check` 会验证数据库连接、已安装的 `btree_gist` 扩展和 Redis 密码认证。常用数据库与基础设施命令：
+`infra:up` 会启动 PostgreSQL 18.4 和 Redis 8.8.0 并等待健康检查通过；`db:migrate` 会执行所有尚未应用的 Prisma 迁移；`db:check` 会在回滚事务中验证主数据、身份、审计、导入、班次、请假和加班关键约束；`infra:check` 会验证数据库连接、已安装的 `btree_gist` 扩展和 Redis 密码认证。常用数据库与基础设施命令：
 
 ```powershell
 pnpm db:validate
