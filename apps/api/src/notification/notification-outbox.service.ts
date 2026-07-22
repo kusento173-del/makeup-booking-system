@@ -2,7 +2,7 @@ import { Prisma } from '@makeup/database';
 import { Injectable } from '@nestjs/common';
 
 import { DatabaseService } from '../database/database.service';
-import { formatDateOnly } from '../shift/business-date';
+import { formatDateOnly, instantToBusinessDateMinute } from '../shift/business-date';
 import {
   NOTIFICATION_EVENT_TYPES,
   type NotificationChannel,
@@ -282,16 +282,29 @@ export class NotificationOutboxService {
   }
 
   private taskPayload(appointment: AppointmentRecord): Prisma.InputJsonObject {
+    const startTime = this.clock(
+      instantToBusinessDateMinute(appointment.appointmentDate, appointment.startAt),
+    );
+    const endTime = this.clock(
+      instantToBusinessDateMinute(appointment.appointmentDate, appointment.endAt),
+    );
     return {
       appointmentDate: formatDateOnly(appointment.appointmentDate),
       appointmentId: appointment.id,
       artistName: appointment.artistNicknameSnapshot,
       durationMinutes: appointment.durationMinutes,
       endAt: appointment.endAt.toISOString(),
+      endTime,
       hostCode: appointment.hostCodeSnapshot,
       hostName: appointment.hostNameSnapshot,
       siteName: appointment.siteNameSnapshot,
       startAt: appointment.startAt.toISOString(),
+      startTime,
+      timeRange: `${startTime}~${endTime}`,
     };
+  }
+
+  private clock(minute: number): string {
+    return `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
   }
 }

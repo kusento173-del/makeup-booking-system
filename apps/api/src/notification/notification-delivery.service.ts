@@ -114,7 +114,7 @@ export class NotificationDeliveryService {
     if (
       !identity ||
       !providerTemplateKey ||
-      claimedTask.templateVersion.status !== 'ACTIVE' ||
+      !['ACTIVE', 'RETIRED'].includes(claimedTask.templateVersion.status) ||
       claimedTask.templateVersion.channel !== channel
     ) {
       await this.finishFailure(claimedTask, now, 'RECIPIENT_OR_TEMPLATE_UNAVAILABLE', false);
@@ -154,7 +154,7 @@ export class NotificationDeliveryService {
         JOIN "notification_template_versions" template
           ON template."id" = task."template_version_id"
         WHERE template."channel" = ${channel}
-          AND template."status" = 'ACTIVE'
+          AND template."status" IN ('ACTIVE', 'RETIRED')
           AND (
             (task."status" = 'PENDING' AND task."scheduled_at" <= ${now})
             OR (task."status" = 'RETRY_WAIT' AND task."next_attempt_at" <= ${now})
