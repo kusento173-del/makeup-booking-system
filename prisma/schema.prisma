@@ -71,6 +71,7 @@ model AppUser {
   cancelledLeaveRecords   LeaveRecord[]                @relation("LeaveRecordCancelledBy")
   createdAppointments     Appointment[]                @relation("AppointmentCreatedBy")
   cancelledAppointments   Appointment[]                @relation("AppointmentCancelledBy")
+  idempotencyRecords      IdempotencyRecord[]
 
   @@index([status], map: "app_users_status_idx")
   @@map("app_users")
@@ -447,6 +448,47 @@ model Appointment {
   @@index([createdByUserId, createdAt(sort: Desc)], map: "appointments_created_by_idx")
   @@index([cancelledByUserId, cancelledAt(sort: Desc)], map: "appointments_cancelled_by_idx")
   @@map("appointments")
+}
+
+model IdempotencyRecord {
+  id             String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  scope          String   @db.VarChar(64)
+  idempotencyKey String   @map("idempotency_key") @db.VarChar(128)
+  requestHash    String   @map("request_hash") @db.Char(64)
+  responseStatus Int?     @map("response_status")
+  responseBody   Json?    @map("response_body") @db.JsonB
+  resourceType   String?  @map("resource_type") @db.VarChar(32)
+  resourceId     String?  @map("resource_id") @db.Uuid
+  expiresAt      DateTime @map("expires_at") @db.Timestamptz(3)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user AppUser @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([userId, scope, idempotencyKey], map: "idempotency_records_user_scope_key_uq")
+  @@index([expiresAt], map: "idempotency_records_expires_idx")
+  @@index([resourceType, resourceId], map: "idempotency_records_resource_idx")
+  @@map("idempotency_records")
+}
+
+model OutboxEvent {
+  id            String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  eventType     String    @map("event_type") @db.VarChar(64)
+  aggregateType String    @map("aggregate_type") @db.VarChar(32)
+  aggregateId   String    @map("aggregate_id") @db.Uuid
+  payload       Json      @db.JsonB
+  status        String    @default("PENDING") @db.VarChar(16)
+  availableAt   DateTime  @default(now()) @map("available_at") @db.Timestamptz(3)
+  publishedAt   DateTime? @map("published_at") @db.Timestamptz(3)
+  attemptCount  Int       @default(0) @map("attempt_count")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([eventType, aggregateId], map: "outbox_events_type_aggregate_uq")
+  @@index([status, availableAt, createdAt], map: "outbox_events_status_available_idx")
+  @@index([aggregateType, aggregateId], map: "outbox_events_aggregate_idx")
+  @@map("outbox_events")
 }
 
 model OperatorProfile {
