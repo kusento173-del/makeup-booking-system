@@ -7,7 +7,7 @@ import { toBusinessDate } from '../shift/business-date';
 import type { AppointmentDisplayStatus, AppointmentListInput } from './appointment-query.types';
 import type { BookingSlotInput } from './booking-slot.types';
 import type { FixedAvailabilityInput } from './fixed-availability.types';
-import type { CreateFixedRequestCommand } from './fixed-request.types';
+import type { CreateFixedRequestCommand, ReviewFixedRequestCommand } from './fixed-request.types';
 import type {
   FixedRequestListInput,
   FixedRequestStatus,
@@ -146,6 +146,28 @@ export function parseFixedRequestList(query: unknown): FixedRequestListInput {
     pageSize,
     ...(input.requestType ? { requestType: input.requestType as FixedRequestType } : {}),
     ...(input.status ? { status: input.status as FixedRequestStatus } : {}),
+  };
+}
+
+export function parseReviewFixedRequest(
+  requestId: unknown,
+  body: unknown,
+): ReviewFixedRequestCommand {
+  const input = record(body);
+  exactKeys(input, ['comment', 'decision', 'expectedRowVersion']);
+  const expectedRowVersion = integer(input.expectedRowVersion, false);
+  if (
+    expectedRowVersion < 1 ||
+    (input.decision !== 'APPROVE' && input.decision !== 'REJECT') ||
+    (input.comment !== undefined && typeof input.comment !== 'string')
+  ) {
+    throw new BookingRequestInvalidError();
+  }
+  return {
+    ...(input.comment !== undefined ? { comment: input.comment } : {}),
+    decision: input.decision,
+    expectedRowVersion,
+    requestId: uuid(requestId),
   };
 }
 

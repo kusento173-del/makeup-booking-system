@@ -34,3 +34,21 @@ export interface FixedRequestCreateResult {
   readonly replayed: boolean;
   readonly request: FixedRequestSummary;
 }
+
+export type FixedRequestReviewDecision = 'APPROVE' | 'REJECT';
+
+export interface ReviewFixedRequestCommand {
+  readonly comment?: string;
+  readonly decision: FixedRequestReviewDecision;
+  readonly expectedRowVersion: number;
+  readonly requestId: string;
+}
+
+export interface FixedRequestReviewResult {
+  readonly fixedRuleId: string | null;
+  readonly id: string;
+  readonly reviewComment: string | null;
+  readonly reviewedAt: string;
+  readonly rowVersion: number;
+  readonly status: 'APPROVED' | 'REJECTED';
+}

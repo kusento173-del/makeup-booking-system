@@ -1,4 +1,15 @@
-import { Body, Controller, Get, Headers, Ip, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  HttpCode,
+  Ip,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -24,18 +35,22 @@ import {
   FixedAvailabilityResultDto,
   FixedRequestCreateResultDto,
   FixedRequestPageDto,
+  FixedRequestReviewResultDto,
+  ReviewFixedRequestDto,
 } from './booking-openapi.dto';
 import {
   parseCreateFixedRequest,
   parseFixedAvailabilityRequest,
   parseFixedRequestList,
+  parseReviewFixedRequest,
 } from './booking-request.parser';
 import { FixedAvailabilityService } from './fixed-availability.service';
 import type { FixedAvailabilityResult } from './fixed-availability.types';
 import { FixedRequestQueryService } from './fixed-request-query.service';
 import type { FixedRequestPage } from './fixed-request-query.types';
+import { FixedRequestReviewService } from './fixed-request-review.service';
 import { FixedRequestService } from './fixed-request.service';
-import type { FixedRequestCreateResult } from './fixed-request.types';
+import type { FixedRequestCreateResult, FixedRequestReviewResult } from './fixed-request.types';
 
 @ApiTags('固定化妆预约')
 @ApiBearerAuth('access-token')
@@ -49,6 +64,7 @@ export class FixedAppointmentController {
     private readonly availability: FixedAvailabilityService,
     private readonly contexts: MasterDataCommandContextService,
     private readonly requestQueries: FixedRequestQueryService,
+    private readonly requestReviews: FixedRequestReviewService,
     private readonly requests: FixedRequestService,
   ) {}
 
@@ -85,6 +101,30 @@ export class FixedAppointmentController {
     @CurrentAuth() authorization: AccessTokenClaims,
   ): Promise<FixedRequestPage> {
     return this.requestQueries.list(authorization, parseFixedRequestList(query));
+  }
+
+  @Post('requests/:requestId/review')
+  @HttpCode(200)
+  @ApiOperation({ summary: '本站客服或管理员审核固定预约申请' })
+  @ApiOkResponse({ type: FixedRequestReviewResultDto })
+  @ApiConflictResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  async reviewRequest(
+    @Param('requestId') requestId: string,
+    @Body() body: ReviewFixedRequestDto,
+    @CurrentAuth() authorization: AccessTokenClaims,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent?: string,
+    @Headers('x-request-id') traceId?: string,
+  ): Promise<FixedRequestReviewResult> {
+    const command = parseReviewFixedRequest(requestId, body);
+    const context = await this.contexts.resolve(authorization, {
+      clientType: 'ADMIN_WEB',
+      ipAddress,
+      ...(traceId ? { requestId: traceId } : {}),
+      ...(userAgent ? { userAgent } : {}),
+    });
+    return this.requestReviews.review(context, command);
   }
 
   @Post('requests')

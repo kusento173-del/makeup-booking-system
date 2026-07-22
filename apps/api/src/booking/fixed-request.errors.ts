@@ -24,3 +24,21 @@ export class FixedRequestStateConflictError extends Error {
     this.name = 'FixedRequestStateConflictError';
   }
 }
+
+export class FixedRequestNotFoundError extends Error {
+  readonly code = 'FIXED_REQUEST_NOT_FOUND';
+
+  constructor() {
+    super('Fixed appointment request was not found');
+    this.name = 'FixedRequestNotFoundError';
+  }
+}
+
+export class FixedRequestReviewCommentInvalidError extends Error {
+  readonly code = 'FIXED_REQUEST_REVIEW_COMMENT_INVALID';
+
+  constructor() {
+    super('The fixed appointment review comment is invalid');
+    this.name = 'FixedRequestReviewCommentInvalidError';
+  }
+}

@@ -10,6 +10,7 @@ import {
   parseFixedAvailabilityRequest,
   parseFixedRequestList,
   parseRescheduleBookingRequest,
+  parseReviewFixedRequest,
 } from './booking-request.parser';
 
 const artistId = '019f7a17-6845-7a90-94cb-e5f5caabd5f6';
@@ -129,6 +130,24 @@ describe('booking request parser', () => {
     ).toEqual({ page: 2, pageSize: 100, requestType: 'CHANGE', status: 'APPROVED' });
     expect(() => parseFixedRequestList({ pageSize: '101' })).toThrow(BookingRequestInvalidError);
     expect(() => parseFixedRequestList({ siteId: 'forged' })).toThrow(BookingRequestInvalidError);
+  });
+
+  it('parses strict fixed-request review decisions and concurrency fields', () => {
+    expect(
+      parseReviewFixedRequest(artistId, {
+        comment: '同意固定',
+        decision: 'APPROVE',
+        expectedRowVersion: 2,
+      }),
+    ).toEqual({
+      comment: '同意固定',
+      decision: 'APPROVE',
+      expectedRowVersion: 2,
+      requestId: artistId,
+    });
+    expect(() =>
+      parseReviewFixedRequest(artistId, { decision: 'DELETE', expectedRowVersion: 2 }),
+    ).toThrow(BookingRequestInvalidError);
   });
 
   it.each([

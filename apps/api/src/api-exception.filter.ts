@@ -56,6 +56,8 @@ import {
 } from './booking/fixed-availability.errors';
 import {
   FixedRequestReasonInvalidError,
+  FixedRequestReviewCommentInvalidError,
+  FixedRequestNotFoundError,
   FixedRequestStateConflictError,
   FixedRequestUnavailableError,
 } from './booking/fixed-request.errors';
@@ -152,6 +154,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
       exception instanceof FixedAvailabilityDateInvalidError ||
       exception instanceof FixedAvailabilityWeekdaysInvalidError ||
       exception instanceof FixedRequestReasonInvalidError ||
+      exception instanceof FixedRequestReviewCommentInvalidError ||
       exception instanceof BookingIdempotencyKeyInvalidError ||
       exception instanceof BookingCancellationReasonInvalidError ||
       exception instanceof LeaveRequestInvalidError ||
@@ -175,6 +178,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
       exception instanceof AvailabilityArtistNotFoundError ||
       exception instanceof BookingAppointmentNotFoundError ||
       exception instanceof BookingHostNotFoundError ||
+      exception instanceof FixedRequestNotFoundError ||
       exception instanceof BackofficeAccountNotFoundError ||
       exception instanceof LeaveNotFoundError ||
       exception instanceof OvertimeArtistNotFoundError ||

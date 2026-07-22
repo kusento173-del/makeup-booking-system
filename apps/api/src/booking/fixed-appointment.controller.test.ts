@@ -5,6 +5,7 @@ import type { MasterDataCommandContextService } from '../master-data/master-data
 import { FixedAppointmentController } from './fixed-appointment.controller';
 import type { FixedAvailabilityService } from './fixed-availability.service';
 import type { FixedRequestQueryService } from './fixed-request-query.service';
+import type { FixedRequestReviewService } from './fixed-request-review.service';
 import type { FixedRequestService } from './fixed-request.service';
 
 const artistId = '019f7a17-6845-7a90-94cb-e5f5caabd5f6';
@@ -27,6 +28,7 @@ describe('FixedAppointmentController', () => {
       } as unknown as FixedAvailabilityService,
       {} as MasterDataCommandContextService,
       {} as FixedRequestQueryService,
+      {} as FixedRequestReviewService,
       {} as FixedRequestService,
     );
 
@@ -58,6 +60,7 @@ describe('FixedAppointmentController', () => {
       {} as FixedAvailabilityService,
       { resolve } as unknown as MasterDataCommandContextService,
       {} as FixedRequestQueryService,
+      {} as FixedRequestReviewService,
       { create } as unknown as FixedRequestService,
     );
 
@@ -102,6 +105,7 @@ describe('FixedAppointmentController', () => {
       {} as FixedAvailabilityService,
       {} as MasterDataCommandContextService,
       { list } as unknown as FixedRequestQueryService,
+      {} as FixedRequestReviewService,
       {} as FixedRequestService,
     );
 
@@ -115,6 +119,42 @@ describe('FixedAppointmentController', () => {
       pageSize: 20,
       requestType: 'CREATE',
       status: 'PENDING',
+    });
+  });
+
+  it('reviews through a trusted backoffice context and path identity', async () => {
+    const customerService = { ...authorization, roleCode: 'CUSTOMER_SERVICE' as const };
+    const commandContext = { actorName: '松江客服', ...customerService };
+    const resolve = vi.fn().mockResolvedValue(commandContext);
+    const review = vi.fn().mockResolvedValue({ id: artistId, status: 'APPROVED' });
+    const controller = new FixedAppointmentController(
+      {} as FixedAvailabilityService,
+      { resolve } as unknown as MasterDataCommandContextService,
+      {} as FixedRequestQueryService,
+      { review } as unknown as FixedRequestReviewService,
+      {} as FixedRequestService,
+    );
+
+    await controller.reviewRequest(
+      artistId,
+      { comment: '同意固定', decision: 'APPROVE', expectedRowVersion: 1 },
+      customerService,
+      '127.0.0.1',
+      'admin-web',
+      'trace-1',
+    );
+
+    expect(resolve).toHaveBeenCalledWith(customerService, {
+      clientType: 'ADMIN_WEB',
+      ipAddress: '127.0.0.1',
+      requestId: 'trace-1',
+      userAgent: 'admin-web',
+    });
+    expect(review).toHaveBeenCalledWith(commandContext, {
+      comment: '同意固定',
+      decision: 'APPROVE',
+      expectedRowVersion: 1,
+      requestId: artistId,
     });
   });
 });

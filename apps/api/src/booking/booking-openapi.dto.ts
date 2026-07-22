@@ -268,6 +268,37 @@ export class FixedRequestPageDto {
   total!: number;
 }
 
+export class ReviewFixedRequestDto {
+  @ApiPropertyOptional({ maxLength: 500 })
+  comment?: string;
+
+  @ApiProperty({ enum: ['APPROVE', 'REJECT'] })
+  decision!: string;
+
+  @ApiProperty({ minimum: 1 })
+  expectedRowVersion!: number;
+}
+
+export class FixedRequestReviewResultDto {
+  @ApiProperty({ format: 'uuid', nullable: true })
+  fixedRuleId!: string | null;
+
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ nullable: true })
+  reviewComment!: string | null;
+
+  @ApiProperty({ format: 'date-time' })
+  reviewedAt!: string;
+
+  @ApiProperty({ minimum: 2 })
+  rowVersion!: number;
+
+  @ApiProperty({ enum: ['APPROVED', 'REJECTED'] })
+  status!: string;
+}
+
 export class CreateBookingRequestDto {
   @ApiProperty({ format: 'uuid' })
   artistId!: string;

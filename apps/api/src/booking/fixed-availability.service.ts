@@ -37,6 +37,10 @@ interface TimedAppointment {
   readonly startAt: Date;
 }
 
+export interface FixedAvailabilityQueryOptions {
+  readonly excludeRequestId?: string;
+}
+
 function addDays(date: Date, days: number): Date {
   return new Date(date.getTime() + days * DAY_MS);
 }
@@ -126,10 +130,11 @@ export class FixedAvailabilityService {
     context: VerifiedAuthorizationContext,
     input: FixedAvailabilityInput,
     now = new Date(),
+    options: FixedAvailabilityQueryOptions = {},
   ): Promise<FixedAvailabilityResult> {
     this.authorization.assertRole(context, ['OPERATOR', 'CUSTOMER_SERVICE', 'ADMIN']);
     const weekdays = validateFixedAvailabilityInput(input, now);
-    return this.query(client, context, input, weekdays);
+    return this.query(client, context, input, weekdays, options);
   }
 
   private async query(
@@ -137,11 +142,19 @@ export class FixedAvailabilityService {
     context: VerifiedAuthorizationContext,
     input: FixedAvailabilityInput,
     weekdays: readonly number[],
+    options: FixedAvailabilityQueryOptions,
   ): Promise<FixedAvailabilityResult> {
     const [host, artist] = await Promise.all([
       client.hostProfile.findUnique({
         select: {
-          fixedRequests: { select: { id: true }, take: 1, where: { status: 'PENDING' } },
+          fixedRequests: {
+            select: { id: true },
+            take: 1,
+            where: {
+              status: 'PENDING',
+              ...(options.excludeRequestId ? { id: { not: options.excludeRequestId } } : {}),
+            },
+          },
           fixedRules: { select: { id: true }, take: 1, where: { status: 'ACTIVE' } },
           id: true,
           leaveRecords: {
@@ -276,6 +289,7 @@ export class FixedAvailabilityService {
         },
         where: {
           hostId: { not: input.hostId },
+          ...(options.excludeRequestId ? { id: { not: options.excludeRequestId } } : {}),
           status: 'PENDING',
           targetArtistId: input.artistId,
           targetWeekdays: { hasSome: [...weekdays] },
