@@ -1190,6 +1190,143 @@ tbody tr:hover {
   text-overflow: ellipsis;
 }
 
+.notification-template-main {
+  max-width: 1500px;
+}
+
+.template-readiness,
+.template-create-card,
+.template-preview {
+  margin-bottom: 18px;
+  padding: 18px;
+  border: 1px solid #d7dee4;
+  border-radius: 9px;
+  background: #fff;
+}
+
+.template-readiness {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 15px;
+}
+
+.template-readiness span {
+  padding: 5px 9px;
+  border-radius: 5px;
+  font-weight: 700;
+}
+
+.template-readiness .ready {
+  background: #e5f3ed;
+  color: #27644f;
+}
+
+.template-readiness .missing {
+  background: #fff1df;
+  color: #8b4b10;
+}
+
+.template-readiness p {
+  flex-basis: 100%;
+  margin: 2px 0 0;
+  color: #5b6a78;
+}
+
+.template-create-fields {
+  display: grid;
+  grid-template-columns: 220px minmax(280px, 1fr) minmax(360px, 2fr);
+  align-items: start;
+  gap: 14px;
+}
+
+.template-create-fields .compact-field input,
+.template-create-fields .compact-field select,
+.template-create-fields .compact-field textarea {
+  width: 100%;
+}
+
+.template-create-help {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-top: 14px;
+  color: #5b6a78;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.template-create-help .primary-action {
+  flex: none;
+}
+
+.template-status {
+  display: inline-block;
+  padding: 4px 9px;
+  border-radius: 12px;
+  background: #edf1f3;
+  color: #425563;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.template-status.active {
+  background: #e5f3ed;
+  color: #27644f;
+}
+
+.template-status.draft {
+  background: #e7f0f5;
+  color: #285e78;
+}
+
+.template-key,
+.template-mappings {
+  max-width: 330px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.template-preview {
+  margin-top: 18px;
+}
+
+.template-preview > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.template-preview dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+  margin: 14px 0 0;
+}
+
+.template-preview dl div {
+  padding: 10px 12px;
+  border: 1px solid #e2e7eb;
+  border-radius: 6px;
+}
+
+.template-preview dt {
+  color: #667783;
+  font-size: 13px;
+}
+
+.template-preview dd {
+  margin: 4px 0 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.template-action-dialog {
+  width: min(520px, calc(100vw - 32px));
+}
+
 @media (max-width: 560px) {
   .login-card {
     padding: 28px 22px;
@@ -1251,6 +1388,15 @@ tbody tr:hover {
   .export-create-card .primary-action {
     width: 100%;
     margin-left: 0;
+  }
+
+  .template-create-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .template-create-help {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .schedule-filters {

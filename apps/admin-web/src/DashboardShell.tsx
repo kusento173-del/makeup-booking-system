@@ -4,6 +4,7 @@ import type { SessionTokenPair } from './auth-session';
 import { BackofficeNavigation, type BackofficeView } from './BackofficeNavigation';
 import { ExportPage } from './ExportPage';
 import { ManagementPage } from './ManagementPage';
+import { NotificationTemplatePage } from './NotificationTemplatePage';
 import { SchedulePage } from './SchedulePage';
 
 interface DashboardShellProps {
@@ -38,6 +39,8 @@ export function DashboardShell({ busy, onLogout, onUnauthorized, session }: Dash
           <SchedulePage onUnauthorized={onUnauthorized} session={session} />
         ) : view === 'exports' ? (
           <ExportPage onUnauthorized={onUnauthorized} session={session} />
+        ) : view === 'notificationTemplates' ? (
+          <NotificationTemplatePage onUnauthorized={onUnauthorized} session={session} />
         ) : (
           <ManagementPage
             key={view}
