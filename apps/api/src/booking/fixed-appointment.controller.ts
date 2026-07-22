@@ -35,26 +35,38 @@ import {
   ChangeFixedRequestDto,
   CreateFixedRequestDto,
   FixedAvailabilityResultDto,
+  FixedHostStateDto,
   FixedRequestCreateResultDto,
   FixedRequestPageDto,
   FixedRequestReviewResultDto,
+  FixedRequestWithdrawResultDto,
   ReviewFixedRequestDto,
+  WithdrawFixedRequestDto,
 } from './booking-openapi.dto';
 import {
   parseCancelFixedRequest,
   parseChangeFixedRequest,
   parseCreateFixedRequest,
   parseFixedAvailabilityRequest,
+  parseFixedHostStateRequest,
   parseFixedRequestList,
   parseReviewFixedRequest,
+  parseWithdrawFixedRequest,
 } from './booking-request.parser';
 import { FixedAvailabilityService } from './fixed-availability.service';
 import type { FixedAvailabilityResult } from './fixed-availability.types';
 import { FixedRequestQueryService } from './fixed-request-query.service';
 import type { FixedRequestPage } from './fixed-request-query.types';
 import { FixedRequestReviewService } from './fixed-request-review.service';
+import { FixedRequestWithdrawService } from './fixed-request-withdraw.service';
 import { FixedRequestService } from './fixed-request.service';
-import type { FixedRequestCreateResult, FixedRequestReviewResult } from './fixed-request.types';
+import type {
+  FixedRequestCreateResult,
+  FixedRequestReviewResult,
+  FixedRequestWithdrawResult,
+} from './fixed-request.types';
+import { FixedStateService } from './fixed-state.service';
+import type { FixedHostState } from './fixed-state.types';
 
 @ApiTags('固定化妆预约')
 @ApiBearerAuth('access-token')
@@ -70,11 +82,14 @@ export class FixedAppointmentController {
     private readonly requestQueries: FixedRequestQueryService,
     private readonly requestReviews: FixedRequestReviewService,
     private readonly requests: FixedRequestService,
+    private readonly states: FixedStateService,
+    private readonly withdrawals: FixedRequestWithdrawService,
   ) {}
 
   @Get('availability')
   @ApiOperation({ summary: '查询固定预约可选时段与最早可持续开始日期' })
   @ApiQuery({ format: 'uuid', name: 'artistId', type: String })
+  @ApiQuery({ format: 'uuid', name: 'currentRuleId', required: false, type: String })
   @ApiQuery({ enum: [15, 30, 45, 60], name: 'durationMinutes', type: Number })
   @ApiQuery({ format: 'uuid', name: 'hostId', type: String })
   @ApiQuery({ format: 'date', name: 'requestedStartDate', type: String })
@@ -87,6 +102,17 @@ export class FixedAppointmentController {
     @CurrentAuth() authorization: AccessTokenClaims,
   ): Promise<FixedAvailabilityResult> {
     return this.availability.getAvailability(authorization, parseFixedAvailabilityRequest(query));
+  }
+
+  @Get('hosts/:hostId/state')
+  @ApiOperation({ summary: '按当前角色范围查询主播的有效固定规则和待审申请' })
+  @ApiOkResponse({ type: FixedHostStateDto })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  getHostState(
+    @Param('hostId') hostId: string,
+    @CurrentAuth() authorization: AccessTokenClaims,
+  ): Promise<FixedHostState> {
+    return this.states.get(authorization, parseFixedHostStateRequest(hostId));
   }
 
   @Get('requests')
@@ -202,5 +228,29 @@ export class FixedAppointmentController {
       ...(userAgent ? { userAgent } : {}),
     });
     return this.requests.cancel(context, command);
+  }
+
+  @Post('requests/:requestId/withdraw')
+  @HttpCode(200)
+  @ApiOperation({ summary: '原提交运营在审核前撤回固定预约申请' })
+  @ApiOkResponse({ type: FixedRequestWithdrawResultDto })
+  @ApiConflictResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  async withdrawRequest(
+    @Param('requestId') requestId: string,
+    @Body() body: WithdrawFixedRequestDto,
+    @CurrentAuth() authorization: AccessTokenClaims,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent?: string,
+    @Headers('x-request-id') traceId?: string,
+  ): Promise<FixedRequestWithdrawResult> {
+    const command = parseWithdrawFixedRequest(requestId, body);
+    const context = await this.contexts.resolve(authorization, {
+      clientType: 'WECHAT_MINI_PROGRAM',
+      ipAddress,
+      ...(traceId ? { requestId: traceId } : {}),
+      ...(userAgent ? { userAgent } : {}),
+    });
+    return this.withdrawals.withdraw(context, command);
   }
 }

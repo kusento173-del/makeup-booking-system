@@ -12,6 +12,7 @@ import type {
   ChangeFixedRequestCommand,
   CreateFixedRequestCommand,
   ReviewFixedRequestCommand,
+  WithdrawFixedRequestCommand,
 } from './fixed-request.types';
 import type {
   FixedRequestListInput,
@@ -88,16 +89,28 @@ export function parseBookingSlotsRequest(query: unknown): BookingSlotInput {
 
 export function parseFixedAvailabilityRequest(query: unknown): FixedAvailabilityInput {
   const input = record(query);
-  exactKeys(input, ['artistId', 'durationMinutes', 'hostId', 'requestedStartDate', 'weekdays']);
+  exactKeys(input, [
+    'artistId',
+    'currentRuleId',
+    'durationMinutes',
+    'hostId',
+    'requestedStartDate',
+    'weekdays',
+  ]);
   if (typeof input.weekdays !== 'string') throw new BookingRequestInvalidError();
   const weekdayValues = input.weekdays.split(',').map((value) => integer(value.trim(), true));
   return {
     artistId: uuid(input.artistId),
+    ...(input.currentRuleId !== undefined ? { currentRuleId: uuid(input.currentRuleId) } : {}),
     durationMinutes: integer(input.durationMinutes, true),
     hostId: uuid(input.hostId),
     requestedStartDate: dateOnly(input.requestedStartDate),
     weekdays: weekdayValues,
   };
+}
+
+export function parseFixedHostStateRequest(hostId: unknown): string {
+  return uuid(hostId);
 }
 
 export function parseCreateFixedRequest(
@@ -221,6 +234,17 @@ export function parseReviewFixedRequest(
     expectedRowVersion,
     requestId: uuid(requestId),
   };
+}
+
+export function parseWithdrawFixedRequest(
+  requestId: unknown,
+  body: unknown,
+): WithdrawFixedRequestCommand {
+  const input = record(body);
+  exactKeys(input, ['expectedRowVersion']);
+  const expectedRowVersion = integer(input.expectedRowVersion, false);
+  if (expectedRowVersion < 1) throw new BookingRequestInvalidError();
+  return { expectedRowVersion, requestId: uuid(requestId) };
 }
 
 export function parseCreateBookingRequest(

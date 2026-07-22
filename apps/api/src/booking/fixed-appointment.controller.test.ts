@@ -6,7 +6,9 @@ import { FixedAppointmentController } from './fixed-appointment.controller';
 import type { FixedAvailabilityService } from './fixed-availability.service';
 import type { FixedRequestQueryService } from './fixed-request-query.service';
 import type { FixedRequestReviewService } from './fixed-request-review.service';
+import type { FixedRequestWithdrawService } from './fixed-request-withdraw.service';
 import type { FixedRequestService } from './fixed-request.service';
+import type { FixedStateService } from './fixed-state.service';
 
 const artistId = '019f7a17-6845-7a90-94cb-e5f5caabd5f6';
 const hostId = '019f7a18-6845-7a90-94cb-e5f5caabd5f6';
@@ -31,6 +33,8 @@ describe('FixedAppointmentController', () => {
       {} as FixedRequestQueryService,
       {} as FixedRequestReviewService,
       {} as FixedRequestService,
+      {} as FixedStateService,
+      {} as FixedRequestWithdrawService,
     );
 
     await controller.getAvailability(
@@ -63,6 +67,8 @@ describe('FixedAppointmentController', () => {
       {} as FixedRequestQueryService,
       {} as FixedRequestReviewService,
       { create } as unknown as FixedRequestService,
+      {} as FixedStateService,
+      {} as FixedRequestWithdrawService,
     );
 
     await controller.createRequest(
@@ -108,6 +114,8 @@ describe('FixedAppointmentController', () => {
       { list } as unknown as FixedRequestQueryService,
       {} as FixedRequestReviewService,
       {} as FixedRequestService,
+      {} as FixedStateService,
+      {} as FixedRequestWithdrawService,
     );
 
     await controller.listRequests(
@@ -134,6 +142,8 @@ describe('FixedAppointmentController', () => {
       {} as FixedRequestQueryService,
       {} as FixedRequestReviewService,
       { cancel, change } as unknown as FixedRequestService,
+      {} as FixedStateService,
+      {} as FixedRequestWithdrawService,
     );
 
     await controller.changeRequest(
@@ -187,6 +197,8 @@ describe('FixedAppointmentController', () => {
       {} as FixedRequestQueryService,
       { review } as unknown as FixedRequestReviewService,
       {} as FixedRequestService,
+      {} as FixedStateService,
+      {} as FixedRequestWithdrawService,
     );
 
     await controller.reviewRequest(
@@ -209,6 +221,44 @@ describe('FixedAppointmentController', () => {
       decision: 'APPROVE',
       expectedRowVersion: 1,
       requestId: artistId,
+    });
+  });
+
+  it('reads fixed host state and withdraws through trusted operator identity', async () => {
+    const commandContext = { actorName: '运营小周', ...authorization };
+    const resolve = vi.fn().mockResolvedValue(commandContext);
+    const get = vi.fn().mockResolvedValue({ hostId, siteId: 'site-1' });
+    const withdraw = vi.fn().mockResolvedValue({ id: ruleId, status: 'WITHDRAWN' });
+    const controller = new FixedAppointmentController(
+      {} as FixedAvailabilityService,
+      { resolve } as unknown as MasterDataCommandContextService,
+      {} as FixedRequestQueryService,
+      {} as FixedRequestReviewService,
+      {} as FixedRequestService,
+      { get } as unknown as FixedStateService,
+      { withdraw } as unknown as FixedRequestWithdrawService,
+    );
+
+    await controller.getHostState(hostId, authorization);
+    await controller.withdrawRequest(
+      ruleId,
+      { expectedRowVersion: 1 },
+      authorization,
+      '127.0.0.1',
+      'miniapp',
+      'trace-2',
+    );
+
+    expect(get).toHaveBeenCalledWith(authorization, hostId);
+    expect(resolve).toHaveBeenCalledWith(authorization, {
+      clientType: 'WECHAT_MINI_PROGRAM',
+      ipAddress: '127.0.0.1',
+      requestId: 'trace-2',
+      userAgent: 'miniapp',
+    });
+    expect(withdraw).toHaveBeenCalledWith(commandContext, {
+      expectedRowVersion: 1,
+      requestId: ruleId,
     });
   });
 });

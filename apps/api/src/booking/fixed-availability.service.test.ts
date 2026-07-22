@@ -95,6 +95,9 @@ function createService(options?: {
     fixedAppointmentRuleWeekday: {
       findMany: vi.fn().mockResolvedValue(options?.fixed ?? []),
     },
+    fixedAppointmentRule: {
+      findFirst: vi.fn().mockResolvedValue({ id: 'rule-1' }),
+    },
     fixedAppointmentRequest: {
       findMany: vi.fn().mockResolvedValue(options?.pending ?? []),
     },
@@ -214,6 +217,20 @@ describe('FixedAvailabilityService', () => {
     });
   });
 
+  it('validates and safely excludes the current host rule in a public change preview', async () => {
+    const { client, service } = createService();
+
+    await service.getAvailability(context, { ...input, currentRuleId: 'rule-1' }, now);
+
+    expect(client.fixedAppointmentRule.findFirst).toHaveBeenCalledWith({
+      select: { id: true },
+      where: { artistId: 'artist-1', hostId: 'host-1', id: 'rule-1', status: 'ACTIVE' },
+    });
+    expect(client.fixedAppointmentRuleWeekday.findMany.mock.calls[0]?.[0]).toMatchObject({
+      where: { ruleId: { not: 'rule-1' } },
+    });
+  });
+
   it.each([
     [{ ...host, qualificationStatus: 'SUSPENDED' }, artist, 'HOST_INELIGIBLE'],
     [{ ...host, fixedRules: [{ id: 'rule-1' }] }, artist, 'HOST_HAS_ACTIVE_FIXED_RULE'],
@@ -243,12 +260,12 @@ describe('FixedAvailabilityService', () => {
     await expect(
       service.getAvailability({ ...context, userId: 'other-operator' }, input, now),
     ).rejects.toBeInstanceOf(AuthorizationDeniedError);
-    expect(() =>
+    await expect(
       service.getAvailability(
         context,
         { ...input, requestedStartDate: new Date('2026-07-22') },
         now,
       ),
-    ).toThrow(FixedAvailabilityDateInvalidError);
+    ).rejects.toBeInstanceOf(FixedAvailabilityDateInvalidError);
   });
 });

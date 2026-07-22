@@ -71,3 +71,14 @@ export interface FixedRequestReviewResult {
   readonly rowVersion: number;
   readonly status: 'APPROVED' | 'REJECTED';
 }
+
+export interface WithdrawFixedRequestCommand {
+  readonly expectedRowVersion: number;
+  readonly requestId: string;
+}
+
+export interface FixedRequestWithdrawResult {
+  readonly id: string;
+  readonly rowVersion: number;
+  readonly status: 'WITHDRAWN';
+}

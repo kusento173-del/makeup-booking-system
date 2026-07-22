@@ -1,5 +1,6 @@
 export interface FixedAvailabilityInput {
   readonly artistId: string;
+  readonly currentRuleId?: string;
   readonly durationMinutes: number;
   readonly hostId: string;
   readonly requestedStartDate: Date;

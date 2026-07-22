@@ -14,6 +14,7 @@ DECLARE
     duplicate_request_id UUID;
     second_request_id UUID;
     cancel_request_id UUID;
+    withdraw_request_id UUID;
     created_rule_id UUID;
     suffix TEXT := txid_current()::text;
 BEGIN
@@ -179,6 +180,30 @@ BEGIN
         );
         RAISE EXCEPTION 'Single appointment with fixed ancestry was accepted';
     EXCEPTION WHEN check_violation THEN NULL;
+    END;
+
+    INSERT INTO "fixed_appointment_requests" (
+        "request_type", "host_id", "site_id", "target_artist_id", "target_weekdays",
+        "target_start_minute", "target_duration_minutes", "effective_from", "reason",
+        "submitted_by_operator_id", "submitted_by_user_id"
+    ) VALUES (
+        'CREATE', host_two_id, site_id, artist_two_id, ARRAY[2]::SMALLINT[],
+        600, 30, DATE '2026-08-04', '待撤回固定', operator_id, operator_user_id
+    ) RETURNING "id" INTO withdraw_request_id;
+    UPDATE "fixed_appointment_requests" SET "status" = 'WITHDRAWN', "row_version" = 2
+    WHERE "id" = withdraw_request_id;
+    IF NOT EXISTS (
+        SELECT 1 FROM "fixed_appointment_requests"
+        WHERE "id" = withdraw_request_id AND "status" = 'WITHDRAWN' AND "row_version" = 2
+    ) THEN
+        RAISE EXCEPTION 'Pending fixed request was not withdrawn';
+    END IF;
+    BEGIN
+        UPDATE "fixed_appointment_requests" SET "status" = 'APPROVED', "row_version" = 3,
+            "reviewed_by_user_id" = reviewer_user_id, "reviewed_at" = CURRENT_TIMESTAMP
+        WHERE "id" = withdraw_request_id;
+        RAISE EXCEPTION 'Withdrawn fixed request history was mutable';
+    EXCEPTION WHEN SQLSTATE '55000' THEN NULL;
     END;
 
     INSERT INTO "fixed_appointment_requests" (

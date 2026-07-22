@@ -17,6 +17,8 @@ import { FixedGenerationService } from './fixed-generation.service';
 import { FixedRequestService } from './fixed-request.service';
 import { FixedRequestQueryService } from './fixed-request-query.service';
 import { FixedRequestReviewService } from './fixed-request-review.service';
+import { FixedRequestWithdrawService } from './fixed-request-withdraw.service';
+import { FixedStateService } from './fixed-state.service';
 import { InternalFixedGenerationController } from './internal-fixed-generation.controller';
 import { InternalWorkerGuard } from './internal-worker.guard';
 
@@ -34,6 +36,8 @@ import { InternalWorkerGuard } from './internal-worker.guard';
     FixedRequestQueryService,
     FixedRequestReviewService,
     FixedRequestService,
+    FixedRequestWithdrawService,
+    FixedStateService,
     InternalWorkerGuard,
   ],
   exports: [
@@ -47,6 +51,8 @@ import { InternalWorkerGuard } from './internal-worker.guard';
     FixedRequestQueryService,
     FixedRequestReviewService,
     FixedRequestService,
+    FixedRequestWithdrawService,
+    FixedStateService,
   ],
 })
 export class BookingModule {}

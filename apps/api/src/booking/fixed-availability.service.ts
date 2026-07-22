@@ -16,6 +16,7 @@ import {
   FixedAvailabilityDateInvalidError,
   FixedAvailabilityWeekdaysInvalidError,
 } from './fixed-availability.errors';
+import { FixedRequestUnavailableError } from './fixed-request.errors';
 import type {
   FixedAvailabilityInput,
   FixedAvailabilityResult,
@@ -125,9 +126,24 @@ export class FixedAvailabilityService {
     input: FixedAvailabilityInput,
     now = new Date(),
   ): Promise<FixedAvailabilityResult> {
-    return this.database.read((client) =>
-      this.getAvailabilityWithClient(client, context, input, now),
-    );
+    this.authorization.assertRole(context, ['OPERATOR', 'CUSTOMER_SERVICE', 'ADMIN']);
+    return this.database.read(async (client) => {
+      if (input.currentRuleId) {
+        const rule = await client.fixedAppointmentRule.findFirst({
+          select: { id: true },
+          where: {
+            artistId: input.artistId,
+            hostId: input.hostId,
+            id: input.currentRuleId,
+            status: 'ACTIVE',
+          },
+        });
+        if (!rule) throw new FixedRequestUnavailableError();
+      }
+      return this.getAvailabilityWithClient(client, context, input, now, {
+        ...(input.currentRuleId ? { excludeRuleId: input.currentRuleId } : {}),
+      });
+    });
   }
 
   getAvailabilityWithClient(

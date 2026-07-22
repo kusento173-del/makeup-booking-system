@@ -327,6 +327,88 @@ export class FixedRequestReviewResultDto {
   status!: string;
 }
 
+export class ActiveFixedRuleSummaryDto {
+  @ApiProperty({ format: 'uuid' })
+  artistId!: string;
+
+  @ApiProperty()
+  artistNickname!: string;
+
+  @ApiProperty({ enum: [15, 30, 45, 60] })
+  durationMinutes!: number;
+
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ minimum: 1 })
+  rowVersion!: number;
+
+  @ApiProperty({ maximum: 1425, minimum: 0, multipleOf: 15 })
+  startMinute!: number;
+
+  @ApiProperty({ format: 'date' })
+  validFrom!: string;
+
+  @ApiProperty({ isArray: true, maximum: 7, minimum: 1, type: Number })
+  weekdays!: number[];
+}
+
+export class PendingFixedRequestSummaryDto {
+  @ApiProperty({ format: 'date' })
+  effectiveFrom!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ enum: ['CANCEL', 'CHANGE', 'CREATE'] })
+  requestType!: string;
+
+  @ApiProperty({ minimum: 1 })
+  rowVersion!: number;
+
+  @ApiProperty({ format: 'uuid', nullable: true })
+  targetArtistId!: string | null;
+
+  @ApiProperty({ enum: [15, 30, 45, 60], nullable: true })
+  targetDurationMinutes!: number | null;
+
+  @ApiProperty({ maximum: 1425, minimum: 0, multipleOf: 15, nullable: true })
+  targetStartMinute!: number | null;
+
+  @ApiProperty({ isArray: true, maximum: 7, minimum: 1, type: Number })
+  targetWeekdays!: number[];
+}
+
+export class FixedHostStateDto {
+  @ApiProperty({ nullable: true, type: ActiveFixedRuleSummaryDto })
+  activeRule!: ActiveFixedRuleSummaryDto | null;
+
+  @ApiProperty({ format: 'uuid' })
+  hostId!: string;
+
+  @ApiProperty({ nullable: true, type: PendingFixedRequestSummaryDto })
+  pendingRequest!: PendingFixedRequestSummaryDto | null;
+
+  @ApiProperty({ format: 'uuid' })
+  siteId!: string;
+}
+
+export class WithdrawFixedRequestDto {
+  @ApiProperty({ minimum: 1 })
+  expectedRowVersion!: number;
+}
+
+export class FixedRequestWithdrawResultDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ minimum: 2 })
+  rowVersion!: number;
+
+  @ApiProperty({ enum: ['WITHDRAWN'] })
+  status!: string;
+}
+
 export class CreateBookingRequestDto {
   @ApiProperty({ format: 'uuid' })
   artistId!: string;

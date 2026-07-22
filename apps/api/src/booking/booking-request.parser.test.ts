@@ -10,9 +10,11 @@ import {
   parseCreateBookingRequest,
   parseCreateFixedRequest,
   parseFixedAvailabilityRequest,
+  parseFixedHostStateRequest,
   parseFixedRequestList,
   parseRescheduleBookingRequest,
   parseReviewFixedRequest,
+  parseWithdrawFixedRequest,
 } from './booking-request.parser';
 
 const artistId = '019f7a17-6845-7a90-94cb-e5f5caabd5f6';
@@ -183,6 +185,27 @@ describe('booking request parser', () => {
         { currentRuleId: ruleId, effectiveFrom: '2026-07-28', hostId, reason: '取消', siteId: 'x' },
         'fixed-cancel-0001',
       ),
+    ).toThrow(BookingRequestInvalidError);
+  });
+
+  it('parses fixed state identity, change preview and withdrawal concurrency fields', () => {
+    expect(parseFixedHostStateRequest(hostId)).toBe(hostId);
+    expect(
+      parseFixedAvailabilityRequest({
+        artistId,
+        currentRuleId: ruleId,
+        durationMinutes: '30',
+        hostId,
+        requestedStartDate: '2026-07-27',
+        weekdays: '1,3',
+      }),
+    ).toMatchObject({ currentRuleId: ruleId });
+    expect(parseWithdrawFixedRequest(ruleId, { expectedRowVersion: 2 })).toEqual({
+      expectedRowVersion: 2,
+      requestId: ruleId,
+    });
+    expect(() =>
+      parseWithdrawFixedRequest(ruleId, { expectedRowVersion: 2, status: 'WITHDRAWN' }),
     ).toThrow(BookingRequestInvalidError);
   });
 
