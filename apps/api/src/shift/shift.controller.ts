@@ -22,12 +22,14 @@ import { MasterDataCommandContextService } from '../master-data/master-data-comm
 import { ArtistShiftService } from './artist-shift.service';
 import {
   ArtistShiftDto,
+  DirectShiftChangeRequestDto,
   SetInitialShiftRequestDto,
   ShiftChangeDto,
   SubmitShiftChangeRequestDto,
 } from './shift-openapi.dto';
 import {
   assertNoShiftQuery,
+  parseDirectShiftChangeRequest,
   parseArtistId,
   parseInitialShiftRequest,
   parseSubmitShiftChangeRequest,
@@ -71,6 +73,30 @@ export class ShiftController {
       ...(userAgent ? { userAgent } : {}),
     });
     return this.shifts.setInitialShift(context, command);
+  }
+
+  @Post('direct-change')
+  @ApiOperation({ summary: '客服或管理员直接代改化妆师班次' })
+  @ApiBody({ type: DirectShiftChangeRequestDto })
+  @ApiCreatedResponse({ type: ArtistShiftDto })
+  @ApiConflictResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  async directChange(
+    @Param('artistId') artistId: string,
+    @Body() body: unknown,
+    @CurrentAuth() authorization: AccessTokenClaims,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent?: string,
+    @Headers('x-request-id') requestId?: string,
+  ): Promise<ArtistShiftSummary> {
+    const command = parseDirectShiftChangeRequest(artistId, body);
+    const context = await this.contexts.resolve(authorization, {
+      clientType: 'ADMIN_WEB',
+      ipAddress,
+      ...(requestId ? { requestId } : {}),
+      ...(userAgent ? { userAgent } : {}),
+    });
+    return this.changes.directChange(context, command);
   }
 
   @Post('changes')

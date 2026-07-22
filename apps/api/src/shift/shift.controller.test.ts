@@ -107,4 +107,42 @@ describe('ShiftController', () => {
       }),
     );
   });
+
+  it('passes a strict direct-change command through the verified backoffice context', async () => {
+    const backofficeAuthorization = {
+      ...authorization,
+      roleCode: 'CUSTOMER_SERVICE',
+      siteId: 'site-songjiang',
+    } as const;
+    const backofficeContext = { actorName: '松江客服', ...backofficeAuthorization };
+    const resolve = vi.fn().mockResolvedValue(backofficeContext);
+    const directChange = vi.fn().mockResolvedValue({ id: 'shift-2' });
+    const controller = new ShiftController(
+      { resolve } as unknown as MasterDataCommandContextService,
+      { directChange } as unknown as ShiftChangeService,
+      {} as ArtistShiftService,
+    );
+
+    await controller.directChange(
+      artistId,
+      {
+        effectiveFrom: '2026-07-24',
+        expectedVersionNo: 1,
+        reason: '客服代改',
+        workEndMinute: 1080,
+        workStartMinute: 540,
+        workdays: [1, 2, 3],
+      },
+      backofficeAuthorization,
+      '127.0.0.1',
+    );
+    expect(directChange).toHaveBeenCalledWith(
+      backofficeContext,
+      expect.objectContaining({
+        artistId,
+        expectedVersionNo: 1,
+        reason: '客服代改',
+      }),
+    );
+  });
 });

@@ -1,4 +1,5 @@
 import type {
+  DirectShiftChangeCommand,
   ReviewShiftChangeCommand,
   SetInitialShiftCommand,
   ShiftChangePageInput,
@@ -141,6 +142,30 @@ export function parseSubmitShiftChangeRequest(
   return {
     artistId: parseArtistId(artistId),
     effectiveFrom: dateOnly(input.effectiveFrom),
+    reason: requiredText(input.reason, 500),
+    ...shiftFields(input),
+  };
+}
+
+export function parseDirectShiftChangeRequest(
+  artistId: unknown,
+  body: unknown,
+): DirectShiftChangeCommand {
+  const input = record(body);
+  exactKeys(input, [
+    'breakEndMinute',
+    'breakStartMinute',
+    'effectiveFrom',
+    'expectedVersionNo',
+    'reason',
+    'workEndMinute',
+    'workStartMinute',
+    'workdays',
+  ]);
+  return {
+    artistId: parseArtistId(artistId),
+    effectiveFrom: dateOnly(input.effectiveFrom),
+    expectedVersionNo: positiveInteger(input.expectedVersionNo),
     reason: requiredText(input.reason, 500),
     ...shiftFields(input),
   };

@@ -40,6 +40,13 @@ export interface ReviewShiftChangeCommand {
   readonly requestId: string;
 }
 
+export interface DirectShiftChangeCommand extends ShiftDefinition {
+  readonly artistId: string;
+  readonly effectiveFrom: Date;
+  readonly expectedVersionNo: number;
+  readonly reason: string;
+}
+
 export interface ShiftChangeSummary extends ShiftDefinition {
   readonly artistId: string;
   readonly effectiveFrom: string;

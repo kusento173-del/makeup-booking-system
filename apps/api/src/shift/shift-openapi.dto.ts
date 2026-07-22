@@ -60,6 +60,11 @@ export class SubmitShiftChangeRequestDto extends SetInitialShiftRequestDto {
   reason!: string;
 }
 
+export class DirectShiftChangeRequestDto extends SubmitShiftChangeRequestDto {
+  @ApiProperty({ minimum: 1 })
+  expectedVersionNo!: number;
+}
+
 export class ShiftChangeDto extends SetInitialShiftRequestDto {
   @ApiProperty({ format: 'uuid' })
   artistId!: string;

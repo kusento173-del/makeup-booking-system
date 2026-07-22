@@ -105,6 +105,95 @@ const submitCommand = {
 } as const;
 
 describe('ShiftChangeService', () => {
+  it('lets customer service directly replace a site shift with a reason', async () => {
+    const closeCurrent = vi.fn().mockResolvedValue({ count: 1 });
+    const createShift = vi.fn().mockResolvedValue({
+      ...currentShift,
+      id: 'shift-2',
+      validFrom: new Date('2026-07-24T00:00:00.000Z'),
+      versionNo: 2,
+      workEndMinute: 1095,
+      workdays: [1, 2, 3, 4, 5, 6],
+    });
+    const transaction = {
+      artistProfile: { findUnique: vi.fn().mockResolvedValue(artist) },
+      artistShiftTemplate: {
+        create: createShift,
+        findFirst: vi.fn().mockResolvedValue(currentShift),
+        updateMany: closeCurrent,
+      },
+    };
+    const { append, service } = createService(transaction);
+
+    await expect(
+      service.directChange(
+        customerServiceContext,
+        {
+          artistId: 'artist-1',
+          breakEndMinute: 780,
+          breakStartMinute: 720,
+          effectiveFrom: new Date('2026-07-24T00:00:00.000Z'),
+          expectedVersionNo: 1,
+          reason: ' 客服代调工作日 ',
+          workEndMinute: 1095,
+          workStartMinute: 540,
+          workdays: [6, 5, 4, 3, 2, 1],
+        },
+        now,
+      ),
+    ).resolves.toMatchObject({ id: 'shift-2', versionNo: 2 });
+    expect(closeCurrent).toHaveBeenCalledWith({
+      data: { validUntil: new Date('2026-07-24T00:00:00.000Z') },
+      where: { id: 'shift-1', validUntil: null },
+    });
+    const createCall: unknown = createShift.mock.calls[0]?.[0];
+    expect(createCall).toMatchObject({
+      data: {
+        createdByUserId: 'user-customer-service',
+        versionNo: 2,
+        workdays: [1, 2, 3, 4, 5, 6],
+      },
+    });
+    expect(append).toHaveBeenCalledWith(
+      transaction,
+      expect.objectContaining({
+        action: 'ARTIST_SHIFT_DIRECTLY_CHANGED',
+        reason: '客服代调工作日',
+      }),
+    );
+  });
+
+  it('rejects cross-site or stale direct changes before replacing a version', async () => {
+    const transaction = {
+      artistProfile: { findUnique: vi.fn().mockResolvedValue(artist) },
+      artistShiftTemplate: {
+        create: vi.fn(),
+        findFirst: vi.fn().mockResolvedValue(currentShift),
+        updateMany: vi.fn(),
+      },
+    };
+    const { service } = createService(transaction);
+    const command = {
+      artistId: 'artist-1',
+      breakEndMinute: 780,
+      breakStartMinute: 720,
+      effectiveFrom: new Date('2026-07-24T00:00:00.000Z'),
+      expectedVersionNo: 2,
+      reason: '调整',
+      workEndMinute: 1095,
+      workStartMinute: 540,
+      workdays: [1, 2, 3, 4, 5],
+    } as const;
+
+    await expect(
+      service.directChange({ ...customerServiceContext, siteId: 'site-wuxi' }, command, now),
+    ).rejects.toBeInstanceOf(AuthorizationDeniedError);
+    await expect(service.directChange(customerServiceContext, command, now)).rejects.toBeInstanceOf(
+      ShiftChangeStateConflictError,
+    );
+    expect(transaction.artistShiftTemplate.updateMany).not.toHaveBeenCalled();
+  });
+
   it('lists only the verified customer-service site and maps review fields', async () => {
     const findMany = vi.fn().mockResolvedValue([
       {

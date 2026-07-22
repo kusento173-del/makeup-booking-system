@@ -22,6 +22,7 @@ import {
 import { validateShiftDefinition } from './shift-time';
 import type {
   ArtistShiftSummary,
+  DirectShiftChangeCommand,
   ReviewShiftChangeCommand,
   ShiftChangeListItem,
   ShiftChangePage,
@@ -31,6 +32,7 @@ import type {
   SubmitShiftChangeCommand,
   WithdrawShiftChangeCommand,
 } from './shift.types';
+import type { ShiftDefinition } from './shift-time';
 
 const CURRENT_SHIFT_SELECT = {
   artistId: true,
@@ -120,6 +122,54 @@ export class ShiftChangeService {
     private readonly authorization: AuthorizationPolicyService,
     private readonly database: DatabaseService,
   ) {}
+
+  directChange(
+    context: ShiftCommandContext,
+    command: DirectShiftChangeCommand,
+    now = new Date(),
+  ): Promise<ArtistShiftSummary> {
+    this.authorization.assertRole(context, ['CUSTOMER_SERVICE', 'ADMIN']);
+    validateShiftDefinition(command);
+    assertDateOnly(command.effectiveFrom);
+    if (command.effectiveFrom < nextBusinessDate(now)) {
+      throw new ShiftChangeEffectiveDateError();
+    }
+    const reason = normalizedRequiredText(command.reason);
+
+    return this.database.transaction(async (transaction) => {
+      const artist = await transaction.artistProfile.findUnique({
+        select: { employmentStatus: true, id: true, siteId: true },
+        where: { id: command.artistId },
+      });
+      if (!artist) {
+        throw new ShiftArtistNotFoundError();
+      }
+      this.authorization.assertSiteScope(context, artist.siteId);
+      if (artist.employmentStatus !== 'ACTIVE') {
+        throw new ShiftArtistUnavailableError();
+      }
+
+      const currentShift = await transaction.artistShiftTemplate.findFirst({
+        orderBy: { versionNo: 'desc' },
+        select: CURRENT_SHIFT_SELECT,
+        where: { artistId: artist.id, validUntil: null },
+      });
+      if (
+        !currentShift ||
+        currentShift.versionNo !== command.expectedVersionNo ||
+        command.effectiveFrom <= currentShift.validFrom
+      ) {
+        throw new ShiftChangeStateConflictError();
+      }
+      this.assertChanged(currentShift, command);
+      return this.replaceCurrentShift(transaction, context, currentShift, command, {
+        action: 'ARTIST_SHIFT_DIRECTLY_CHANGED',
+        effectiveFrom: command.effectiveFrom,
+        reason,
+        siteId: artist.siteId,
+      });
+    });
+  }
 
   list(
     context: VerifiedAuthorizationContext,
@@ -315,37 +365,71 @@ export class ShiftChangeService {
       throw new ShiftChangeStateConflictError();
     }
     await this.finishReview(transaction, request, context, 'APPROVED', comment, now);
-    const closed = await transaction.artistShiftTemplate.updateMany({
-      data: { validUntil: request.effectiveFrom },
-      where: { id: request.currentShift.id, validUntil: null },
-    });
-    if (closed.count !== 1) {
-      throw new ShiftChangeStateConflictError();
-    }
-
-    const shift = await transaction.artistShiftTemplate.create({
-      data: {
-        artistId: request.artistId,
+    return this.replaceCurrentShift(
+      transaction,
+      context,
+      request.currentShift,
+      {
         breakEndMinute: request.proposedBreakEndMinute,
         breakStartMinute: request.proposedBreakStartMinute,
-        createdByUserId: context.userId,
-        sourceRequestId: request.id,
-        validFrom: request.effectiveFrom,
-        versionNo: request.currentShift.versionNo + 1,
         workEndMinute: request.proposedWorkEndMinute,
         workStartMinute: request.proposedWorkStartMinute,
         workdays: request.proposedWorkdays,
       },
+      {
+        action: 'ARTIST_SHIFT_VERSION_CREATED',
+        effectiveFrom: request.effectiveFrom,
+        ...(comment ? { reason: comment } : {}),
+        siteId: request.siteId,
+        sourceRequestId: request.id,
+      },
+    );
+  }
+
+  private async replaceCurrentShift(
+    transaction: Prisma.TransactionClient,
+    context: ShiftCommandContext,
+    currentShift: CurrentShiftRecord,
+    proposed: ShiftDefinition,
+    options: {
+      readonly action: string;
+      readonly effectiveFrom: Date;
+      readonly reason?: string;
+      readonly siteId: string;
+      readonly sourceRequestId?: string;
+    },
+  ): Promise<ArtistShiftSummary> {
+    const closed = await transaction.artistShiftTemplate.updateMany({
+      data: { validUntil: options.effectiveFrom },
+      where: { id: currentShift.id, validUntil: null },
+    });
+    if (closed.count !== 1) {
+      throw new ShiftChangeStateConflictError();
+    }
+    const shift = await transaction.artistShiftTemplate.create({
+      data: {
+        artistId: currentShift.artistId,
+        breakEndMinute: proposed.breakEndMinute,
+        breakStartMinute: proposed.breakStartMinute,
+        createdByUserId: context.userId,
+        ...(options.sourceRequestId ? { sourceRequestId: options.sourceRequestId } : {}),
+        validFrom: options.effectiveFrom,
+        versionNo: currentShift.versionNo + 1,
+        workEndMinute: proposed.workEndMinute,
+        workStartMinute: proposed.workStartMinute,
+        workdays: [...proposed.workdays].sort((left, right) => left - right),
+      },
       select: CURRENT_SHIFT_SELECT,
     });
-    const summary = this.toShiftSummary(shift, request.siteId);
+    const summary = this.toShiftSummary(shift, options.siteId);
     await this.audit.append(transaction, context, {
-      action: 'ARTIST_SHIFT_VERSION_CREATED',
+      action: options.action,
       afterData: { ...summary },
+      beforeData: { ...this.toShiftSummary(currentShift, options.siteId) },
       objectId: shift.id,
       objectType: 'ARTIST_SHIFT_TEMPLATE',
-      reason: comment,
-      siteId: request.siteId,
+      ...(options.reason ? { reason: options.reason } : {}),
+      siteId: options.siteId,
     });
     return summary;
   }
@@ -382,7 +466,7 @@ export class ShiftChangeService {
     });
   }
 
-  private assertChanged(current: CurrentShiftRecord, proposed: SubmitShiftChangeCommand): void {
+  private assertChanged(current: CurrentShiftRecord, proposed: ShiftDefinition): void {
     const currentDays = [...current.workdays].sort((left, right) => left - right);
     const proposedDays = [...proposed.workdays].sort((left, right) => left - right);
     if (

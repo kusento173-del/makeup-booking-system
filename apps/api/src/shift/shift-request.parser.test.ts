@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   assertNoShiftQuery,
+  parseDirectShiftChangeRequest,
   parseInitialShiftRequest,
   parseReviewShiftChangeRequest,
   parseShiftChangeListRequest,
@@ -79,6 +80,19 @@ describe('shift request parser', () => {
     expect(parseWithdrawShiftChangeRequest(artistId, { expectedRowVersion: 2 })).toEqual({
       expectedRowVersion: 2,
       requestId: artistId,
+    });
+    expect(
+      parseDirectShiftChangeRequest(artistId, {
+        effectiveFrom: '2026-07-24',
+        expectedVersionNo: 3,
+        reason: ' 客服代改 ',
+        workEndMinute: 1080,
+        workStartMinute: 540,
+        workdays: [1, 2, 3],
+      }),
+    ).toMatchObject({
+      expectedVersionNo: 3,
+      reason: '客服代改',
     });
     expect(
       parseReviewShiftChangeRequest(artistId, {
