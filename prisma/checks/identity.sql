@@ -8,8 +8,10 @@ DECLARE
     user_two_id UUID;
     binding_host_id UUID;
     binding_code_id UUID;
+    binding_challenge_id UUID;
     role_id UUID;
     binding_hash TEXT;
+    challenge_hash TEXT;
     mobile_hash TEXT;
     refresh_hash TEXT;
 BEGIN
@@ -22,6 +24,7 @@ BEGIN
     mobile_hash := lpad(test_suffix, 64, 'a');
     refresh_hash := lpad(test_suffix, 64, 'c');
     binding_hash := lpad(test_suffix, 64, 'e');
+    challenge_hash := lpad(test_suffix, 64, '9');
 
     INSERT INTO "app_users" (
         "display_name",
@@ -275,6 +278,46 @@ BEGIN
     BEGIN
         DELETE FROM "account_binding_codes" WHERE "id" = binding_code_id;
         RAISE EXCEPTION 'Binding-code history was deleted';
+    EXCEPTION
+        WHEN SQLSTATE '55000' THEN NULL;
+    END;
+
+    UPDATE "app_users"
+    SET "status" = 'PENDING_BINDING'
+    WHERE "id" = user_two_id;
+
+    INSERT INTO "auth_binding_challenges" (
+        "user_id",
+        "token_hash",
+        "expires_at"
+    ) VALUES (
+        user_two_id,
+        challenge_hash,
+        CURRENT_TIMESTAMP + INTERVAL '10 minutes'
+    ) RETURNING "id" INTO binding_challenge_id;
+
+    BEGIN
+        INSERT INTO "auth_binding_challenges" (
+            "user_id",
+            "token_hash",
+            "expires_at"
+        ) VALUES (
+            user_two_id,
+            lpad(test_suffix, 64, '8'),
+            CURRENT_TIMESTAMP + INTERVAL '10 minutes'
+        );
+        RAISE EXCEPTION 'Multiple active binding challenges for one user were accepted';
+    EXCEPTION
+        WHEN unique_violation THEN NULL;
+    END;
+
+    UPDATE "auth_binding_challenges"
+    SET "consumed_at" = CURRENT_TIMESTAMP
+    WHERE "id" = binding_challenge_id;
+
+    BEGIN
+        DELETE FROM "auth_binding_challenges" WHERE "id" = binding_challenge_id;
+        RAISE EXCEPTION 'Binding challenge history was deleted';
     EXCEPTION
         WHEN SQLSTATE '55000' THEN NULL;
     END;
