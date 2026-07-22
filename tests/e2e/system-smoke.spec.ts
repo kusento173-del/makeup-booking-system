@@ -20,7 +20,7 @@ test('API 健康检查返回可用状态', async ({ request }) => {
   });
 });
 
-test('已登录管理员可看到结构化主播列表', async ({ page }) => {
+test('已登录管理员可查看排班详情并进入主播维护', async ({ page }) => {
   await page.addInitScript(() => {
     sessionStorage.setItem(
       'makeup.backoffice.session',
@@ -57,6 +57,51 @@ test('已登录管理员可看到结构化主播列表', async ({ page }) => {
       });
       return;
     }
+    if (path === '/api/schedule-board') {
+      const date = new URL(route.request().url()).searchParams.get('date') ?? '2026-07-22';
+      await route.fulfill({
+        json: {
+          artists: [
+            {
+              appointments: [
+                {
+                  appointmentType: 'SINGLE',
+                  dailySequence: 1,
+                  durationMinutes: 30,
+                  endAt: `${date}T02:00:00.000Z`,
+                  endMinute: 600,
+                  hostCode: 'ZB0001',
+                  hostId: 'host-1',
+                  hostName: '小雨',
+                  id: 'appointment-1',
+                  operatorId: 'operator-1',
+                  operatorName: '运营甲',
+                  rowVersion: 1,
+                  startAt: `${date}T01:30:00.000Z`,
+                  startMinute: 570,
+                  status: 'BOOKED',
+                },
+              ],
+              artistId: 'artist-1',
+              artistNickname: '柔柔',
+              availabilitySource: 'REGULAR_SHIFT',
+              available: true,
+              breakInterval: { endMinute: 780, startMinute: 720 },
+              unavailableReason: null,
+              workIntervals: [
+                { endMinute: 720, startMinute: 540 },
+                { endMinute: 1080, startMinute: 780 },
+              ],
+            },
+          ],
+          date,
+          lastUpdatedAt: new Date().toISOString(),
+          siteId: 'site-1',
+          siteName: '松江',
+        },
+      });
+      return;
+    }
     await route.fulfill({
       json: {
         items: [
@@ -80,6 +125,14 @@ test('已登录管理员可看到结构化主播列表', async ({ page }) => {
 
   await page.goto('/');
 
+  await expect(page.getByRole('heading', { name: '排班看板' })).toBeVisible();
+  await expect(page.getByRole('article').getByText('柔柔', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: /09:30.*小雨/ }).click();
+  await expect(page.getByRole('heading', { name: '小雨' })).toBeVisible();
+  await expect(page.getByText('实际预约化妆师')).toBeVisible();
+  await page.getByRole('button', { name: '关闭' }).click();
+
+  await page.getByRole('button', { name: '主播', exact: true }).click();
   await expect(page.getByRole('heading', { name: '主播' })).toBeVisible();
   await expect(page.getByText('小雨（主播一）')).toBeVisible();
   await expect(page.getByText('ZB0001')).toBeVisible();
