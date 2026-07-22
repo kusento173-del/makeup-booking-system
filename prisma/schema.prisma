@@ -28,6 +28,8 @@ model Site {
   shiftChangeRequests ArtistShiftChangeRequest[]
   artistOvertimes     ArtistOvertime[]
   appointments        Appointment[]
+  fixedRequests       FixedAppointmentRequest[]
+  fixedRules          FixedAppointmentRule[]
 
   @@index([status, sortOrder], map: "sites_status_sort_order_idx")
   @@map("sites")
@@ -72,6 +74,8 @@ model AppUser {
   createdAppointments     Appointment[]                @relation("AppointmentCreatedBy")
   cancelledAppointments   Appointment[]                @relation("AppointmentCancelledBy")
   idempotencyRecords      IdempotencyRecord[]
+  submittedFixedRequests  FixedAppointmentRequest[]    @relation("FixedRequestSubmittedBy")
+  reviewedFixedRequests   FixedAppointmentRequest[]    @relation("FixedRequestReviewedBy")
 
   @@index([status], map: "app_users_status_idx")
   @@map("app_users")
@@ -209,6 +213,8 @@ model HostProfile {
   bindingCodes           AccountBindingCode[]
   leaveRecords           LeaveRecord[]
   appointments           Appointment[]
+  fixedRequests          FixedAppointmentRequest[]
+  fixedRules             FixedAppointmentRule[]
 
   @@unique([id, siteId], map: "host_profiles_id_site_uq")
   @@index([realName], map: "host_profiles_real_name_idx")
@@ -258,6 +264,8 @@ model ArtistProfile {
   overtimes           ArtistOvertime[]
   leaveRecords        LeaveRecord[]
   appointments        Appointment[]
+  targetFixedRequests FixedAppointmentRequest[]
+  fixedRules          FixedAppointmentRule[]
 
   @@unique([id, siteId], map: "artist_profiles_id_site_uq")
   @@index([realName], map: "artist_profiles_real_name_idx")
@@ -414,6 +422,7 @@ model Appointment {
   durationMinutes              Int                       @map("duration_minutes") @db.SmallInt
   timeRange                    Unsupported("tstzrange")? @default(dbgenerated("tstzrange(start_at, end_at, '[)'::text)")) @map("time_range")
   appointmentType              String                    @default("SINGLE") @map("appointment_type") @db.VarChar(16)
+  fixedRuleId                  String?                   @map("fixed_rule_id") @db.Uuid
   status                       String                    @default("BOOKED") @db.VarChar(16)
   dailySequence                Int                       @map("daily_sequence") @db.SmallInt
   rescheduledFromAppointmentId String?                   @unique(map: "appointments_rescheduled_from_uq") @map("rescheduled_from_appointment_id") @db.Uuid
@@ -430,14 +439,15 @@ model Appointment {
   updatedAt                    DateTime                  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
   rowVersion                   Int                       @default(1) @map("row_version")
 
-  host            HostProfile      @relation(fields: [hostId, siteId], references: [id, siteId], onDelete: Restrict, onUpdate: Cascade, map: "appointments_host_site_fkey")
-  artist          ArtistProfile    @relation(fields: [artistId, siteId], references: [id, siteId], onDelete: Restrict, onUpdate: Cascade, map: "appointments_artist_site_fkey")
-  site            Site             @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  operator        OperatorProfile? @relation(fields: [operatorIdAtBooking, siteId], references: [id, siteId], onDelete: Restrict, onUpdate: Cascade, map: "appointments_operator_site_fkey")
-  createdBy       AppUser?         @relation("AppointmentCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  cancelledBy     AppUser?         @relation("AppointmentCancelledBy", fields: [cancelledByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  rescheduledFrom Appointment?     @relation("AppointmentReschedule", fields: [rescheduledFromAppointmentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  rescheduledTo   Appointment?     @relation("AppointmentReschedule")
+  host            HostProfile           @relation(fields: [hostId, siteId], references: [id, siteId], onDelete: Restrict, onUpdate: Cascade, map: "appointments_host_site_fkey")
+  artist          ArtistProfile         @relation(fields: [artistId, siteId], references: [id, siteId], onDelete: Restrict, onUpdate: Cascade, map: "appointments_artist_site_fkey")
+  site            Site                  @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  operator        OperatorProfile?      @relation(fields: [operatorIdAtBooking, siteId], references: [id, siteId], onDelete: Restrict, onUpdate: Cascade, map: "appointments_operator_site_fkey")
+  createdBy       AppUser?              @relation("AppointmentCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  cancelledBy     AppUser?              @relation("AppointmentCancelledBy", fields: [cancelledByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  rescheduledFrom Appointment?          @relation("AppointmentReschedule", fields: [rescheduledFromAppointmentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  rescheduledTo   Appointment?          @relation("AppointmentReschedule")
+  fixedRule       FixedAppointmentRule? @relation(fields: [fixedRuleId, siteId], references: [id, siteId], onDelete: Restrict, onUpdate: Cascade, map: "appointments_fixed_rule_site_fkey")
 
   @@unique([hostId, appointmentDate, dailySequence], map: "appointments_active_host_daily_sequence_uq", where: raw("((status)::text = ANY ((ARRAY['BOOKED'::character varying, 'COMPLETED'::character varying])::text[]))"))
   @@index([siteId, appointmentDate, startAt], map: "appointments_site_date_start_idx")
@@ -447,7 +457,105 @@ model Appointment {
   @@index([status, startAt], map: "appointments_status_start_idx")
   @@index([createdByUserId, createdAt(sort: Desc)], map: "appointments_created_by_idx")
   @@index([cancelledByUserId, cancelledAt(sort: Desc)], map: "appointments_cancelled_by_idx")
+  @@index([fixedRuleId, appointmentDate], map: "appointments_fixed_rule_date_idx")
   @@map("appointments")
+}
+
+model FixedAppointmentRequest {
+  id                    String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  requestType           String    @map("request_type") @db.VarChar(16)
+  hostId                String    @map("host_id") @db.Uuid
+  siteId                String    @map("site_id") @db.Uuid
+  currentRuleId         String?   @map("current_rule_id") @db.Uuid
+  targetArtistId        String?   @map("target_artist_id") @db.Uuid
+  targetWeekdays        Int[]     @map("target_weekdays") @db.SmallInt
+  targetStartMinute     Int?      @map("target_start_minute") @db.SmallInt
+  targetDurationMinutes Int?      @map("target_duration_minutes") @db.SmallInt
+  effectiveFrom         DateTime  @map("effective_from") @db.Date
+  reason                String    @db.VarChar(500)
+  status                String    @default("PENDING") @db.VarChar(16)
+  submittedByOperatorId String    @map("submitted_by_operator_id") @db.Uuid
+  submittedByUserId     String    @map("submitted_by_user_id") @db.Uuid
+  submittedAt           DateTime  @default(now()) @map("submitted_at") @db.Timestamptz(3)
+  reviewedByUserId      String?   @map("reviewed_by_user_id") @db.Uuid
+  reviewedAt            DateTime? @map("reviewed_at") @db.Timestamptz(3)
+  reviewComment         String?   @map("review_comment") @db.VarChar(500)
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  rowVersion            Int       @default(1) @map("row_version")
+
+  host                HostProfile           @relation(fields: [hostId, siteId], references: [id, siteId], onDelete: Restrict, onUpdate: Cascade, map: "fixed_requests_host_site_fkey")
+  site                Site                  @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "fixed_requests_site_id_fkey")
+  currentRule         FixedAppointmentRule? @relation("FixedRequestCurrentRule", fields: [currentRuleId, siteId], references: [id, siteId], onDelete: Restrict, onUpdate: Cascade, map: "fixed_requests_current_rule_site_fkey")
+  targetArtist        ArtistProfile?        @relation(fields: [targetArtistId, siteId], references: [id, siteId], onDelete: Restrict, onUpdate: Cascade, map: "fixed_requests_target_artist_site_fkey")
+  submittedByOperator OperatorProfile       @relation(fields: [submittedByOperatorId, siteId], references: [id, siteId], onDelete: Restrict, onUpdate: Cascade, map: "fixed_requests_operator_site_fkey")
+  submittedByUser     AppUser               @relation("FixedRequestSubmittedBy", fields: [submittedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  reviewedByUser      AppUser?              @relation("FixedRequestReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  resultingRule       FixedAppointmentRule? @relation("FixedRuleSourceRequest")
+  endedRule           FixedAppointmentRule? @relation("FixedRuleEndingRequest")
+
+  @@unique([hostId], map: "fixed_requests_pending_host_uq", where: raw("((status)::text = 'PENDING'::text)"))
+  @@unique([id, siteId], map: "fixed_requests_id_site_uq")
+  @@index([siteId, status, submittedAt], map: "fixed_requests_site_status_submitted_idx")
+  @@index([submittedByOperatorId, submittedAt(sort: Desc)], map: "fixed_requests_operator_submitted_idx")
+  @@index([currentRuleId], map: "fixed_requests_current_rule_idx")
+  @@map("fixed_appointment_requests")
+}
+
+model FixedAppointmentRule {
+  id               String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  sourceRequestId  String    @unique(map: "fixed_rules_source_request_uq") @map("source_request_id") @db.Uuid
+  hostId           String    @map("host_id") @db.Uuid
+  artistId         String    @map("artist_id") @db.Uuid
+  siteId           String    @map("site_id") @db.Uuid
+  startMinute      Int       @map("start_minute") @db.SmallInt
+  durationMinutes  Int       @map("duration_minutes") @db.SmallInt
+  validFrom        DateTime  @map("valid_from") @db.Date
+  validUntil       DateTime? @map("valid_until") @db.Date
+  status           String    @default("ACTIVE") @db.VarChar(16)
+  endedByRequestId String?   @unique(map: "fixed_rules_ended_by_request_uq") @map("ended_by_request_id") @db.Uuid
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  rowVersion       Int       @default(1) @map("row_version")
+
+  sourceRequest      FixedAppointmentRequest       @relation("FixedRuleSourceRequest", fields: [sourceRequestId, siteId], references: [id, siteId], onDelete: Restrict, onUpdate: Cascade, map: "fixed_rules_source_request_site_fkey")
+  endedByRequest     FixedAppointmentRequest?      @relation("FixedRuleEndingRequest", fields: [endedByRequestId, siteId], references: [id, siteId], onDelete: Restrict, onUpdate: Cascade, map: "fixed_rules_ended_by_request_site_fkey")
+  currentForRequests FixedAppointmentRequest[]     @relation("FixedRequestCurrentRule")
+  host               HostProfile                   @relation(fields: [hostId, siteId], references: [id, siteId], onDelete: Restrict, onUpdate: Cascade, map: "fixed_rules_host_site_fkey")
+  artist             ArtistProfile                 @relation(fields: [artistId, siteId], references: [id, siteId], onDelete: Restrict, onUpdate: Cascade, map: "fixed_rules_artist_site_fkey")
+  site               Site                          @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  weekdays           FixedAppointmentRuleWeekday[]
+  appointments       Appointment[]
+
+  @@unique([id, siteId], map: "fixed_rules_id_site_uq")
+  @@unique([sourceRequestId, siteId], map: "fixed_rules_source_request_site_uq")
+  @@unique([endedByRequestId, siteId], map: "fixed_rules_ended_by_request_site_uq")
+  @@unique([hostId], map: "fixed_rules_active_host_uq", where: raw("((status)::text = 'ACTIVE'::text)"))
+  @@index([artistId, status, validFrom], map: "fixed_rules_artist_status_valid_idx")
+  @@index([siteId, status, validFrom], map: "fixed_rules_site_status_valid_idx")
+  @@map("fixed_appointment_rules")
+}
+
+model FixedAppointmentRuleWeekday {
+  ruleId      String                    @map("rule_id") @db.Uuid
+  isoWeekday  Int                       @map("iso_weekday") @db.SmallInt
+  hostId      String                    @map("host_id") @db.Uuid
+  artistId    String                    @map("artist_id") @db.Uuid
+  siteId      String                    @map("site_id") @db.Uuid
+  startMinute Int                       @map("start_minute") @db.SmallInt
+  endMinute   Int                       @map("end_minute") @db.SmallInt
+  validFrom   DateTime                  @map("valid_from") @db.Date
+  validUntil  DateTime?                 @map("valid_until") @db.Date
+  minuteRange Unsupported("int4range")? @default(dbgenerated("int4range((start_minute)::integer, (end_minute)::integer, '[)'::text)")) @map("minute_range")
+  activeRange Unsupported("daterange")? @default(dbgenerated("daterange(valid_from, valid_until, '[)'::text)")) @map("active_range")
+  createdAt   DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  rule FixedAppointmentRule @relation(fields: [ruleId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@id([ruleId, isoWeekday], map: "fixed_rule_weekdays_pkey")
+  @@index([artistId, isoWeekday, validFrom], map: "fixed_rule_weekdays_artist_day_valid_idx")
+  @@index([hostId, isoWeekday, validFrom], map: "fixed_rule_weekdays_host_day_valid_idx")
+  @@map("fixed_appointment_rule_weekdays")
 }
 
 model IdempotencyRecord {
@@ -503,12 +611,13 @@ model OperatorProfile {
   rowVersion          Int      @default(1) @map("row_version")
   sourceImportBatchId String?  @map("source_import_batch_id") @db.Uuid
 
-  site               Site                   @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  user               AppUser?               @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  sourceImportBatch  ImportBatch?           @relation("OperatorSourceImportBatch", fields: [sourceImportBatchId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  hostRelations      HostOperatorRelation[]
-  bindingCodes       AccountBindingCode[]
-  bookedAppointments Appointment[]
+  site                   Site                      @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  user                   AppUser?                  @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sourceImportBatch      ImportBatch?              @relation("OperatorSourceImportBatch", fields: [sourceImportBatchId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  hostRelations          HostOperatorRelation[]
+  bindingCodes           AccountBindingCode[]
+  bookedAppointments     Appointment[]
+  submittedFixedRequests FixedAppointmentRequest[]
 
   @@unique([id, siteId], map: "operator_profiles_id_site_uq")
   @@unique([siteId, nameNormalized], map: "operator_profiles_active_name_site_uq", where: raw("((employment_status)::text = 'ACTIVE'::text)"))
