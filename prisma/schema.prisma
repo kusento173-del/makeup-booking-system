@@ -109,9 +109,10 @@ model UserRole {
   updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
   rowVersion       Int       @default(1) @map("row_version")
 
-  user       AppUser  @relation("UserRoleOwner", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  site       Site?    @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  assignedBy AppUser? @relation("UserRoleAssigner", fields: [assignedByUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  user       AppUser       @relation("UserRoleOwner", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  site       Site?         @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  assignedBy AppUser?      @relation("UserRoleAssigner", fields: [assignedByUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  sessions   AuthSession[]
 
   @@unique([userId, roleCode], map: "user_roles_active_role_uq", where: raw("(revoked_at IS NULL)"))
   @@index([siteId, roleCode, revokedAt], map: "user_roles_site_role_revoked_idx")
@@ -122,6 +123,7 @@ model UserRole {
 model AuthSession {
   id               String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
   userId           String    @map("user_id") @db.Uuid
+  roleAssignmentId String?   @map("role_assignment_id") @db.Uuid
   refreshTokenHash String    @unique(map: "auth_sessions_refresh_token_hash_uq") @map("refresh_token_hash") @db.Char(64)
   expiresAt        DateTime  @map("expires_at") @db.Timestamptz(3)
   lastSeenAt       DateTime? @map("last_seen_at") @db.Timestamptz(3)
@@ -131,9 +133,11 @@ model AuthSession {
   updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
   rowVersion       Int       @default(1) @map("row_version")
 
-  user AppUser @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  user           AppUser   @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  roleAssignment UserRole? @relation(fields: [roleAssignmentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   @@index([userId, revokedAt, expiresAt], map: "auth_sessions_user_validity_idx")
+  @@index([roleAssignmentId, revokedAt], map: "auth_sessions_role_revoked_idx")
   @@map("auth_sessions")
 }
 

@@ -147,18 +147,26 @@ BEGIN
     INSERT INTO "user_roles" ("user_id", "role_code", "site_id")
     VALUES (user_one_id, 'CUSTOMER_SERVICE', site_id);
 
+    SELECT "id" INTO role_id
+    FROM "user_roles"
+    WHERE "user_id" = user_one_id
+      AND "role_code" = 'CUSTOMER_SERVICE'
+      AND "revoked_at" IS NULL;
+
     INSERT INTO "auth_sessions" (
         "user_id",
+        "role_assignment_id",
         "refresh_token_hash",
         "expires_at"
-    ) VALUES (user_one_id, refresh_hash, CURRENT_TIMESTAMP + INTERVAL '1 day');
+    ) VALUES (user_one_id, role_id, refresh_hash, CURRENT_TIMESTAMP + INTERVAL '1 day');
 
     BEGIN
         INSERT INTO "auth_sessions" (
             "user_id",
+            "role_assignment_id",
             "refresh_token_hash",
             "expires_at"
-        ) VALUES (user_two_id, refresh_hash, CURRENT_TIMESTAMP + INTERVAL '1 day');
+        ) VALUES (user_one_id, role_id, refresh_hash, CURRENT_TIMESTAMP + INTERVAL '1 day');
         RAISE EXCEPTION 'Duplicate refresh-token hash was accepted';
     EXCEPTION
         WHEN unique_violation THEN NULL;
@@ -167,9 +175,22 @@ BEGIN
     BEGIN
         INSERT INTO "auth_sessions" (
             "user_id",
+            "role_assignment_id",
             "refresh_token_hash",
             "expires_at"
-        ) VALUES (user_two_id, 'raw-token', CURRENT_TIMESTAMP + INTERVAL '1 day');
+        ) VALUES (user_two_id, role_id, lpad(test_suffix, 64, '7'), CURRENT_TIMESTAMP + INTERVAL '1 day');
+        RAISE EXCEPTION 'Session accepted a role owned by another user';
+    EXCEPTION
+        WHEN check_violation THEN NULL;
+    END;
+
+    BEGIN
+        INSERT INTO "auth_sessions" (
+            "user_id",
+            "role_assignment_id",
+            "refresh_token_hash",
+            "expires_at"
+        ) VALUES (user_one_id, role_id, 'raw-token', CURRENT_TIMESTAMP + INTERVAL '1 day');
         RAISE EXCEPTION 'Unhashed refresh token was accepted';
     EXCEPTION
         WHEN check_violation THEN NULL;
@@ -178,12 +199,20 @@ BEGIN
     BEGIN
         INSERT INTO "auth_sessions" (
             "user_id",
+            "role_assignment_id",
             "refresh_token_hash",
             "expires_at"
-        ) VALUES (user_two_id, lpad(test_suffix, 64, 'd'), CURRENT_TIMESTAMP - INTERVAL '1 day');
+        ) VALUES (user_one_id, role_id, lpad(test_suffix, 64, 'd'), CURRENT_TIMESTAMP - INTERVAL '1 day');
         RAISE EXCEPTION 'Expired session was accepted';
     EXCEPTION
         WHEN check_violation THEN NULL;
+    END;
+
+    BEGIN
+        DELETE FROM "auth_sessions" WHERE "refresh_token_hash" = refresh_hash;
+        RAISE EXCEPTION 'Session history was deleted';
+    EXCEPTION
+        WHEN SQLSTATE '55000' THEN NULL;
     END;
 
     INSERT INTO "host_profiles" ("user_id", "host_code", "real_name", "site_id")

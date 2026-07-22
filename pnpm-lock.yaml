@@ -21,6 +21,9 @@ catalogs:
     husky:
       specifier: 9.1.7
       version: 9.1.7
+    jose:
+      specifier: 5.10.0
+      version: 5.10.0
     lint-staged:
       specifier: 17.1.0
       version: 17.1.0
@@ -123,6 +126,9 @@ importers:
       dotenv:
         specifier: 'catalog:'
         version: 17.4.2
+      jose:
+        specifier: 'catalog:'
+        version: 5.10.0
       reflect-metadata:
         specifier: 0.2.2
         version: 0.2.2
@@ -5381,6 +5387,12 @@ packages:
         integrity: sha512-nI4U3TottKAcAD9LLud4Cb7b2QztQMUEfHbvhTH09bqXTxnSie8WnjPALV/WMCrJZ6UV/qHJ6L03OqO3LcdYZw==,
       }
     engines: { node: '>=12' }
+
+  jose@5.10.0:
+    resolution:
+      {
+        integrity: sha512-s+3Al/p9g32Iq+oqXxkW//7jk2Vig6FF1CFqzVXoTUXt2qz89YWbL+OwS17NFYEvxC35n0FKeGO2LGYSxeM2Gg==,
+      }
 
   download-git-repo@3.0.2:
     resolution:
@@ -14409,6 +14421,8 @@ snapshots:
   dotenv@16.6.1: {}
 
   dotenv@17.4.2: {}
+
+  jose@5.10.0: {}
 
   download-git-repo@3.0.2:
     dependencies:

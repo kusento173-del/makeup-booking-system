@@ -63,6 +63,7 @@ catalog:
   '@prisma/client': 7.9.0
   dotenv: 17.4.2
   husky: 9.1.7
+  jose: 5.10.0
   lint-staged: 17.1.0
   pg: 8.22.0
   prisma: 7.9.0
