@@ -11,6 +11,8 @@ const TEMPLATE_MARKERS = ['change-me', 'example', 'replace-with'];
 const DEFAULT_SETTINGS = {
   NOTIFICATION_CHANNEL: 'WECHAT_MINI_PROGRAM',
   NOTIFICATION_OUTBOX_INTERVAL_MS: '2000',
+  NOTIFICATION_DELIVERY_INTERVAL_MS: '1000',
+  WECHAT_MINI_PROGRAM_STATE: 'formal',
 };
 const envPath = resolve('.env');
 

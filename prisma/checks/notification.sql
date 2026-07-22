@@ -18,7 +18,7 @@ BEGIN
             "template_code", "version", "channel", "status", "activated_at", "variable_keys"
         ) VALUES (
             'APPOINTMENT_CREATED', 1, 'WECHAT_MINI_PROGRAM', 'ACTIVE', CURRENT_TIMESTAMP,
-            ARRAY['hostName']
+            ARRAY['thing1=hostName']
         );
         RAISE EXCEPTION 'Active template without provider key was accepted';
     EXCEPTION WHEN check_violation THEN NULL;
@@ -27,7 +27,8 @@ BEGIN
     INSERT INTO "notification_template_versions" (
         "template_code", "version", "channel", "variable_keys"
     ) VALUES (
-        'APPOINTMENT_CREATED', 1, 'WECHAT_MINI_PROGRAM', ARRAY['hostName', 'startAt']
+        'APPOINTMENT_CREATED', 1, 'WECHAT_MINI_PROGRAM',
+        ARRAY['thing1=hostName', 'time2=startAt']
     ) RETURNING "id" INTO template_id;
 
     UPDATE "notification_template_versions" SET
@@ -43,10 +44,31 @@ BEGIN
             "variable_keys", "status", "activated_at"
         ) VALUES (
             'APPOINTMENT_CREATED', 2, 'WECHAT_MINI_PROGRAM', 'provider-template-2',
-            ARRAY['hostName'], 'ACTIVE', CURRENT_TIMESTAMP
+            ARRAY['thing1=hostName'], 'ACTIVE', CURRENT_TIMESTAMP
         );
         RAISE EXCEPTION 'Two active versions for one template and channel were accepted';
     EXCEPTION WHEN unique_violation THEN NULL;
+    END;
+
+    BEGIN
+        INSERT INTO "notification_template_versions" (
+            "template_code", "version", "channel", "variable_keys"
+        ) VALUES (
+            'INVALID_MAPPING', 1, 'WECHAT_MINI_PROGRAM', ARRAY['hostName']
+        );
+        RAISE EXCEPTION 'Invalid mini-program variable mapping was accepted';
+    EXCEPTION WHEN check_violation THEN NULL;
+    END;
+
+    BEGIN
+        INSERT INTO "notification_template_versions" (
+            "template_code", "version", "channel", "variable_keys"
+        ) VALUES (
+            'DUPLICATE_MAPPING', 1, 'WECHAT_MINI_PROGRAM',
+            ARRAY['thing1=hostName', 'thing1=artistName']
+        );
+        RAISE EXCEPTION 'Duplicate mini-program provider field was accepted';
+    EXCEPTION WHEN check_violation THEN NULL;
     END;
 
     BEGIN

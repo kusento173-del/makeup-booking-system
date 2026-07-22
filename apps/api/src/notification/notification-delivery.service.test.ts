@@ -30,6 +30,7 @@ const task = {
     channel: 'WECHAT_MINI_PROGRAM',
     providerTemplateKey: 'template-1',
     status: 'ACTIVE',
+    variableKeys: ['thing1=hostName'],
   },
 };
 
@@ -67,6 +68,25 @@ function createService(options?: {
 }
 
 describe('NotificationDeliveryService', () => {
+  it('aggregates a bounded delivery batch and stops on an empty queue', async () => {
+    const { service } = createService();
+    const runOne = vi
+      .spyOn(service, 'runOne')
+      .mockResolvedValueOnce({ status: 'SUCCEEDED', taskId: 'task-1' })
+      .mockResolvedValueOnce({ status: 'RETRY_WAIT', taskId: 'task-2' })
+      .mockResolvedValueOnce({ status: 'FAILED', taskId: 'task-3' })
+      .mockResolvedValueOnce({ status: 'EMPTY', taskId: null });
+    const adapter = { send: vi.fn() };
+
+    await expect(service.runBatch('WECHAT_MINI_PROGRAM', adapter, 20, now)).resolves.toEqual({
+      failedCount: 1,
+      processedCount: 3,
+      retryCount: 1,
+      succeededCount: 1,
+    });
+    expect(runOne).toHaveBeenCalledTimes(4);
+  });
+
   it('claims, sends and atomically records a successful immutable attempt', async () => {
     const { service, transaction } = createService();
     const send = vi.fn().mockResolvedValue({ providerMessageId: 'message-1' });
@@ -83,6 +103,7 @@ describe('NotificationDeliveryService', () => {
       providerAppId: 'wx-app-1',
       providerTemplateKey: 'template-1',
       recipientExternalSubject: 'openid-sensitive',
+      variableKeys: ['thing1=hostName'],
     });
     const completion = transaction.notificationTask.updateMany.mock.calls.at(
       -1,

@@ -21,9 +21,40 @@ export interface NotificationDeliveryResult {
   readonly taskId: string | null;
 }
 
+export interface NotificationDeliveryBatchResult {
+  readonly failedCount: number;
+  readonly processedCount: number;
+  readonly retryCount: number;
+  readonly succeededCount: number;
+}
+
 @Injectable()
 export class NotificationDeliveryService {
   constructor(private readonly database: DatabaseService) {}
+
+  async runBatch(
+    channel: NotificationChannel,
+    adapter: NotificationChannelAdapter,
+    limit = 20,
+    now = new Date(),
+  ): Promise<NotificationDeliveryBatchResult> {
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) {
+      throw new Error('Notification delivery batch limit is invalid');
+    }
+    let failedCount = 0;
+    let processedCount = 0;
+    let retryCount = 0;
+    let succeededCount = 0;
+    for (let index = 0; index < limit; index += 1) {
+      const result = await this.runOne(channel, adapter, now);
+      if (result.status === 'EMPTY') break;
+      processedCount += 1;
+      if (result.status === 'FAILED') failedCount += 1;
+      if (result.status === 'RETRY_WAIT') retryCount += 1;
+      if (result.status === 'SUCCEEDED') succeededCount += 1;
+    }
+    return { failedCount, processedCount, retryCount, succeededCount };
+  }
 
   async runOne(
     channel: NotificationChannel,
@@ -66,6 +97,7 @@ export class NotificationDeliveryService {
               channel: true,
               providerTemplateKey: true,
               status: true,
+              variableKeys: true,
             },
           },
         },
@@ -96,6 +128,7 @@ export class NotificationDeliveryService {
       providerAppId: identity.providerAppId,
       providerTemplateKey,
       recipientExternalSubject: identity.externalSubject,
+      variableKeys: claimedTask.templateVersion.variableKeys,
     };
     try {
       const result = await adapter.send(input);

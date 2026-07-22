@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import type { NotificationDeliveryService } from './notification-delivery.service';
 import type { NotificationOutboxService } from './notification-outbox.service';
+import type { WechatMiniProgramNotificationAdapter } from './wechat-mini-program-notification.adapter';
 import {
   configuredNotificationChannel,
   InternalNotificationController,
@@ -28,15 +30,46 @@ describe('InternalNotificationController', () => {
       processedEventCount: 2,
       taskCount: 5,
     });
-    const controller = new InternalNotificationController({
-      runBatch,
-    } as unknown as NotificationOutboxService);
+    const controller = new InternalNotificationController(
+      {} as NotificationDeliveryService,
+      { runBatch } as unknown as NotificationOutboxService,
+      {} as WechatMiniProgramNotificationAdapter,
+    );
     try {
-      await expect(controller.run()).resolves.toMatchObject({
+      await expect(controller.runOutbox()).resolves.toMatchObject({
         processedEventCount: 2,
         taskCount: 5,
       });
       expect(runBatch).toHaveBeenCalledWith('WECHAT_MINI_PROGRAM');
+    } finally {
+      if (previous === undefined) delete process.env.NOTIFICATION_CHANNEL;
+      else process.env.NOTIFICATION_CHANNEL = previous;
+    }
+  });
+
+  it('dispatches a bounded batch only through the configured mini-program adapter', async () => {
+    const previous = process.env.NOTIFICATION_CHANNEL;
+    process.env.NOTIFICATION_CHANNEL = 'WECHAT_MINI_PROGRAM';
+    const runBatch = vi.fn().mockResolvedValue({
+      failedCount: 0,
+      processedCount: 2,
+      retryCount: 0,
+      succeededCount: 2,
+    });
+    const assertConfigured = vi.fn();
+    const adapter = { assertConfigured } as unknown as WechatMiniProgramNotificationAdapter;
+    const controller = new InternalNotificationController(
+      { runBatch } as unknown as NotificationDeliveryService,
+      {} as NotificationOutboxService,
+      adapter,
+    );
+    try {
+      await expect(controller.runDelivery()).resolves.toMatchObject({
+        processedCount: 2,
+        succeededCount: 2,
+      });
+      expect(assertConfigured).toHaveBeenCalledOnce();
+      expect(runBatch).toHaveBeenCalledWith('WECHAT_MINI_PROGRAM', adapter);
     } finally {
       if (previous === undefined) delete process.env.NOTIFICATION_CHANNEL;
       else process.env.NOTIFICATION_CHANNEL = previous;

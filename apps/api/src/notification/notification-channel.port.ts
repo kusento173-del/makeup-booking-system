@@ -7,6 +7,7 @@ export interface NotificationSendInput {
   readonly providerAppId: string;
   readonly providerTemplateKey: string;
   readonly recipientExternalSubject: string;
+  readonly variableKeys: readonly string[];
 }
 
 export interface NotificationSendResult {

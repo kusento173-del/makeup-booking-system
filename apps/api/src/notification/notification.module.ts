@@ -5,11 +5,16 @@ import { BookingModule } from '../booking/booking.module';
 import { InternalNotificationController } from './internal-notification.controller';
 import { NotificationDeliveryService } from './notification-delivery.service';
 import { NotificationOutboxService } from './notification-outbox.service';
+import { WechatMiniProgramNotificationAdapter } from './wechat-mini-program-notification.adapter';
 
 @Module({
   controllers: [InternalNotificationController],
   exports: [NotificationDeliveryService, NotificationOutboxService],
   imports: [BookingModule, DatabaseModule],
-  providers: [NotificationDeliveryService, NotificationOutboxService],
+  providers: [
+    NotificationDeliveryService,
+    NotificationOutboxService,
+    WechatMiniProgramNotificationAdapter,
+  ],
 })
 export class NotificationModule {}
