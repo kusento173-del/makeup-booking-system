@@ -31,6 +31,7 @@ model Site {
   fixedRequests       FixedAppointmentRequest[]
   fixedRules          FixedAppointmentRule[]
   exportJobs          ExportJob[]
+  notificationTasks   NotificationTask[]
 
   @@index([status, sortOrder], map: "sites_status_sort_order_idx")
   @@map("sites")
@@ -78,6 +79,7 @@ model AppUser {
   submittedFixedRequests  FixedAppointmentRequest[]    @relation("FixedRequestSubmittedBy")
   reviewedFixedRequests   FixedAppointmentRequest[]    @relation("FixedRequestReviewedBy")
   requestedExportJobs     ExportJob[]                  @relation("ExportJobRequester")
+  notificationTasks       NotificationTask[]           @relation("NotificationRecipient")
 
   @@index([status], map: "app_users_status_idx")
   @@map("app_users")
@@ -596,10 +598,93 @@ model OutboxEvent {
   createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
+  notificationTasks NotificationTask[]
+
   @@unique([eventType, aggregateId], map: "outbox_events_type_aggregate_uq")
   @@index([status, availableAt, createdAt], map: "outbox_events_status_available_idx")
   @@index([aggregateType, aggregateId], map: "outbox_events_aggregate_idx")
   @@map("outbox_events")
+}
+
+model NotificationTemplateVersion {
+  id                  String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  templateCode        String    @map("template_code") @db.VarChar(64)
+  version             Int       @db.SmallInt
+  channel             String    @db.VarChar(32)
+  providerTemplateKey String?   @map("provider_template_key") @db.VarChar(128)
+  variableKeys        String[]  @map("variable_keys") @db.VarChar(64)
+  status              String    @default("DRAFT") @db.VarChar(16)
+  activatedAt         DateTime? @map("activated_at") @db.Timestamptz(3)
+  retiredAt           DateTime? @map("retired_at") @db.Timestamptz(3)
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  rowVersion          Int       @default(1) @map("row_version")
+
+  tasks NotificationTask[]
+
+  @@unique([templateCode, version], map: "notification_template_versions_code_version_uq")
+  @@unique([templateCode, channel], map: "notification_template_versions_active_uq", where: raw("((status)::text = 'ACTIVE'::text)"))
+  @@index([status, templateCode], map: "notification_template_versions_status_code_idx")
+  @@map("notification_template_versions")
+}
+
+model NotificationTask {
+  id                    String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  templateVersionId     String    @map("template_version_id") @db.Uuid
+  sourceOutboxEventId   String?   @map("source_outbox_event_id") @db.Uuid
+  recipientUserId       String?   @map("recipient_user_id") @db.Uuid
+  recipientRoleCode     String    @map("recipient_role_code") @db.VarChar(32)
+  recipientProfileId    String    @map("recipient_profile_id") @db.Uuid
+  recipientNameSnapshot String    @map("recipient_name_snapshot") @db.VarChar(64)
+  siteId                String    @map("site_id") @db.Uuid
+  businessKey           String    @unique(map: "notification_tasks_business_key_uq") @map("business_key") @db.VarChar(160)
+  payload               Json      @db.JsonB
+  scheduledAt           DateTime  @map("scheduled_at") @db.Timestamptz(3)
+  status                String    @default("PENDING") @db.VarChar(16)
+  attemptCount          Int       @default(0) @map("attempt_count") @db.SmallInt
+  maxAttempts           Int       @default(5) @map("max_attempts") @db.SmallInt
+  nextAttemptAt         DateTime? @map("next_attempt_at") @db.Timestamptz(3)
+  processingStartedAt   DateTime? @map("processing_started_at") @db.Timestamptz(3)
+  sentAt                DateTime? @map("sent_at") @db.Timestamptz(3)
+  failedAt              DateTime? @map("failed_at") @db.Timestamptz(3)
+  cancelledAt           DateTime? @map("cancelled_at") @db.Timestamptz(3)
+  lastErrorCode         String?   @map("last_error_code") @db.VarChar(64)
+  lastErrorSummary      String?   @map("last_error_summary") @db.VarChar(500)
+  providerMessageId     String?   @map("provider_message_id") @db.VarChar(128)
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  rowVersion            Int       @default(1) @map("row_version")
+
+  templateVersion   NotificationTemplateVersion   @relation(fields: [templateVersionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sourceOutboxEvent OutboxEvent?                  @relation(fields: [sourceOutboxEventId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  recipientUser     AppUser?                      @relation("NotificationRecipient", fields: [recipientUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  site              Site                          @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  attempts          NotificationDeliveryAttempt[]
+
+  @@index([status, scheduledAt, nextAttemptAt], map: "notification_tasks_dispatch_idx")
+  @@index([siteId, status, createdAt(sort: Desc)], map: "notification_tasks_site_status_created_idx")
+  @@index([recipientUserId, createdAt(sort: Desc)], map: "notification_tasks_recipient_created_idx")
+  @@index([sourceOutboxEventId], map: "notification_tasks_outbox_idx")
+  @@map("notification_tasks")
+}
+
+model NotificationDeliveryAttempt {
+  id                 String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  notificationTaskId String   @map("notification_task_id") @db.Uuid
+  attemptNumber      Int      @map("attempt_number") @db.SmallInt
+  outcome            String   @db.VarChar(16)
+  providerMessageId  String?  @map("provider_message_id") @db.VarChar(128)
+  errorCode          String?  @map("error_code") @db.VarChar(64)
+  errorSummary       String?  @map("error_summary") @db.VarChar(500)
+  startedAt          DateTime @map("started_at") @db.Timestamptz(3)
+  completedAt        DateTime @map("completed_at") @db.Timestamptz(3)
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  notificationTask NotificationTask @relation(fields: [notificationTaskId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([notificationTaskId, attemptNumber], map: "notification_delivery_attempts_task_number_uq")
+  @@index([outcome, createdAt(sort: Desc)], map: "notification_delivery_attempts_outcome_created_idx")
+  @@map("notification_delivery_attempts")
 }
 
 model OperatorProfile {
