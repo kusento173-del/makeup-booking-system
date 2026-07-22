@@ -16,7 +16,12 @@ import {
 } from './auth/auth-rate-limit.errors';
 import { AuthSessionInvalidError, AuthConfigurationError } from './auth/auth-session.errors';
 import { AuthorizationDeniedError } from './auth/authorization-policy.service';
-import { BindingCodeInvalidError } from './auth/binding-code.errors';
+import {
+  BindingCodeConfigurationError,
+  BindingCodeInvalidError,
+  BindingTargetNotFoundError,
+  BindingTargetUnavailableError,
+} from './auth/binding-code.errors';
 import {
   AccountLoginDeniedError,
   BindingChallengeInvalidError,
@@ -83,6 +88,10 @@ export class ApiExceptionFilter implements ExceptionFilter {
       return this.response(HttpStatus.NOT_FOUND, exception.code, '目标数据不存在');
     }
 
+    if (exception instanceof BindingTargetNotFoundError) {
+      return this.response(HttpStatus.NOT_FOUND, exception.code, '绑定目标不存在');
+    }
+
     if (
       exception instanceof MasterDataVersionConflictError ||
       exception instanceof MasterDataDateRangeError ||
@@ -90,6 +99,10 @@ export class ApiExceptionFilter implements ExceptionFilter {
       exception instanceof MasterDataSiteMismatchError
     ) {
       return this.response(HttpStatus.CONFLICT, exception.code, '数据状态冲突，请刷新后重试');
+    }
+
+    if (exception instanceof BindingTargetUnavailableError) {
+      return this.response(HttpStatus.CONFLICT, exception.code, '目标当前不能签发绑定码');
     }
 
     if (
@@ -117,6 +130,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
 
     if (
       exception instanceof AuthConfigurationError ||
+      exception instanceof BindingCodeConfigurationError ||
       exception instanceof RateLimitConfigurationError ||
       exception instanceof RateLimitUnavailableError ||
       exception instanceof WechatLoginConfigurationError

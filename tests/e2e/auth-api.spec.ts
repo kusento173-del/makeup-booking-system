@@ -69,6 +69,7 @@ test('OpenAPI 契约包含认证、主数据路径和分页查询参数', async 
       '/auth/me',
       '/auth/logout',
       '/auth/logout-all',
+      '/backoffice/binding-codes',
       '/master-data/sites',
       '/master-data/hosts',
       '/master-data/artists',
@@ -82,6 +83,7 @@ test('OpenAPI 契约包含认证、主数据路径和分页查询参数', async 
     ]),
   );
   expect(document.components?.securitySchemes).toHaveProperty('access-token');
+  expect(document.paths?.['/backoffice/binding-codes']).toHaveProperty('post');
   const hostOperation = document.paths?.['/master-data/hosts'] as
     { get?: { parameters?: { name?: string }[] }; post?: unknown } | undefined;
   expect(hostOperation).toHaveProperty('post');
