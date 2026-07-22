@@ -10,6 +10,7 @@ import {
   MasterDataNotFoundError,
   MasterDataVersionConflictError,
 } from './master-data/master-data.errors';
+import { OvertimeNotFoundError, OvertimeWorkingDayError } from './overtime/overtime.errors';
 import {
   InitialShiftAlreadyConfiguredError,
   ShiftArtistNotFoundError,
@@ -152,6 +153,26 @@ describe('ApiExceptionFilter', () => {
     expect(conflict.response.status).toHaveBeenCalledWith(409);
     expect(conflict.send).toHaveBeenCalledWith({
       error: { code: 'LEAVE_STATE_CONFLICT', message: '数据状态冲突，请刷新后重试' },
+      statusCode: 409,
+    });
+  });
+
+  it('maps overtime absence and invalid working-day state without internal details', () => {
+    const missing = createHost();
+    const conflict = createHost();
+    const filter = new ApiExceptionFilter();
+
+    filter.catch(new OvertimeNotFoundError(), missing.host);
+    filter.catch(new OvertimeWorkingDayError(), conflict.host);
+
+    expect(missing.response.status).toHaveBeenCalledWith(404);
+    expect(missing.send).toHaveBeenCalledWith({
+      error: { code: 'OVERTIME_NOT_FOUND', message: '目标数据不存在' },
+      statusCode: 404,
+    });
+    expect(conflict.response.status).toHaveBeenCalledWith(409);
+    expect(conflict.send).toHaveBeenCalledWith({
+      error: { code: 'OVERTIME_WORKING_DAY', message: '数据状态冲突，请刷新后重试' },
       statusCode: 409,
     });
   });

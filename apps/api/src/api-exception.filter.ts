@@ -51,6 +51,18 @@ import {
 } from './leave/leave.errors';
 import { LeaveRequestInvalidError } from './leave/leave-request.parser';
 import {
+  OvertimeArtistNotFoundError,
+  OvertimeArtistUnavailableError,
+  OvertimeDateInvalidError,
+  OvertimeNotFoundError,
+  OvertimePendingExistsError,
+  OvertimeReasonInvalidError,
+  OvertimeShiftNotConfiguredError,
+  OvertimeStateConflictError,
+  OvertimeWorkingDayError,
+} from './overtime/overtime.errors';
+import { OvertimeRequestInvalidError } from './overtime/overtime-request.parser';
+import {
   InitialShiftAlreadyConfiguredError,
   ShiftArtistNotFoundError,
   ShiftArtistUnavailableError,
@@ -104,10 +116,12 @@ export class ApiExceptionFilter implements ExceptionFilter {
       exception instanceof AuthRequestInvalidError ||
       exception instanceof LeaveRequestInvalidError ||
       exception instanceof MasterDataRequestInvalidError ||
+      exception instanceof OvertimeRequestInvalidError ||
       exception instanceof ShiftRequestInvalidError ||
       exception instanceof ShiftDefinitionInvalidError ||
       exception instanceof ShiftChangeReasonInvalidError ||
-      exception instanceof LeaveReasonInvalidError
+      exception instanceof LeaveReasonInvalidError ||
+      exception instanceof OvertimeReasonInvalidError
     ) {
       return this.response(HttpStatus.BAD_REQUEST, exception.code, '请求内容不正确');
     }
@@ -120,6 +134,8 @@ export class ApiExceptionFilter implements ExceptionFilter {
       exception instanceof MasterDataNotFoundError ||
       exception instanceof BackofficeAccountNotFoundError ||
       exception instanceof LeaveNotFoundError ||
+      exception instanceof OvertimeArtistNotFoundError ||
+      exception instanceof OvertimeNotFoundError ||
       exception instanceof ShiftArtistNotFoundError ||
       exception instanceof ShiftChangeNotFoundError
     ) {
@@ -139,6 +155,12 @@ export class ApiExceptionFilter implements ExceptionFilter {
       exception instanceof LeaveImpactChangedError ||
       exception instanceof LeaveStateConflictError ||
       exception instanceof LeaveSubjectUnavailableError ||
+      exception instanceof OvertimeArtistUnavailableError ||
+      exception instanceof OvertimeDateInvalidError ||
+      exception instanceof OvertimePendingExistsError ||
+      exception instanceof OvertimeShiftNotConfiguredError ||
+      exception instanceof OvertimeStateConflictError ||
+      exception instanceof OvertimeWorkingDayError ||
       exception instanceof InitialShiftAlreadyConfiguredError ||
       exception instanceof ShiftArtistUnavailableError ||
       exception instanceof ShiftChangeEffectiveDateError ||

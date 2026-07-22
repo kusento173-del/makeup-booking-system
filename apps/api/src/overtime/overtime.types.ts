@@ -46,3 +46,22 @@ export interface OvertimeSummary extends OvertimeDefinition {
   readonly status: 'APPROVED' | 'PENDING' | 'REJECTED' | 'WITHDRAWN';
   readonly submittedAt: string;
 }
+
+export interface OvertimeListItem extends OvertimeSummary {
+  readonly artistNickname: string;
+  readonly reviewComment: string | null;
+  readonly reviewedAt: string | null;
+}
+
+export interface OvertimePage {
+  readonly items: readonly OvertimeListItem[];
+  readonly page: number;
+  readonly pageSize: number;
+  readonly total: number;
+}
+
+export interface OvertimePageInput {
+  readonly page: number;
+  readonly pageSize: number;
+  readonly status?: OvertimeSummary['status'];
+}

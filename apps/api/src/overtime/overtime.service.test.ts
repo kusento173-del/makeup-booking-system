@@ -93,6 +93,45 @@ function createService(transaction: object) {
 }
 
 describe('OvertimeService', () => {
+  it('lists only the verified customer-service site and maps review fields', async () => {
+    const findMany = vi
+      .fn()
+      .mockResolvedValue([
+        { ...request, artist: { nickname: '柔柔' }, reviewComment: null, reviewedAt: null },
+      ]);
+    const transaction = {
+      artistOvertime: { count: vi.fn().mockResolvedValue(1), findMany },
+    };
+    const { service } = createService(transaction);
+
+    await expect(
+      service.list(customerServiceContext, { page: 1, pageSize: 50, status: 'PENDING' }),
+    ).resolves.toMatchObject({
+      items: [{ artistNickname: '柔柔', id: 'overtime-1', reviewedAt: null }],
+      total: 1,
+    });
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { siteId: 'site-songjiang', status: 'PENDING' } }),
+    );
+  });
+
+  it('derives artist list scope from the bound user and denies unrelated roles', async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+    const transaction = {
+      artistOvertime: { count: vi.fn().mockResolvedValue(0), findMany },
+    };
+    const { database, service } = createService(transaction);
+
+    await service.list(artistContext, { page: 1, pageSize: 50 });
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { artist: { userId: 'user-artist' } } }),
+    );
+    expect(() =>
+      service.list({ ...artistContext, roleCode: 'HOST' }, { page: 1, pageSize: 50 }),
+    ).toThrow(AuthorizationDeniedError);
+    expect(database.read).toHaveBeenCalledTimes(1);
+  });
+
   it('lets an artist submit their own non-working-day request atomically', async () => {
     const create = vi.fn().mockResolvedValue(request);
     const transaction = {

@@ -6,6 +6,7 @@ import {
   AuthorizationDeniedError,
   AuthorizationPolicyService,
 } from '../auth/authorization-policy.service';
+import type { VerifiedAuthorizationContext } from '../auth/authorization.types';
 import { DatabaseService } from '../database/database.service';
 import { formatDateOnly, toBusinessDate } from '../shift/business-date';
 import { validateShiftDefinition } from '../shift/shift-time';
@@ -24,6 +25,9 @@ import type {
   DirectApproveOvertimeCommand,
   OvertimeCommandContext,
   OvertimeDefinition,
+  OvertimeListItem,
+  OvertimePage,
+  OvertimePageInput,
   OvertimeSummary,
   ReviewOvertimeCommand,
   SubmitOvertimeCommand,
@@ -52,8 +56,16 @@ const REVIEW_SELECT = {
   submittedByUserId: true,
 } satisfies Prisma.ArtistOvertimeSelect;
 
+const LIST_SELECT = {
+  ...OVERTIME_SELECT,
+  artist: { select: { nickname: true } },
+  reviewComment: true,
+  reviewedAt: true,
+} satisfies Prisma.ArtistOvertimeSelect;
+
 type OvertimeRecord = Prisma.ArtistOvertimeGetPayload<{ select: typeof OVERTIME_SELECT }>;
 type ReviewRecord = Prisma.ArtistOvertimeGetPayload<{ select: typeof REVIEW_SELECT }>;
+type ListRecord = Prisma.ArtistOvertimeGetPayload<{ select: typeof LIST_SELECT }>;
 
 function normalizedRequiredText(value: string): string {
   const result = value.normalize('NFKC').trim();
@@ -98,6 +110,28 @@ export class OvertimeService {
     private readonly authorization: AuthorizationPolicyService,
     private readonly database: DatabaseService,
   ) {}
+
+  list(context: VerifiedAuthorizationContext, input: OvertimePageInput): Promise<OvertimePage> {
+    const where = this.listScope(context, input.status);
+    return this.database.read(async (client) => {
+      const [items, total] = await Promise.all([
+        client.artistOvertime.findMany({
+          orderBy: [{ overtimeDate: 'asc' }, { submittedAt: 'desc' }, { id: 'desc' }],
+          select: LIST_SELECT,
+          skip: (input.page - 1) * input.pageSize,
+          take: input.pageSize,
+          where,
+        }),
+        client.artistOvertime.count({ where }),
+      ]);
+      return {
+        items: items.map((item) => this.toListItem(item)),
+        page: input.page,
+        pageSize: input.pageSize,
+        total,
+      };
+    });
+  }
 
   submit(
     context: OvertimeCommandContext,
@@ -307,6 +341,34 @@ export class OvertimeService {
       siteId: request.siteId,
     });
     return summary;
+  }
+
+  private listScope(
+    context: VerifiedAuthorizationContext,
+    status: OvertimePageInput['status'],
+  ): Prisma.ArtistOvertimeWhereInput {
+    const statusFilter = status ? { status } : {};
+    switch (context.roleCode) {
+      case 'ARTIST':
+        return { ...statusFilter, artist: { userId: context.userId } };
+      case 'CUSTOMER_SERVICE':
+        if (!context.siteId) throw new AuthorizationDeniedError();
+        return { ...statusFilter, siteId: context.siteId };
+      case 'ADMIN':
+        return statusFilter;
+      case 'HOST':
+      case 'OPERATOR':
+        throw new AuthorizationDeniedError();
+    }
+  }
+
+  private toListItem(request: ListRecord): OvertimeListItem {
+    return {
+      ...this.toSummary(request),
+      artistNickname: request.artist.nickname,
+      reviewComment: request.reviewComment,
+      reviewedAt: request.reviewedAt?.toISOString() ?? null,
+    };
   }
 
   private toSummary(request: OvertimeRecord): OvertimeSummary {
