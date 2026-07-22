@@ -158,6 +158,21 @@ BEGIN
             "appointment_date", "start_at", "end_at", "duration_minutes", "daily_sequence",
             "appointment_type", "fixed_rule_id", "created_by_role"
         ) VALUES (
+            host_one_id, 'FIXED-H1', '固定主播一', artist_one_id, '固定化妆师一', site_id, '松江场地',
+            DATE '2026-08-03', TIMESTAMPTZ '2026-08-03 09:00:00+08',
+            TIMESTAMPTZ '2026-08-03 09:30:00+08', 30, 1, 'FIXED', created_rule_id, 'SYSTEM'
+        );
+        RAISE EXCEPTION 'Duplicate fixed rule date was accepted';
+    EXCEPTION WHEN unique_violation THEN NULL;
+    END;
+
+    BEGIN
+        INSERT INTO "appointments" (
+            "host_id", "host_code_snapshot", "host_name_snapshot",
+            "artist_id", "artist_nickname_snapshot", "site_id", "site_name_snapshot",
+            "appointment_date", "start_at", "end_at", "duration_minutes", "daily_sequence",
+            "appointment_type", "fixed_rule_id", "created_by_role"
+        ) VALUES (
             host_two_id, 'FIXED-H2', '固定主播二', artist_two_id, '固定化妆师二', site_id, '松江场地',
             DATE '2026-08-04', TIMESTAMPTZ '2026-08-04 10:00:00+08',
             TIMESTAMPTZ '2026-08-04 10:30:00+08', 30, 1, 'SINGLE', created_rule_id, 'SYSTEM'

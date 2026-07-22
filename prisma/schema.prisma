@@ -458,6 +458,7 @@ model Appointment {
   @@index([createdByUserId, createdAt(sort: Desc)], map: "appointments_created_by_idx")
   @@index([cancelledByUserId, cancelledAt(sort: Desc)], map: "appointments_cancelled_by_idx")
   @@index([fixedRuleId, appointmentDate], map: "appointments_fixed_rule_date_idx")
+  @@unique([fixedRuleId, appointmentDate], map: "appointments_fixed_rule_date_uq", where: raw("(fixed_rule_id IS NOT NULL)"))
   @@map("appointments")
 }
 
