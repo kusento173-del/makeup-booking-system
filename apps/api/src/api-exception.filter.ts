@@ -61,6 +61,14 @@ import {
   FixedRequestStateConflictError,
   FixedRequestUnavailableError,
 } from './booking/fixed-request.errors';
+import {
+  ExportDateOutOfRangeError,
+  ExportIdempotencyConflictError,
+  ExportIdempotencyKeyInvalidError,
+  ExportRequestInvalidError,
+  ExportSiteUnavailableError,
+  ExportStateConflictError,
+} from './export/export.errors';
 import { MasterDataRequestInvalidError } from './master-data/master-data-request.parser';
 import {
   BackofficeAccountConflictError,
@@ -172,7 +180,10 @@ export class ApiExceptionFilter implements ExceptionFilter {
       exception instanceof OvertimeReasonInvalidError ||
       exception instanceof ScheduleDateOutOfRangeError ||
       exception instanceof ScheduleRequestInvalidError ||
-      exception instanceof ScheduleSiteRequiredError
+      exception instanceof ScheduleSiteRequiredError ||
+      exception instanceof ExportDateOutOfRangeError ||
+      exception instanceof ExportIdempotencyKeyInvalidError ||
+      exception instanceof ExportRequestInvalidError
     ) {
       return this.response(HttpStatus.BAD_REQUEST, exception.code, '请求内容不正确');
     }
@@ -256,7 +267,10 @@ export class ApiExceptionFilter implements ExceptionFilter {
       exception instanceof ShiftChangePendingExistsError ||
       exception instanceof ShiftChangeStateConflictError ||
       exception instanceof FixedRequestStateConflictError ||
-      exception instanceof FixedRequestUnavailableError
+      exception instanceof FixedRequestUnavailableError ||
+      exception instanceof ExportIdempotencyConflictError ||
+      exception instanceof ExportSiteUnavailableError ||
+      exception instanceof ExportStateConflictError
     ) {
       return this.response(HttpStatus.CONFLICT, exception.code, '数据状态冲突，请刷新后重试');
     }

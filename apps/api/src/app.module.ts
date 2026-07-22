@@ -5,6 +5,7 @@ import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { BookingModule } from './booking/booking.module';
 import { DatabaseModule } from './database/database.module';
+import { ExportModule } from './export/export.module';
 import { HealthController } from './health.controller';
 import { LeaveModule } from './leave/leave.module';
 import { MasterDataModule } from './master-data/master-data.module';
@@ -20,6 +21,7 @@ import { ShiftModule } from './shift/shift.module';
     AuthModule,
     BookingModule,
     DatabaseModule,
+    ExportModule,
     LeaveModule,
     MasterDataModule,
     OvertimeModule,
