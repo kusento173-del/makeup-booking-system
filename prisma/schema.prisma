@@ -611,6 +611,7 @@ model NotificationTemplateVersion {
   templateCode        String    @map("template_code") @db.VarChar(64)
   version             Int       @db.SmallInt
   channel             String    @db.VarChar(32)
+  subscriptionType    String    @default("ONE_TIME") @map("subscription_type") @db.VarChar(16)
   providerTemplateKey String?   @map("provider_template_key") @db.VarChar(128)
   variableKeys        String[]  @map("variable_keys") @db.VarChar(64)
   status              String    @default("DRAFT") @db.VarChar(16)

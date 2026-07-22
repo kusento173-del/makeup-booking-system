@@ -12,11 +12,13 @@ describe('notification template request parser', () => {
     expect(
       parseCreateNotificationTemplateRequest({
         providerTemplateKey: ' template-1 ',
+        subscriptionType: 'ONE_TIME',
         templateCode: 'APPOINTMENT_CREATED',
         variableMappings: ['thing1=hostName', 'time2=timeRange'],
       }),
     ).toEqual({
       providerTemplateKey: 'template-1',
+      subscriptionType: 'ONE_TIME',
       templateCode: 'APPOINTMENT_CREATED',
       variableMappings: ['thing1=hostName', 'time2=timeRange'],
     });
@@ -24,6 +26,7 @@ describe('notification template request parser', () => {
       parseCreateNotificationTemplateRequest({
         extra: true,
         providerTemplateKey: 'template-1',
+        subscriptionType: 'ONE_TIME',
         templateCode: 'APPOINTMENT_CREATED',
         variableMappings: [],
       }),

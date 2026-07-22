@@ -31,6 +31,26 @@ BEGIN
         ARRAY['thing1=hostName', 'time2=startAt']
     ) RETURNING "id" INTO template_id;
 
+    BEGIN
+        UPDATE "notification_template_versions" SET
+            "subscription_type" = 'PERMANENT',
+            "row_version" = 2
+        WHERE "id" = template_id;
+        RAISE EXCEPTION 'Template subscription type was mutable';
+    EXCEPTION WHEN SQLSTATE '55000' THEN NULL;
+    END;
+
+    BEGIN
+        INSERT INTO "notification_template_versions" (
+            "template_code", "version", "channel", "subscription_type", "variable_keys"
+        ) VALUES (
+            'INVALID_SUBSCRIPTION_TYPE', 1, 'WECHAT_MINI_PROGRAM', 'MIXED',
+            ARRAY['thing1=hostName']
+        );
+        RAISE EXCEPTION 'Invalid subscription type was accepted';
+    EXCEPTION WHEN check_violation THEN NULL;
+    END;
+
     UPDATE "notification_template_versions" SET
         "status" = 'ACTIVE',
         "provider_template_key" = 'provider-template-1',

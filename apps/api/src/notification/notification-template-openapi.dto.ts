@@ -4,6 +4,9 @@ export class CreateNotificationTemplateRequestDto {
   @ApiProperty({ maxLength: 128 })
   providerTemplateKey!: string;
 
+  @ApiProperty({ enum: ['ONE_TIME', 'PERMANENT'] })
+  subscriptionType!: string;
+
   @ApiProperty({
     enum: ['APPOINTMENT_CANCELLED', 'APPOINTMENT_CREATED', 'APPOINTMENT_RESCHEDULED'],
   })
@@ -52,6 +55,9 @@ export class NotificationTemplateSummaryDto {
 
   @ApiProperty({ enum: ['ACTIVE', 'DRAFT', 'RETIRED'] })
   status!: string;
+
+  @ApiProperty({ enum: ['ONE_TIME', 'PERMANENT'] })
+  subscriptionType!: string;
 
   @ApiProperty({
     enum: ['APPOINTMENT_CANCELLED', 'APPOINTMENT_CREATED', 'APPOINTMENT_RESCHEDULED'],

@@ -3,6 +3,7 @@ import {
   NOTIFICATION_TEMPLATE_CODES,
   type CreateNotificationTemplateCommand,
   type NotificationTemplateCode,
+  type NotificationSubscriptionType,
   type TransitionNotificationTemplateCommand,
 } from './notification-template.types';
 
@@ -48,15 +49,19 @@ export function parseCreateNotificationTemplateRequest(
   body: unknown,
 ): CreateNotificationTemplateCommand {
   const value = record(body);
-  exactKeys(value, ['providerTemplateKey', 'templateCode', 'variableMappings']);
+  exactKeys(value, ['providerTemplateKey', 'subscriptionType', 'templateCode', 'variableMappings']);
   if (!NOTIFICATION_TEMPLATE_CODES.includes(value.templateCode as NotificationTemplateCode)) {
     throw new NotificationTemplateRequestInvalidError();
   }
   if (!Array.isArray(value.variableMappings) || value.variableMappings.length > 32) {
     throw new NotificationTemplateRequestInvalidError();
   }
+  if (!['ONE_TIME', 'PERMANENT'].includes(value.subscriptionType as string)) {
+    throw new NotificationTemplateRequestInvalidError();
+  }
   return {
     providerTemplateKey: text(value.providerTemplateKey, 128),
+    subscriptionType: value.subscriptionType as NotificationSubscriptionType,
     templateCode: value.templateCode as NotificationTemplateCode,
     variableMappings: value.variableMappings.map((mapping) => text(mapping, 64)),
   };

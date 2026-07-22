@@ -8,10 +8,12 @@ export const NOTIFICATION_TEMPLATE_CODES = [
 
 export type NotificationTemplateCode = (typeof NOTIFICATION_TEMPLATE_CODES)[number];
 export type NotificationTemplateStatus = 'ACTIVE' | 'DRAFT' | 'RETIRED';
+export type NotificationSubscriptionType = 'ONE_TIME' | 'PERMANENT';
 export type NotificationTemplateCommandContext = MasterDataCommandContext;
 
 export interface CreateNotificationTemplateCommand {
   readonly providerTemplateKey: string;
+  readonly subscriptionType: NotificationSubscriptionType;
   readonly templateCode: NotificationTemplateCode;
   readonly variableMappings: readonly string[];
 }
@@ -30,6 +32,7 @@ export interface NotificationTemplateSummary {
   readonly retiredAt: string | null;
   readonly rowVersion: number;
   readonly status: NotificationTemplateStatus;
+  readonly subscriptionType: NotificationSubscriptionType;
   readonly templateCode: NotificationTemplateCode;
   readonly variableMappings: readonly string[];
   readonly version: number;

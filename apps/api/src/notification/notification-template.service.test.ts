@@ -17,6 +17,7 @@ const draft = {
   retiredAt: null,
   rowVersion: 1,
   status: 'DRAFT',
+  subscriptionType: 'ONE_TIME',
   templateCode: 'APPOINTMENT_CREATED',
   variableKeys: ['thing1=hostName', 'time2=timeRange'],
   version: 2,
@@ -89,6 +90,7 @@ describe('NotificationTemplateService', () => {
     await expect(
       service.createDraft(admin, {
         providerTemplateKey: 'template-2',
+        subscriptionType: 'ONE_TIME',
         templateCode: 'APPOINTMENT_CREATED',
         variableMappings: ['thing1=hostName', 'time2=timeRange'],
       }),
@@ -124,6 +126,7 @@ describe('NotificationTemplateService', () => {
     expect(() =>
       service.createDraft(admin, {
         providerTemplateKey: 'template-3',
+        subscriptionType: 'ONE_TIME',
         templateCode: 'APPOINTMENT_CREATED',
         variableMappings: ['thing1=unknownField'],
       }),
@@ -143,6 +146,7 @@ describe('NotificationTemplateService', () => {
     expect(() =>
       service.createDraft(customerService, {
         providerTemplateKey: 'template-3',
+        subscriptionType: 'ONE_TIME',
         templateCode: 'APPOINTMENT_CREATED',
         variableMappings: ['thing1=hostName'],
       }),

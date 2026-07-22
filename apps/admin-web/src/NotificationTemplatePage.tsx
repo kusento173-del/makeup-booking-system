@@ -10,6 +10,7 @@ import {
   type NotificationTemplate,
   type NotificationTemplateCode,
   type NotificationTemplatePreview,
+  type NotificationSubscriptionType,
   previewNotificationTemplate,
   retireNotificationTemplate,
 } from './notification-template-api';
@@ -26,6 +27,7 @@ const CODE_LABELS: Record<NotificationTemplateCode, string> = {
 };
 
 const STATUS_LABELS = { ACTIVE: '使用中', DRAFT: '草稿', RETIRED: '已退役' } as const;
+const SUBSCRIPTION_LABELS = { ONE_TIME: '一次性', PERMANENT: '永久' } as const;
 
 function instantLabel(value: string | null): string {
   if (!value) return '—';
@@ -56,6 +58,8 @@ export function NotificationTemplatePage({
   const [reloadVersion, setReloadVersion] = useState(0);
   const [templateCode, setTemplateCode] = useState<NotificationTemplateCode>('APPOINTMENT_CREATED');
   const [providerTemplateKey, setProviderTemplateKey] = useState('');
+  const [subscriptionType, setSubscriptionType] =
+    useState<NotificationSubscriptionType>('ONE_TIME');
   const [mappingText, setMappingText] = useState('');
   const [preview, setPreview] = useState<NotificationTemplatePreview | null>(null);
   const [action, setAction] = useState<{
@@ -117,6 +121,7 @@ export function NotificationTemplatePage({
     try {
       await createNotificationTemplate(session.accessToken, {
         providerTemplateKey: providerTemplateKey.trim(),
+        subscriptionType,
         templateCode,
         variableMappings,
       });
@@ -224,6 +229,18 @@ export function NotificationTemplatePage({
                 value={providerTemplateKey}
               />
             </label>
+            <label className="compact-field">
+              <span>订阅类型</span>
+              <select
+                onChange={(event) =>
+                  setSubscriptionType(event.target.value as NotificationSubscriptionType)
+                }
+                value={subscriptionType}
+              >
+                <option value="ONE_TIME">一次性订阅</option>
+                <option value="PERMANENT">永久订阅</option>
+              </select>
+            </label>
             <label className="compact-field template-mapping-field">
               <span>字段映射（每行一项）</span>
               <textarea
@@ -275,6 +292,7 @@ export function NotificationTemplatePage({
                   <th>业务通知</th>
                   <th>版本</th>
                   <th>状态</th>
+                  <th>订阅类型</th>
                   <th>微信模板 ID</th>
                   <th>字段映射</th>
                   <th>启用时间</th>
@@ -293,6 +311,7 @@ export function NotificationTemplatePage({
                         {STATUS_LABELS[template.status]}
                       </span>
                     </td>
+                    <td>{SUBSCRIPTION_LABELS[template.subscriptionType]}</td>
                     <td className="template-key">{template.providerTemplateKey ?? '—'}</td>
                     <td className="template-mappings">{template.variableMappings.join('；')}</td>
                     <td>{instantLabel(template.activatedAt)}</td>

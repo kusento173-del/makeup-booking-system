@@ -8,6 +8,7 @@ export const NOTIFICATION_TEMPLATE_CODES = [
 
 export type NotificationTemplateCode = (typeof NOTIFICATION_TEMPLATE_CODES)[number];
 export type NotificationTemplateStatus = 'ACTIVE' | 'DRAFT' | 'RETIRED';
+export type NotificationSubscriptionType = 'ONE_TIME' | 'PERMANENT';
 
 export interface NotificationTemplate {
   readonly activatedAt: string | null;
@@ -18,6 +19,7 @@ export interface NotificationTemplate {
   readonly retiredAt: string | null;
   readonly rowVersion: number;
   readonly status: NotificationTemplateStatus;
+  readonly subscriptionType: NotificationSubscriptionType;
   readonly templateCode: NotificationTemplateCode;
   readonly variableMappings: readonly string[];
   readonly version: number;
@@ -44,6 +46,7 @@ export function createNotificationTemplate(
   token: string,
   input: {
     readonly providerTemplateKey: string;
+    readonly subscriptionType: NotificationSubscriptionType;
     readonly templateCode: NotificationTemplateCode;
     readonly variableMappings: readonly string[];
   },
