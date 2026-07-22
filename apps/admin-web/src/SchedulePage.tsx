@@ -4,12 +4,16 @@ import { ApiError } from './api-client';
 import type { SessionTokenPair } from './auth-session';
 import { addBusinessDays, businessDateLabel, currentBusinessDate } from './business-date';
 import { listSites, type SiteSummary } from './master-data-api';
+import { ScheduleDetailDrawer } from './ScheduleDetailDrawer';
 import {
   getScheduleBoard,
   type MinuteInterval,
+  type ScheduleAppointment,
+  type ScheduleArtist,
   type ScheduleBoard,
   type ScheduleUnavailableReason,
 } from './schedule-board-api';
+import { filterScheduleArtists } from './schedule-filters';
 
 interface SchedulePageProps {
   readonly onUnauthorized: () => void;
@@ -58,6 +62,25 @@ export function SchedulePage({ onUnauthorized, session }: SchedulePageProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reloadVersion, setReloadVersion] = useState(0);
+  const [artistId, setArtistId] = useState('');
+  const [query, setQuery] = useState('');
+  const [appointmentType, setAppointmentType] = useState<'ALL' | 'FIXED' | 'SINGLE'>('ALL');
+  const [status, setStatus] = useState<'ALL' | 'BOOKED' | 'COMPLETED'>('ALL');
+  const [selected, setSelected] = useState<{
+    readonly appointment: ScheduleAppointment;
+    readonly artist: ScheduleArtist;
+  } | null>(null);
+
+  const visibleArtists = useMemo(
+    () =>
+      filterScheduleArtists(board?.artists ?? [], {
+        appointmentType,
+        artistId,
+        query,
+        status,
+      }),
+    [appointmentType, artistId, board?.artists, query, status],
+  );
 
   useEffect(() => {
     if (session.role.roleCode !== 'ADMIN') {
@@ -182,6 +205,66 @@ export function SchedulePage({ onUnauthorized, session }: SchedulePageProps) {
         ))}
       </div>
 
+      <section className="schedule-filter-bar" aria-label="排班筛选">
+        <label>
+          <span>化妆师</span>
+          <select onChange={(event) => setArtistId(event.target.value)} value={artistId}>
+            <option value="">全部化妆师</option>
+            {board?.artists.map((artist) => (
+              <option key={artist.artistId} value={artist.artistId}>
+                {artist.artistNickname}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="schedule-search-field">
+          <span>主播</span>
+          <input
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="姓名或编号"
+            type="search"
+            value={query}
+          />
+        </label>
+        <label>
+          <span>来源</span>
+          <select
+            onChange={(event) =>
+              setAppointmentType(event.target.value as 'ALL' | 'FIXED' | 'SINGLE')
+            }
+            value={appointmentType}
+          >
+            <option value="ALL">全部</option>
+            <option value="FIXED">固定预约</option>
+            <option value="SINGLE">单次预约</option>
+          </select>
+        </label>
+        <label>
+          <span>状态</span>
+          <select
+            onChange={(event) => setStatus(event.target.value as 'ALL' | 'BOOKED' | 'COMPLETED')}
+            value={status}
+          >
+            <option value="ALL">全部</option>
+            <option value="BOOKED">已预约</option>
+            <option value="COMPLETED">已完成</option>
+          </select>
+        </label>
+        <button
+          className="text-button schedule-filter-reset"
+          disabled={!artistId && !query && appointmentType === 'ALL' && status === 'ALL'}
+          onClick={() => {
+            setArtistId('');
+            setQuery('');
+            setAppointmentType('ALL');
+            setStatus('ALL');
+          }}
+          type="button"
+        >
+          清空筛选
+        </button>
+      </section>
+
       <section className="schedule-board" aria-busy={loading}>
         <div className="schedule-summary">
           <strong>{board ? `${board.siteName} · ${board.date}` : '排班数据'}</strong>
@@ -211,14 +294,18 @@ export function SchedulePage({ onUnauthorized, session }: SchedulePageProps) {
           <div className="content-message">该场地暂无化妆师或排班记录</div>
         ) : null}
 
-        {!error && board && board.artists.length > 0 ? (
+        {!error && board && board.artists.length > 0 && visibleArtists.length === 0 ? (
+          <div className="content-message">没有符合当前筛选条件的排班</div>
+        ) : null}
+
+        {!error && board && visibleArtists.length > 0 ? (
           <div className={`schedule-grid${loading ? ' is-refreshing' : ''}`}>
             <div className="schedule-grid-header">
               <span>化妆师</span>
               <span>可排班时间</span>
               <span>当日预约（按开始时间排序）</span>
             </div>
-            {board.artists.map((artist) => (
+            {visibleArtists.map((artist) => (
               <article className="artist-schedule-row" key={artist.artistId}>
                 <div className="artist-summary">
                   <strong>{artist.artistNickname}</strong>
@@ -248,9 +335,11 @@ export function SchedulePage({ onUnauthorized, session }: SchedulePageProps) {
                     <span className="empty-appointments">暂无预约</span>
                   ) : (
                     artist.appointments.map((appointment) => (
-                      <div
+                      <button
                         className={`appointment-card ${appointment.appointmentType.toLowerCase()}${appointment.status === 'COMPLETED' ? ' completed' : ''}`}
                         key={appointment.id}
+                        onClick={() => setSelected({ appointment, artist })}
+                        type="button"
                       >
                         <div className="appointment-time">
                           <strong>
@@ -270,7 +359,7 @@ export function SchedulePage({ onUnauthorized, session }: SchedulePageProps) {
                             <span>运营 {appointment.operatorName}</span>
                           ) : null}
                         </div>
-                      </div>
+                      </button>
                     ))
                   )}
                 </div>
@@ -279,6 +368,15 @@ export function SchedulePage({ onUnauthorized, session }: SchedulePageProps) {
           </div>
         ) : null}
       </section>
+      {selected && board ? (
+        <ScheduleDetailDrawer
+          appointment={selected.appointment}
+          artist={selected.artist}
+          date={board.date}
+          onClose={() => setSelected(null)}
+          siteName={board.siteName}
+        />
+      ) : null}
     </main>
   );
 }
