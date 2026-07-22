@@ -106,6 +106,27 @@ BEGIN
     EXCEPTION WHEN SQLSTATE '55000' THEN NULL;
     END;
 
+    UPDATE "export_jobs" SET
+        "storage_deleted_at" = "expires_at" + INTERVAL '1 second',
+        "row_version" = 4
+    WHERE "id" = job_id;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM "export_jobs"
+        WHERE "id" = job_id AND "storage_deleted_at" IS NOT NULL AND "row_version" = 4
+    ) THEN
+        RAISE EXCEPTION 'Valid export cleanup transition was rejected';
+    END IF;
+
+    BEGIN
+        UPDATE "export_jobs" SET
+            "storage_deleted_at" = "storage_deleted_at" + INTERVAL '1 second',
+            "row_version" = 5
+        WHERE "id" = job_id;
+        RAISE EXCEPTION 'Export cleanup timestamp was mutable';
+    EXCEPTION WHEN SQLSTATE '55000' THEN NULL;
+    END;
+
     BEGIN
         DELETE FROM "export_jobs" WHERE "id" = job_id;
         RAISE EXCEPTION 'Export history was deletable';

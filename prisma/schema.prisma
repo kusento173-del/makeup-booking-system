@@ -77,7 +77,7 @@ model AppUser {
   idempotencyRecords      IdempotencyRecord[]
   submittedFixedRequests  FixedAppointmentRequest[]    @relation("FixedRequestSubmittedBy")
   reviewedFixedRequests   FixedAppointmentRequest[]    @relation("FixedRequestReviewedBy")
-  requestedExportJobs     ExportJob[]                   @relation("ExportJobRequester")
+  requestedExportJobs     ExportJob[]                  @relation("ExportJobRequester")
 
   @@index([status], map: "app_users_status_idx")
   @@map("app_users")
@@ -452,6 +452,7 @@ model Appointment {
   fixedRule       FixedAppointmentRule? @relation(fields: [fixedRuleId, siteId], references: [id, siteId], onDelete: Restrict, onUpdate: Cascade, map: "appointments_fixed_rule_site_fkey")
 
   @@unique([hostId, appointmentDate, dailySequence], map: "appointments_active_host_daily_sequence_uq", where: raw("((status)::text = ANY ((ARRAY['BOOKED'::character varying, 'COMPLETED'::character varying])::text[]))"))
+  @@unique([fixedRuleId, appointmentDate], map: "appointments_fixed_rule_date_uq", where: raw("(fixed_rule_id IS NOT NULL)"))
   @@index([siteId, appointmentDate, startAt], map: "appointments_site_date_start_idx")
   @@index([hostId, appointmentDate, status], map: "appointments_host_date_status_idx")
   @@index([artistId, appointmentDate, status], map: "appointments_artist_date_status_idx")
@@ -460,7 +461,6 @@ model Appointment {
   @@index([createdByUserId, createdAt(sort: Desc)], map: "appointments_created_by_idx")
   @@index([cancelledByUserId, cancelledAt(sort: Desc)], map: "appointments_cancelled_by_idx")
   @@index([fixedRuleId, appointmentDate], map: "appointments_fixed_rule_date_idx")
-  @@unique([fixedRuleId, appointmentDate], map: "appointments_fixed_rule_date_uq", where: raw("(fixed_rule_id IS NOT NULL)"))
   @@map("appointments")
 }
 
@@ -756,6 +756,7 @@ model ExportJob {
   startedAt           DateTime? @map("started_at") @db.Timestamptz(3)
   completedAt         DateTime? @map("completed_at") @db.Timestamptz(3)
   expiresAt           DateTime? @map("expires_at") @db.Timestamptz(3)
+  storageDeletedAt    DateTime? @map("storage_deleted_at") @db.Timestamptz(3)
   createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
   rowVersion          Int       @default(1) @map("row_version")
@@ -767,6 +768,7 @@ model ExportJob {
   @@index([siteId, scheduleDate, createdAt(sort: Desc)], map: "export_jobs_site_date_created_idx")
   @@index([status, createdAt], map: "export_jobs_status_created_idx")
   @@index([expiresAt], map: "export_jobs_expires_at_idx")
+  @@index([status, storageDeletedAt, expiresAt], map: "export_jobs_cleanup_idx")
   @@map("export_jobs")
 }
 
