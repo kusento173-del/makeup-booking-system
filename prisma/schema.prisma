@@ -32,6 +32,7 @@ model Site {
   fixedRules          FixedAppointmentRule[]
   exportJobs          ExportJob[]
   notificationTasks   NotificationTask[]
+  notificationSubscriptionDecisions NotificationSubscriptionDecision[]
 
   @@index([status, sortOrder], map: "sites_status_sort_order_idx")
   @@map("sites")
@@ -80,6 +81,7 @@ model AppUser {
   reviewedFixedRequests   FixedAppointmentRequest[]    @relation("FixedRequestReviewedBy")
   requestedExportJobs     ExportJob[]                  @relation("ExportJobRequester")
   notificationTasks       NotificationTask[]           @relation("NotificationRecipient")
+  notificationSubscriptionDecisions NotificationSubscriptionDecision[]
 
   @@index([status], map: "app_users_status_idx")
   @@map("app_users")
@@ -622,11 +624,34 @@ model NotificationTemplateVersion {
   rowVersion          Int       @default(1) @map("row_version")
 
   tasks NotificationTask[]
+  subscriptionDecisions NotificationSubscriptionDecision[]
 
   @@unique([templateCode, version], map: "notification_template_versions_code_version_uq")
   @@unique([templateCode, channel], map: "notification_template_versions_active_uq", where: raw("((status)::text = 'ACTIVE'::text)"))
   @@index([status, templateCode], map: "notification_template_versions_status_code_idx")
   @@map("notification_template_versions")
+}
+
+model NotificationSubscriptionDecision {
+  id                          String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId                      String   @map("user_id") @db.Uuid
+  roleCode                    String   @map("role_code") @db.VarChar(32)
+  siteId                      String?  @map("site_id") @db.Uuid
+  templateVersionId           String   @map("template_version_id") @db.Uuid
+  providerTemplateKeySnapshot String   @map("provider_template_key_snapshot") @db.VarChar(128)
+  subscriptionTypeSnapshot    String   @map("subscription_type_snapshot") @db.VarChar(16)
+  decision                    String   @db.VarChar(16)
+  clientRequestId             String   @map("client_request_id") @db.Uuid
+  createdAt                   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user            AppUser                     @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  site            Site?                       @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  templateVersion NotificationTemplateVersion @relation(fields: [templateVersionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([userId, clientRequestId, templateVersionId], map: "notification_subscription_decisions_request_template_uq")
+  @@index([userId, createdAt(sort: Desc)], map: "notification_subscription_decisions_user_created_idx")
+  @@index([templateVersionId, decision, createdAt(sort: Desc)], map: "notification_subscription_decisions_template_result_idx")
+  @@map("notification_subscription_decisions")
 }
 
 model NotificationTask {

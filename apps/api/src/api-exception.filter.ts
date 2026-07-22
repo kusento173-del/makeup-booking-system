@@ -77,6 +77,10 @@ import {
   NotificationTemplateRequestInvalidError,
   NotificationTemplateStateConflictError,
 } from './notification/notification-template.errors';
+import {
+  NotificationSubscriptionRequestInvalidError,
+  NotificationSubscriptionStateConflictError,
+} from './notification/notification-subscription.errors';
 import { MasterDataRequestInvalidError } from './master-data/master-data-request.parser';
 import {
   BackofficeAccountConflictError,
@@ -193,7 +197,8 @@ export class ApiExceptionFilter implements ExceptionFilter {
       exception instanceof ExportDateOutOfRangeError ||
       exception instanceof ExportIdempotencyKeyInvalidError ||
       exception instanceof ExportRequestInvalidError ||
-      exception instanceof NotificationTemplateRequestInvalidError
+      exception instanceof NotificationTemplateRequestInvalidError ||
+      exception instanceof NotificationSubscriptionRequestInvalidError
     ) {
       return this.response(HttpStatus.BAD_REQUEST, exception.code, '请求内容不正确');
     }
@@ -284,7 +289,8 @@ export class ApiExceptionFilter implements ExceptionFilter {
       exception instanceof ExportSiteUnavailableError ||
       exception instanceof ExportStateConflictError ||
       exception instanceof ExportFileUnavailableError ||
-      exception instanceof NotificationTemplateStateConflictError
+      exception instanceof NotificationTemplateStateConflictError ||
+      exception instanceof NotificationSubscriptionStateConflictError
     ) {
       return this.response(HttpStatus.CONFLICT, exception.code, '数据状态冲突，请刷新后重试');
     }

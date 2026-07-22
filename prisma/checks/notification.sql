@@ -7,6 +7,8 @@ DECLARE
     template_id UUID;
     task_id UUID;
     failed_task_id UUID;
+    decision_id UUID;
+    consent_request_id UUID := uuidv7();
     suffix TEXT := txid_current()::text;
 BEGIN
     SELECT "id" INTO site_id FROM "sites" ORDER BY "sort_order", "id" LIMIT 1;
@@ -223,6 +225,41 @@ BEGIN
         "retired_at" = CURRENT_TIMESTAMP,
         "row_version" = 3
     WHERE "id" = template_id;
+
+    INSERT INTO "notification_subscription_decisions" (
+        "user_id", "role_code", "site_id", "template_version_id",
+        "provider_template_key_snapshot", "subscription_type_snapshot", "decision",
+        "client_request_id"
+    ) VALUES (
+        user_id, 'HOST', site_id, template_id,
+        'provider-template-1', 'ONE_TIME', 'ACCEPT', consent_request_id
+    ) RETURNING "id" INTO decision_id;
+
+    BEGIN
+        INSERT INTO "notification_subscription_decisions" (
+            "user_id", "role_code", "site_id", "template_version_id",
+            "provider_template_key_snapshot", "subscription_type_snapshot", "decision",
+            "client_request_id"
+        ) VALUES (
+            user_id, 'HOST', site_id, template_id,
+            'provider-template-1', 'ONE_TIME', 'UNKNOWN', uuidv7()
+        );
+        RAISE EXCEPTION 'Invalid subscription decision was accepted';
+    EXCEPTION WHEN check_violation THEN NULL;
+    END;
+
+    BEGIN
+        UPDATE "notification_subscription_decisions" SET "decision" = 'REJECT'
+        WHERE "id" = decision_id;
+        RAISE EXCEPTION 'Subscription decision history was mutable';
+    EXCEPTION WHEN SQLSTATE '55000' THEN NULL;
+    END;
+    BEGIN
+        DELETE FROM "notification_subscription_decisions" WHERE "id" = decision_id;
+        RAISE EXCEPTION 'Subscription decision history was deletable';
+    EXCEPTION WHEN SQLSTATE '55000' THEN NULL;
+    END;
+
     BEGIN
         DELETE FROM "notification_template_versions" WHERE "id" = template_id;
         RAISE EXCEPTION 'Notification template history was deletable';
