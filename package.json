@@ -8,6 +8,7 @@
     "pnpm": ">=11.9.0 <12"
   },
   "scripts": {
+    "admin:bootstrap": "pnpm db:client && tsx --tsconfig apps/api/tsconfig.json apps/api/src/commands/bootstrap-admin.ts",
     "build": "pnpm -r --if-present run build",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "db:migrate": "prisma migrate deploy",

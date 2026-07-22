@@ -4,6 +4,7 @@ import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { toLoginRoles } from './auth-role.mapper';
 import { BackofficeLoginDeniedError } from './backoffice-auth.errors';
+import { normalizeBackofficeLoginName } from './backoffice-login-name';
 import { PasswordHasherService } from './password-hasher.service';
 import type { LoginRole } from './wechat-login.types';
 
@@ -105,9 +106,9 @@ export class BackofficeLoginService {
   }
 
   normalizeLoginName(loginName: string): string {
-    const normalized = loginName.normalize('NFKC').trim().toLocaleLowerCase('en-US');
+    const normalized = normalizeBackofficeLoginName(loginName);
 
-    if (!/^[a-z0-9][a-z0-9._-]{2,63}$/.test(normalized)) {
+    if (!normalized) {
       throw new BackofficeLoginDeniedError();
     }
 
