@@ -16,7 +16,11 @@ describe('ExportController', () => {
     const context = { ...authorization, actorName: '管理员' };
     const contexts = { resolve: vi.fn().mockResolvedValue(context) };
     const exports = { create: vi.fn().mockResolvedValue({ id: 'job-1' }), list: vi.fn() };
-    const controller = new ExportController(contexts as never, exports as never);
+    const controller = new ExportController(
+      contexts as never,
+      { get: vi.fn() } as never,
+      exports as never,
+    );
 
     await controller.create(
       { scheduleDate: '2026-07-23', scope: 'ALL_SITES' },
@@ -42,7 +46,11 @@ describe('ExportController', () => {
 
   it('parses list filters before delegation', async () => {
     const exports = { create: vi.fn(), list: vi.fn().mockResolvedValue({ items: [], total: 0 }) };
-    const controller = new ExportController({ resolve: vi.fn() } as never, exports as never);
+    const controller = new ExportController(
+      { resolve: vi.fn() } as never,
+      { get: vi.fn() } as never,
+      exports as never,
+    );
 
     await controller.list({ page: '2', status: 'FAILED' }, authorization);
 

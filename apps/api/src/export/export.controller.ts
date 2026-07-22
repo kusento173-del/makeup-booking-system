@@ -1,4 +1,16 @@
-import { Body, Controller, Get, Headers, Ip, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Header,
+  Headers,
+  Ip,
+  Param,
+  Post,
+  Query,
+  StreamableFile,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -7,8 +19,10 @@ import {
   ApiCreatedResponse,
   ApiForbiddenResponse,
   ApiHeader,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiProduces,
   ApiQuery,
   ApiTags,
   ApiUnauthorizedResponse,
@@ -19,8 +33,13 @@ import { ApiErrorResponseDto } from '../auth/auth-openapi.dto';
 import type { AccessTokenClaims } from '../auth/auth-session.types';
 import { CurrentAuth } from '../auth/current-auth.decorator';
 import { MasterDataCommandContextService } from '../master-data/master-data-command-context.service';
+import { ExportFileService } from './export-file.service';
 import { CreateExportRequestDto, ExportPageDto, ExportSummaryDto } from './export-openapi.dto';
-import { parseCreateExportRequest, parseExportListRequest } from './export-request.parser';
+import {
+  parseCreateExportRequest,
+  parseExportJobId,
+  parseExportListRequest,
+} from './export-request.parser';
 import { ExportService } from './export.service';
 import type { ExportCommandContext, ExportPage, ExportSummary } from './export.types';
 
@@ -34,6 +53,7 @@ import type { ExportCommandContext, ExportPage, ExportSummary } from './export.t
 export class ExportController {
   constructor(
     private readonly contexts: MasterDataCommandContextService,
+    private readonly files: ExportFileService,
     private readonly exports: ExportService,
   ) {}
 
@@ -52,6 +72,25 @@ export class ExportController {
     @CurrentAuth() authorization: AccessTokenClaims,
   ): Promise<ExportPage> {
     return this.exports.list(authorization, parseExportListRequest(query));
+  }
+
+  @Get(':exportJobId/download')
+  @Header('Cache-Control', 'private, no-store')
+  @Header('X-Content-Type-Options', 'nosniff')
+  @ApiOperation({ summary: '下载授权范围内成功且未过期的排班导出文件' })
+  @ApiProduces('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+  @ApiOkResponse({ description: 'Excel 文件' })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  async download(
+    @Param('exportJobId') exportJobId: unknown,
+    @CurrentAuth() authorization: AccessTokenClaims,
+  ): Promise<StreamableFile> {
+    const file = await this.files.get(authorization, parseExportJobId(exportJobId));
+    return new StreamableFile(file.buffer, {
+      disposition: `attachment; filename*=UTF-8''${encodeURIComponent(file.filename)}`,
+      length: file.buffer.byteLength,
+      type: file.contentType,
+    });
   }
 
   @Post()

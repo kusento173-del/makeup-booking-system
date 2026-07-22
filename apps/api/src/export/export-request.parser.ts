@@ -11,6 +11,13 @@ function record(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
+export function parseExportJobId(value: unknown): string {
+  if (typeof value !== 'string' || !UUID_PATTERN.test(value)) {
+    throw new ExportRequestInvalidError();
+  }
+  return value.toLowerCase();
+}
+
 function exactKeys(value: Record<string, unknown>, allowed: readonly string[]): void {
   if (Object.keys(value).some((key) => !allowed.includes(key))) {
     throw new ExportRequestInvalidError();

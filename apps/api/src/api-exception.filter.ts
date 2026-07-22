@@ -63,8 +63,10 @@ import {
 } from './booking/fixed-request.errors';
 import {
   ExportDateOutOfRangeError,
+  ExportFileUnavailableError,
   ExportIdempotencyConflictError,
   ExportIdempotencyKeyInvalidError,
+  ExportNotFoundError,
   ExportRequestInvalidError,
   ExportSiteUnavailableError,
   ExportStateConflictError,
@@ -203,7 +205,8 @@ export class ApiExceptionFilter implements ExceptionFilter {
       exception instanceof OvertimeArtistNotFoundError ||
       exception instanceof OvertimeNotFoundError ||
       exception instanceof ShiftArtistNotFoundError ||
-      exception instanceof ShiftChangeNotFoundError
+      exception instanceof ShiftChangeNotFoundError ||
+      exception instanceof ExportNotFoundError
     ) {
       return this.response(HttpStatus.NOT_FOUND, exception.code, '目标数据不存在');
     }
@@ -270,7 +273,8 @@ export class ApiExceptionFilter implements ExceptionFilter {
       exception instanceof FixedRequestUnavailableError ||
       exception instanceof ExportIdempotencyConflictError ||
       exception instanceof ExportSiteUnavailableError ||
-      exception instanceof ExportStateConflictError
+      exception instanceof ExportStateConflictError ||
+      exception instanceof ExportFileUnavailableError
     ) {
       return this.response(HttpStatus.CONFLICT, exception.code, '数据状态冲突，请刷新后重试');
     }

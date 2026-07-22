@@ -51,3 +51,21 @@ export class ExportStateConflictError extends Error {
     this.name = 'ExportStateConflictError';
   }
 }
+
+export class ExportNotFoundError extends Error {
+  readonly code = 'EXPORT_NOT_FOUND';
+
+  constructor() {
+    super('Export job was not found');
+    this.name = 'ExportNotFoundError';
+  }
+}
+
+export class ExportFileUnavailableError extends Error {
+  readonly code = 'EXPORT_FILE_UNAVAILABLE';
+
+  constructor() {
+    super('Export file is unavailable or failed integrity checks');
+    this.name = 'ExportFileUnavailableError';
+  }
+}
