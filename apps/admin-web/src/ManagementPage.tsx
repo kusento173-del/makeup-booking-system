@@ -3,10 +3,13 @@ import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from 're
 import { ApiError } from './api-client';
 import type { SessionTokenPair } from './auth-session';
 import { CreateRecordDialog } from './CreateRecordDialog';
+import { EditRecordDialog } from './EditRecordDialog';
+import { EndRelationDialog } from './EndRelationDialog';
 import {
   type AccountSummary,
   type ArtistSummary,
   createManagementItem,
+  endRelation,
   type HostSummary,
   issueBindingCode,
   type IssuedBindingCode,
@@ -17,7 +20,10 @@ import {
   type OperatorSummary,
   type RelationSummary,
   type SiteSummary,
+  updateManagementItem,
 } from './master-data-api';
+import { RelationDialog } from './RelationDialog';
+import { RoleDialog } from './RoleDialog';
 
 interface ManagementPageProps {
   readonly onUnauthorized: () => void;
@@ -51,8 +57,23 @@ function personName(realName: string, nickname: string | null): string {
   return nickname ? `${nickname}（${realName}）` : realName;
 }
 
-function roleNames(account: AccountSummary): string {
-  return account.roles.map((role) => (role.roleCode === 'ADMIN' ? '管理员' : '客服')).join('、');
+function roleNames(account: AccountSummary, siteNames: ReadonlyMap<string, string>): string {
+  return account.roles
+    .map((role) =>
+      role.roleCode === 'ADMIN'
+        ? '管理员'
+        : `客服（${role.siteId ? (siteNames.get(role.siteId) ?? '未知场地') : '未指定场地'}）`,
+    )
+    .join('、');
+}
+
+function businessDate(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    day: '2-digit',
+    month: '2-digit',
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+  }).format(new Date());
 }
 
 function columns(view: ManagementView, siteNames: ReadonlyMap<string, string>): readonly Column[] {
@@ -155,7 +176,7 @@ function columns(view: ManagementView, siteNames: ReadonlyMap<string, string>): 
         {
           key: 'roles',
           label: '有效角色',
-          render: (item) => roleNames(item as AccountSummary) || '无',
+          render: (item) => roleNames(item as AccountSummary, siteNames) || '无',
         },
         {
           key: 'status',
@@ -181,6 +202,9 @@ export function ManagementPage({ onUnauthorized, session }: ManagementPageProps)
   const [reloadVersion, setReloadVersion] = useState(0);
   const [bindingCode, setBindingCode] = useState<IssuedBindingCode | null>(null);
   const [mutationError, setMutationError] = useState<string | null>(null);
+  const [editItem, setEditItem] = useState<ManagementItem | null>(null);
+  const [relationToEnd, setRelationToEnd] = useState<RelationSummary | null>(null);
+  const [roleAccount, setRoleAccount] = useState<AccountSummary | null>(null);
 
   const visibleNavigation = NAV_ITEMS.filter(
     (item) => item.id !== 'accounts' || session.role.roleCode === 'ADMIN',
@@ -269,6 +293,57 @@ export function ManagementPage({ onUnauthorized, session }: ManagementPageProps)
     }
   }
 
+  async function updateRecord(body: Record<string, unknown>) {
+    if (!editItem || view === 'relations') {
+      return;
+    }
+    setMutating(true);
+    setMutationError(null);
+    try {
+      await updateManagementItem(view, session.accessToken, editItem.id, body);
+      setEditItem(null);
+      setReloadVersion((value) => value + 1);
+    } catch (cause) {
+      if (cause instanceof ApiError && cause.status === 401) {
+        onUnauthorized();
+        return;
+      }
+      setMutationError(cause instanceof ApiError ? cause.message : '修改失败，请稍后重试');
+    } finally {
+      setMutating(false);
+    }
+  }
+
+  async function finishRelation(validUntil: string, reason: string) {
+    if (!relationToEnd) {
+      return;
+    }
+    setMutating(true);
+    setMutationError(null);
+    try {
+      await endRelation(session.accessToken, relationToEnd.id, {
+        expectedRowVersion: relationToEnd.rowVersion,
+        reason,
+        validUntil,
+      });
+      setRelationToEnd(null);
+      setReloadVersion((value) => value + 1);
+    } catch (cause) {
+      if (cause instanceof ApiError && cause.status === 401) {
+        onUnauthorized();
+        return;
+      }
+      setMutationError(cause instanceof ApiError ? cause.message : '关系结束失败，请稍后重试');
+    } finally {
+      setMutating(false);
+    }
+  }
+
+  function changedFromDialog(close: () => void) {
+    close();
+    setReloadVersion((value) => value + 1);
+  }
+
   async function createBindingCode(item: HostSummary | ArtistSummary | OperatorSummary) {
     const roleCode = view === 'hosts' ? 'HOST' : view === 'artists' ? 'ARTIST' : 'OPERATOR';
     setMutating(true);
@@ -327,7 +402,7 @@ export function ManagementPage({ onUnauthorized, session }: ManagementPageProps)
                 <button type="submit">搜索</button>
               </form>
             )}
-            {view !== 'relations' && (view !== 'sites' || session.role.roleCode === 'ADMIN') ? (
+            {view !== 'sites' || session.role.roleCode === 'ADMIN' ? (
               <button
                 className="primary-action"
                 onClick={() => {
@@ -362,6 +437,7 @@ export function ManagementPage({ onUnauthorized, session }: ManagementPageProps)
                     {view === 'hosts' || view === 'artists' || view === 'operators' ? (
                       <th>账号绑定</th>
                     ) : null}
+                    <th>操作</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -390,6 +466,47 @@ export function ManagementPage({ onUnauthorized, session }: ManagementPageProps)
                           )}
                         </td>
                       ) : null}
+                      <td>
+                        <div className="row-actions">
+                          {view !== 'relations' &&
+                          (view !== 'sites' || session.role.roleCode === 'ADMIN') ? (
+                            <button
+                              className="table-action"
+                              onClick={() => {
+                                setMutationError(null);
+                                setEditItem(item);
+                              }}
+                              type="button"
+                            >
+                              编辑
+                            </button>
+                          ) : view === 'relations' &&
+                            ((item as RelationSummary).validUntil === null ||
+                              (item as RelationSummary).validUntil! > businessDate()) ? (
+                            <button
+                              className="table-action danger-text"
+                              onClick={() => {
+                                setMutationError(null);
+                                setRelationToEnd(item as RelationSummary);
+                              }}
+                              type="button"
+                            >
+                              {(item as RelationSummary).validUntil ? '调整结束日' : '结束关系'}
+                            </button>
+                          ) : view === 'relations' ? (
+                            <span className="muted-text">已结束</span>
+                          ) : null}
+                          {view === 'accounts' ? (
+                            <button
+                              className="table-action"
+                              onClick={() => setRoleAccount(item as AccountSummary)}
+                              type="button"
+                            >
+                              角色
+                            </button>
+                          ) : null}
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -432,6 +549,54 @@ export function ManagementPage({ onUnauthorized, session }: ManagementPageProps)
           session={session}
           sites={sites}
           view={view}
+        />
+      ) : null}
+
+      {createOpen && view === 'relations' ? (
+        <RelationDialog
+          onClose={() => setCreateOpen(false)}
+          onSaved={() => changedFromDialog(() => setCreateOpen(false))}
+          onUnauthorized={onUnauthorized}
+          session={session}
+        />
+      ) : null}
+
+      {editItem && view !== 'relations' ? (
+        <EditRecordDialog
+          busy={mutating}
+          error={mutationError}
+          item={editItem}
+          onClose={() => {
+            setEditItem(null);
+            setMutationError(null);
+          }}
+          onSubmit={updateRecord}
+          sites={sites}
+          view={view}
+        />
+      ) : null}
+
+      {relationToEnd ? (
+        <EndRelationDialog
+          busy={mutating}
+          error={mutationError}
+          onClose={() => {
+            setRelationToEnd(null);
+            setMutationError(null);
+          }}
+          onSubmit={finishRelation}
+          relation={relationToEnd}
+        />
+      ) : null}
+
+      {roleAccount ? (
+        <RoleDialog
+          account={roleAccount}
+          onChanged={() => changedFromDialog(() => setRoleAccount(null))}
+          onClose={() => setRoleAccount(null)}
+          onUnauthorized={onUnauthorized}
+          session={session}
+          sites={sites}
         />
       ) : null}
 

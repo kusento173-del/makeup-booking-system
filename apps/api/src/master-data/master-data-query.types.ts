@@ -9,6 +9,7 @@ export interface SiteSummary {
   readonly id: string;
   readonly name: string;
   readonly rowVersion: number;
+  readonly sortOrder: number;
   readonly status: SiteStatus;
   readonly timezone: string;
 }

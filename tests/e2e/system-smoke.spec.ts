@@ -49,6 +49,7 @@ test('已登录管理员可看到结构化主播列表', async ({ page }) => {
             id: 'site-1',
             name: '松江',
             rowVersion: 1,
+            sortOrder: 10,
             status: 'ACTIVE',
             timezone: 'Asia/Shanghai',
           },
@@ -62,6 +63,7 @@ test('已登录管理员可看到结构化主播列表', async ({ page }) => {
           {
             hostCode: 'ZB0001',
             id: 'host-1',
+            accountBound: false,
             nickname: '小雨',
             qualificationStatus: 'ACTIVE',
             realName: '主播一',
@@ -86,4 +88,8 @@ test('已登录管理员可看到结构化主播列表', async ({ page }) => {
   await expect(page.getByRole('heading', { name: '新增主播' })).toBeVisible();
   await expect(page.getByLabel('主播编号')).toBeVisible();
   await expect(page.getByLabel('所属场地')).toBeVisible();
+  await page.getByRole('button', { name: '关闭' }).click();
+  await page.getByRole('button', { name: '编辑' }).click();
+  await expect(page.getByRole('heading', { name: '维护主播' })).toBeVisible();
+  await expect(page.getByLabel('修改原因')).toBeVisible();
 });

@@ -5,6 +5,7 @@ export interface SiteSummary {
   readonly id: string;
   readonly name: string;
   readonly rowVersion: number;
+  readonly sortOrder: number;
   readonly status: 'ACTIVE' | 'INACTIVE';
   readonly timezone: string;
 }
@@ -107,12 +108,59 @@ export function listManagementItems(
 }
 
 export function createManagementItem(
-  view: Exclude<ManagementView, 'relations'>,
+  view: ManagementView,
   token: string,
   body: unknown,
 ): Promise<{ readonly id: string }> {
   const path = view === 'accounts' ? '/backoffice/accounts' : `/master-data/${view}`;
   return apiRequest(path, { body, method: 'POST', token });
+}
+
+export function updateManagementItem(
+  view: Exclude<ManagementView, 'relations'>,
+  token: string,
+  id: string,
+  body: unknown,
+): Promise<void> {
+  const path = view === 'accounts' ? `/backoffice/accounts/${id}` : `/master-data/${view}/${id}`;
+  return apiRequest(path, { body, method: 'PATCH', token });
+}
+
+export function endRelation(
+  token: string,
+  id: string,
+  body: {
+    readonly expectedRowVersion: number;
+    readonly reason: string;
+    readonly validUntil: string;
+  },
+): Promise<void> {
+  return apiRequest(`/master-data/host-operator-relations/${id}/end`, {
+    body,
+    method: 'PATCH',
+    token,
+  });
+}
+
+export function assignBackofficeRole(
+  token: string,
+  userId: string,
+  body: { readonly roleCode: 'ADMIN' | 'CUSTOMER_SERVICE'; readonly siteId?: string },
+): Promise<{ readonly id: string }> {
+  return apiRequest(`/backoffice/accounts/${userId}/roles`, { body, method: 'POST', token });
+}
+
+export function revokeBackofficeRole(
+  token: string,
+  roleId: string,
+  expectedRowVersion: number,
+  reason: string,
+): Promise<void> {
+  return apiRequest(`/backoffice/roles/${roleId}/revoke`, {
+    body: { expectedRowVersion, reason },
+    method: 'PATCH',
+    token,
+  });
 }
 
 export interface IssuedBindingCode {

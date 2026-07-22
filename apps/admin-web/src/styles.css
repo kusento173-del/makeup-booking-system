@@ -16,7 +16,8 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
@@ -88,9 +89,9 @@ label {
 }
 
 input,
-select {
+select,
+textarea {
   width: 100%;
-  height: 46px;
   padding: 0 12px;
   border: 1px solid #bfc9d2;
   border-radius: 7px;
@@ -100,8 +101,20 @@ select {
   outline: none;
 }
 
+input,
+select {
+  height: 46px;
+}
+
+textarea {
+  min-height: 90px;
+  padding-block: 10px;
+  resize: vertical;
+}
+
 input:focus,
-select:focus {
+select:focus,
+textarea:focus {
   border-color: #28627d;
   box-shadow: 0 0 0 3px rgb(40 98 125 / 14%);
 }
@@ -379,6 +392,17 @@ tbody tr:hover {
   font-weight: 600;
 }
 
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.danger-text {
+  border-color: #d7aaa5;
+  color: #a12b22;
+}
+
 .pagination {
   min-height: 60px;
   display: flex;
@@ -428,6 +452,12 @@ tbody tr:hover {
   margin-bottom: 18px;
 }
 
+.dialog-subtitle {
+  margin: 4px 0 0;
+  color: #697887;
+  font-size: 15px;
+}
+
 .dialog h2 {
   margin: 0;
   font-size: 22px;
@@ -455,7 +485,8 @@ tbody tr:hover {
 }
 
 .dialog-actions .primary-button,
-.secondary-button {
+.secondary-button,
+.danger-button {
   min-width: 96px;
   height: 42px;
   margin: 0;
@@ -467,6 +498,66 @@ tbody tr:hover {
   border: 1px solid #aebbc5;
   background: #fff;
   color: #263744;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.danger-button {
+  border: 0;
+  background: #b3342b;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.inline-search {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.inline-search button {
+  min-width: 74px;
+  border: 1px solid #aebbc5;
+  border-radius: 6px;
+  background: #fff;
+  color: #263744;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.separated-form,
+.role-management-list {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid #e2e7eb;
+}
+
+.role-management-list {
+  display: grid;
+  gap: 8px;
+}
+
+.role-management-item {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid #dce2e8;
+  border-radius: 6px;
+}
+
+.role-management-item span {
+  font-weight: 600;
+}
+
+.role-management-item button {
+  border: 0;
+  background: transparent;
+  color: #a12b22;
   cursor: pointer;
   font-weight: 600;
 }

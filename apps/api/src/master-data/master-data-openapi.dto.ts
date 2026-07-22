@@ -170,6 +170,9 @@ export class SiteSummaryDto {
   @ApiProperty({ minimum: 1 })
   rowVersion!: number;
 
+  @ApiProperty()
+  sortOrder!: number;
+
   @ApiProperty({ enum: SITE_STATUSES })
   status!: string;
 

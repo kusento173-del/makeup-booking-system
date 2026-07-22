@@ -74,6 +74,7 @@ export class MasterDataQueryService {
             id: true,
             name: true,
             rowVersion: true,
+            sortOrder: true,
             status: true,
             timezone: true,
           },
