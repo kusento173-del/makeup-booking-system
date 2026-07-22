@@ -53,6 +53,7 @@ import { InternalWorkerGuard } from './internal-worker.guard';
     FixedRequestService,
     FixedRequestWithdrawService,
     FixedStateService,
+    InternalWorkerGuard,
   ],
 })
 export class BookingModule {}

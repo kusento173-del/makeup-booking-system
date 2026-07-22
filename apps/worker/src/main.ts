@@ -2,6 +2,7 @@ import { resolve } from 'node:path';
 
 import { Logger } from '@nestjs/common';
 
+import { ExportScheduler } from './export.scheduler';
 import { FixedGenerationScheduler } from './fixed-generation.scheduler';
 
 function loadEnvironment(): void {
@@ -13,20 +14,32 @@ function loadEnvironment(): void {
 }
 
 loadEnvironment();
-const logger = new Logger('FixedGenerationWorker');
+const apiUrl = process.env.INTERNAL_API_URL ?? 'http://127.0.0.1:3000';
+const token = process.env.INTERNAL_WORKER_TOKEN ?? '';
+const logger = new Logger('BackgroundWorker');
 const scheduler = new FixedGenerationScheduler(
   {
-    apiUrl: process.env.INTERNAL_API_URL ?? 'http://127.0.0.1:3000',
+    apiUrl,
     intervalMs: Number(process.env.FIXED_GENERATION_INTERVAL_MS ?? '60000'),
-    token: process.env.INTERNAL_WORKER_TOKEN ?? '',
+    token,
+  },
+  logger,
+);
+const exportScheduler = new ExportScheduler(
+  {
+    apiUrl,
+    intervalMs: Number(process.env.EXPORT_POLL_INTERVAL_MS ?? '5000'),
+    token,
   },
   logger,
 );
 scheduler.start();
+exportScheduler.start();
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, () => {
     scheduler.stop();
+    exportScheduler.stop();
     process.exitCode = 0;
   });
 }

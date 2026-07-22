@@ -67,6 +67,7 @@ catalog:
   class-transformer: 0.5.1
   class-validator: 0.15.1
   dotenv: 17.4.2
+  exceljs: 4.4.0
   husky: 9.1.7
   jose: 5.10.0
   lint-staged: 17.1.0

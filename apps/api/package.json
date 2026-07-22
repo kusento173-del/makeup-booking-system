@@ -23,6 +23,7 @@
     "class-transformer": "catalog:",
     "class-validator": "catalog:",
     "dotenv": "catalog:",
+    "exceljs": "catalog:",
     "jose": "catalog:",
     "redis": "catalog:",
     "reflect-metadata": "0.2.2",
