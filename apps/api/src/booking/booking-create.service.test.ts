@@ -253,6 +253,25 @@ describe('BookingCreateService', () => {
     ).rejects.toBeInstanceOf(BookingSlotConflictError);
   });
 
+  it('excludes the source fixed rule only while creating a rescheduled replacement', async () => {
+    const { service, transaction } = createService();
+
+    await service.createFresh(
+      transaction as unknown as Prisma.TransactionClient,
+      hostContext,
+      command,
+      {
+        excludeFixedRuleId: 'fixed-rule-1',
+        rescheduledFromAppointmentId: 'appointment-0',
+      },
+    );
+
+    const fixedQuery = transaction.fixedAppointmentRuleWeekday.findFirst.mock.calls[0]?.[0] as {
+      where: { ruleId?: { not: string } };
+    };
+    expect(fixedQuery.where.ruleId).toEqual({ not: 'fixed-rule-1' });
+  });
+
   it('enforces host, current operator and customer-service ownership scopes', async () => {
     const wrongHost = { ...hostContext, userId: 'another-user' };
     await expect(createService().service.create(wrongHost, command, now)).rejects.toBeInstanceOf(

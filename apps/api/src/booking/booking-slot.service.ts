@@ -14,6 +14,10 @@ import {
   isoWeekdayForDate,
 } from '../shift/business-date';
 import { BookingHostNotFoundError, BookingSiteMismatchError } from './booking-slot.errors';
+import {
+  BookingAppointmentNotFoundError,
+  BookingStateConflictError,
+} from './booking-create.errors';
 import type {
   BookingSlotInput,
   BookingSlotResult,
@@ -86,6 +90,22 @@ export class BookingSlotService {
       return this.unavailable(input, availability, availability.reason);
     }
 
+    const excludedAppointmentId = input.excludeAppointmentId;
+    const excludedAppointment = excludedAppointmentId
+      ? await this.database.read((client) =>
+          client.appointment.findUnique({
+            select: { fixedRuleId: true, hostId: true, status: true },
+            where: { id: excludedAppointmentId },
+          }),
+        )
+      : null;
+    if (excludedAppointmentId && excludedAppointment?.hostId !== input.hostId) {
+      throw new BookingAppointmentNotFoundError();
+    }
+    if (excludedAppointment && excludedAppointment.status !== 'BOOKED') {
+      throw new BookingStateConflictError();
+    }
+
     const weekday = isoWeekdayForDate(input.date);
     const [appointments, fixedOccupations, pendingOccupations] = await this.database.read(
       (client) =>
@@ -94,6 +114,7 @@ export class BookingSlotService {
             select: { artistId: true, endAt: true, hostId: true, startAt: true },
             where: {
               appointmentDate: input.date,
+              ...(excludedAppointmentId ? { id: { not: excludedAppointmentId } } : {}),
               OR: [{ artistId: input.artistId }, { hostId: input.hostId }],
               status: { in: ['BOOKED', 'COMPLETED'] },
             },
@@ -102,6 +123,9 @@ export class BookingSlotService {
             select: { endMinute: true, startMinute: true },
             where: {
               isoWeekday: weekday,
+              ...(excludedAppointment?.fixedRuleId
+                ? { ruleId: { not: excludedAppointment.fixedRuleId } }
+                : {}),
               OR: [{ artistId: input.artistId }, { hostId: input.hostId }],
               validFrom: { lte: input.date },
               AND: [{ OR: [{ validUntil: null }, { validUntil: { gt: input.date } }] }],

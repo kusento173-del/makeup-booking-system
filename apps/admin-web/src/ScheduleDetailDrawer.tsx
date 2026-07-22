@@ -5,8 +5,11 @@ import type { ScheduleAppointment, ScheduleArtist } from './schedule-board-api';
 interface ScheduleDetailDrawerProps {
   readonly appointment: ScheduleAppointment;
   readonly artist: ScheduleArtist;
+  readonly canEdit: boolean;
   readonly date: string;
+  readonly onCancel: () => void;
   readonly onClose: () => void;
+  readonly onReschedule: () => void;
   readonly siteName: string;
 }
 
@@ -17,8 +20,11 @@ function minuteLabel(minute: number): string {
 export function ScheduleDetailDrawer({
   appointment,
   artist,
+  canEdit,
   date,
+  onCancel,
   onClose,
+  onReschedule,
   siteName,
 }: ScheduleDetailDrawerProps) {
   useEffect(() => {
@@ -89,9 +95,20 @@ export function ScheduleDetailDrawer({
             <dd>{appointment.operatorName ?? '未分配'}</dd>
           </div>
         </dl>
-        <p className="schedule-detail-note">
-          改期、换化妆师或取消必须通过标准操作流程，排班看板不支持拖拽修改。
-        </p>
+        {canEdit ? (
+          <div className="schedule-detail-actions">
+            <button className="primary-button" onClick={onReschedule} type="button">
+              改期或换化妆师
+            </button>
+            <button className="danger-button" onClick={onCancel} type="button">
+              取消预约
+            </button>
+          </div>
+        ) : (
+          <p className="schedule-detail-note">
+            当天排班和已完成预约只读；特殊情况请由管理员通过审计流程处理。
+          </p>
+        )}
       </aside>
     </div>
   );

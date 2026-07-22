@@ -132,6 +132,7 @@ export class BookingController {
   @ApiQuery({ format: 'uuid', name: 'artistId', type: String })
   @ApiQuery({ format: 'date', name: 'date', type: String })
   @ApiQuery({ enum: [15, 30, 45, 60], name: 'durationMinutes', type: Number })
+  @ApiQuery({ format: 'uuid', name: 'excludeAppointmentId', required: false, type: String })
   @ApiQuery({ format: 'uuid', name: 'hostId', type: String })
   @ApiOkResponse({ type: BookingSlotResultDto })
   @ApiConflictResponse({ type: ApiErrorResponseDto })

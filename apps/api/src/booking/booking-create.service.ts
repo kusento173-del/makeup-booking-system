@@ -99,6 +99,7 @@ export interface BookingCreationOptions {
   readonly appointmentId?: string;
   readonly auditAction?: string;
   readonly eventType?: string;
+  readonly excludeFixedRuleId?: string;
   readonly rescheduledFromAppointmentId?: string;
 }
 
@@ -200,6 +201,7 @@ export class BookingCreateService {
         select: { ruleId: true },
         where: {
           endMinute: { gt: command.startMinute },
+          ...(options.excludeFixedRuleId ? { ruleId: { not: options.excludeFixedRuleId } } : {}),
           isoWeekday: weekday,
           OR: [{ artistId: command.artistId }, { hostId: command.hostId }],
           startMinute: { lt: endMinute },

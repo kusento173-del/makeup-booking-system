@@ -3,7 +3,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { ApiError } from './api-client';
 import type { SessionTokenPair } from './auth-session';
 import { addBusinessDays, businessDateLabel, currentBusinessDate } from './business-date';
+import { CancelBookingDialog } from './CancelBookingDialog';
 import { listSites, type SiteSummary } from './master-data-api';
+import { RescheduleBookingDialog } from './RescheduleBookingDialog';
 import { ScheduleDetailDrawer } from './ScheduleDetailDrawer';
 import {
   getScheduleBoard,
@@ -69,6 +71,11 @@ export function SchedulePage({ onUnauthorized, session }: SchedulePageProps) {
   const [selected, setSelected] = useState<{
     readonly appointment: ScheduleAppointment;
     readonly artist: ScheduleArtist;
+  } | null>(null);
+  const [bookingAction, setBookingAction] = useState<{
+    readonly appointment: ScheduleAppointment;
+    readonly artist: ScheduleArtist;
+    readonly type: 'CANCEL' | 'RESCHEDULE';
   } | null>(null);
 
   const visibleArtists = useMemo(
@@ -372,9 +379,47 @@ export function SchedulePage({ onUnauthorized, session }: SchedulePageProps) {
         <ScheduleDetailDrawer
           appointment={selected.appointment}
           artist={selected.artist}
+          canEdit={selected.appointment.status === 'BOOKED' && board.date > today}
           date={board.date}
+          onCancel={() => {
+            setBookingAction({ ...selected, type: 'CANCEL' });
+            setSelected(null);
+          }}
           onClose={() => setSelected(null)}
+          onReschedule={() => {
+            setBookingAction({ ...selected, type: 'RESCHEDULE' });
+            setSelected(null);
+          }}
           siteName={board.siteName}
+        />
+      ) : null}
+      {bookingAction?.type === 'CANCEL' ? (
+        <CancelBookingDialog
+          appointment={bookingAction.appointment}
+          onClose={() => setBookingAction(null)}
+          onSuccess={() => {
+            setBookingAction(null);
+            setReloadVersion((value) => value + 1);
+          }}
+          onUnauthorized={onUnauthorized}
+          token={session.accessToken}
+        />
+      ) : null}
+      {bookingAction?.type === 'RESCHEDULE' && board ? (
+        <RescheduleBookingDialog
+          appointment={bookingAction.appointment}
+          artist={bookingAction.artist}
+          artists={board.artists}
+          initialDate={board.date}
+          maxDate={addBusinessDays(today, 7)}
+          minDate={addBusinessDays(today, 1)}
+          onClose={() => setBookingAction(null)}
+          onSuccess={() => {
+            setBookingAction(null);
+            setReloadVersion((value) => value + 1);
+          }}
+          onUnauthorized={onUnauthorized}
+          token={session.accessToken}
         />
       ) : null}
     </main>

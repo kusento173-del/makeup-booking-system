@@ -19,6 +19,7 @@ const original = {
   appointmentDate: new Date('2026-07-23T00:00:00.000Z'),
   artistId: 'artist-1',
   cancelledAt: null,
+  fixedRuleId: null,
   host: { userId: 'host-user-1' },
   hostId: 'host-1',
   id: 'appointment-1',
@@ -154,6 +155,18 @@ describe('BookingRescheduleService', () => {
       data: { eventType: 'APPOINTMENT_RESCHEDULED_FROM' },
     });
     expect(creator.completeIdempotency).toHaveBeenCalledOnce();
+  });
+
+  it('passes the original fixed rule as the only recurring occupation exclusion', async () => {
+    const { creator, service } = createService({
+      original: { ...original, fixedRuleId: 'fixed-rule-1' },
+    });
+
+    await service.reschedule(context, command, now);
+
+    expect(creator.createFresh.mock.calls[0]?.[3]).toMatchObject({
+      excludeFixedRuleId: 'fixed-rule-1',
+    });
   });
 
   it('rolls the transaction back conceptually when replacement creation fails', async () => {

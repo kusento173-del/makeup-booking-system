@@ -32,6 +32,7 @@ const ORIGINAL_SELECT = {
   appointmentDate: true,
   artistId: true,
   cancelledAt: true,
+  fixedRuleId: true,
   host: { select: { userId: true } },
   hostId: true,
   id: true,
@@ -132,6 +133,7 @@ export class BookingRescheduleService {
             appointmentId: replacementId,
             auditAction: 'APPOINTMENT_CREATED_BY_RESCHEDULE',
             eventType: 'APPOINTMENT_RESCHEDULED_TO',
+            ...(original.fixedRuleId ? { excludeFixedRuleId: original.fixedRuleId } : {}),
             rescheduledFromAppointmentId: original.id,
           },
         );

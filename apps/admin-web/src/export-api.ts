@@ -36,27 +36,11 @@ export function createExportJob(
   input: { readonly scheduleDate: string; readonly scope: ExportScope; readonly siteId?: string },
   idempotencyKey: string,
 ): Promise<ExportJob> {
-  return fetch('/api/export-jobs', {
-    body: JSON.stringify(input),
-    headers: {
-      Accept: 'application/json',
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      'Idempotency-Key': idempotencyKey,
-    },
+  return apiRequest('/export-jobs', {
+    body: input,
+    headers: { 'Idempotency-Key': idempotencyKey },
     method: 'POST',
-  }).then(async (response) => {
-    if (!response.ok) {
-      const payload = (await response.json().catch(() => ({}))) as {
-        error?: { code?: string; message?: string };
-      };
-      throw new ApiError(
-        response.status,
-        payload.error?.code ?? 'REQUEST_FAILED',
-        payload.error?.message ?? '导出创建失败，请稍后重试',
-      );
-    }
-    return (await response.json()) as ExportJob;
+    token,
   });
 }
 

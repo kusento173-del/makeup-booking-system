@@ -59,7 +59,10 @@ function createService(options?: {
 }) {
   const getDay = vi.fn().mockResolvedValue(options?.availability ?? available);
   const client = {
-    appointment: { findMany: vi.fn().mockResolvedValue(options?.appointments ?? []) },
+    appointment: {
+      findMany: vi.fn().mockResolvedValue(options?.appointments ?? []),
+      findUnique: vi.fn(),
+    },
     fixedAppointmentRequest: {
       findMany: vi.fn().mockResolvedValue(options?.pending ?? []),
     },
@@ -146,6 +149,40 @@ describe('BookingSlotService', () => {
       slots: [],
       unavailableReason: 'HOST_DAILY_LIMIT_REACHED',
     });
+  });
+
+  it('excludes the original appointment and its fixed rule while listing reschedule slots', async () => {
+    const { client, service } = createService({
+      appointments: [
+        {
+          artistId: 'other-artist',
+          endAt: new Date('2026-07-23T05:30:00.000Z'),
+          hostId: 'host-1',
+          startAt: new Date('2026-07-23T05:00:00.000Z'),
+        },
+      ],
+    });
+    client.appointment.findUnique.mockResolvedValue({
+      fixedRuleId: 'fixed-rule-1',
+      hostId: 'host-1',
+      status: 'BOOKED',
+    });
+
+    const result = await service.getSlots(
+      context,
+      { ...input, excludeAppointmentId: 'appointment-1' },
+      now,
+    );
+
+    expect(result.existingAppointmentCount).toBe(1);
+    const appointmentQuery = client.appointment.findMany.mock.calls[0]?.[0] as {
+      where: { id?: { not: string } };
+    };
+    const fixedQuery = client.fixedAppointmentRuleWeekday.findMany.mock.calls[0]?.[0] as {
+      where: { ruleId?: { not: string } };
+    };
+    expect(appointmentQuery.where.id).toEqual({ not: 'appointment-1' });
+    expect(fixedQuery.where.ruleId).toEqual({ not: 'fixed-rule-1' });
   });
 
   it('removes approved and pending recurring occupation before it becomes a daily instance', async () => {

@@ -20,6 +20,7 @@ import {
 const artistId = '019f7a17-6845-7a90-94cb-e5f5caabd5f6';
 const hostId = '019f7a18-6845-7a90-94cb-e5f5caabd5f6';
 const ruleId = '019f7a19-6845-7a90-94cb-e5f5caabd5f6';
+const appointmentId = '019f7a20-6845-7a90-94cb-e5f5caabd5f6';
 
 describe('booking request parser', () => {
   it('parses strict slot query strings', () => {
@@ -28,12 +29,14 @@ describe('booking request parser', () => {
         artistId: artistId.toUpperCase(),
         date: '2026-07-23',
         durationMinutes: '45',
+        excludeAppointmentId: appointmentId,
         hostId,
       }),
     ).toEqual({
       artistId,
       date: new Date('2026-07-23T00:00:00.000Z'),
       durationMinutes: 45,
+      excludeAppointmentId: appointmentId,
       hostId,
     });
   });

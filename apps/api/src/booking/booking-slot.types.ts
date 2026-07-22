@@ -7,6 +7,7 @@ export interface BookingSlotInput {
   readonly artistId: string;
   readonly date: Date;
   readonly durationMinutes: number;
+  readonly excludeAppointmentId?: string;
   readonly hostId: string;
 }
 

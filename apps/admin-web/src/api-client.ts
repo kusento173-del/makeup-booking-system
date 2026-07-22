@@ -15,13 +15,19 @@ export class ApiError extends Error {
 
 export async function apiRequest<T>(
   path: string,
-  options: { readonly body?: unknown; readonly method?: string; readonly token?: string } = {},
+  options: {
+    readonly body?: unknown;
+    readonly headers?: Readonly<Record<string, string>>;
+    readonly method?: string;
+    readonly token?: string;
+  } = {},
 ): Promise<T> {
   const response = await fetch(`/api${path}`, {
     headers: {
       Accept: 'application/json',
       ...(options.body === undefined ? {} : { 'Content-Type': 'application/json' }),
       ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
+      ...options.headers,
     },
     method: options.method ?? 'GET',
     ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),

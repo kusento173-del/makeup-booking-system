@@ -78,11 +78,14 @@ function idempotencyKey(value: unknown): string {
 
 export function parseBookingSlotsRequest(query: unknown): BookingSlotInput {
   const input = record(query);
-  exactKeys(input, ['artistId', 'date', 'durationMinutes', 'hostId']);
+  exactKeys(input, ['artistId', 'date', 'durationMinutes', 'excludeAppointmentId', 'hostId']);
   return {
     artistId: uuid(input.artistId),
     date: dateOnly(input.date),
     durationMinutes: integer(input.durationMinutes, true),
+    ...(input.excludeAppointmentId !== undefined
+      ? { excludeAppointmentId: uuid(input.excludeAppointmentId) }
+      : {}),
     hostId: uuid(input.hostId),
   };
 }
