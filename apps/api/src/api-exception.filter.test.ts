@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ApiExceptionFilter } from './api-exception.filter';
 import { AuthSessionInvalidError } from './auth/auth-session.errors';
 import { AuthorizationDeniedError } from './auth/authorization-policy.service';
+import { LastAdministratorError } from './master-data/backoffice-account.errors';
 import {
   MasterDataNotFoundError,
   MasterDataVersionConflictError,
@@ -73,6 +74,18 @@ describe('ApiExceptionFilter', () => {
     expect(conflict.response.status).toHaveBeenCalledWith(409);
     expect(conflict.send).toHaveBeenCalledWith({
       error: { code: 'MASTER_DATA_VERSION_CONFLICT', message: '数据状态冲突，请刷新后重试' },
+      statusCode: 409,
+    });
+  });
+
+  it('protects the last administrator with a stable conflict response', () => {
+    const { host, response, send } = createHost();
+
+    new ApiExceptionFilter().catch(new LastAdministratorError(), host);
+
+    expect(response.status).toHaveBeenCalledWith(409);
+    expect(send).toHaveBeenCalledWith({
+      error: { code: 'LAST_ADMINISTRATOR_REQUIRED', message: '账号或角色状态冲突' },
       statusCode: 409,
     });
   });

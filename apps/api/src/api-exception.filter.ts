@@ -30,6 +30,11 @@ import {
 } from './auth/wechat-login.errors';
 import { MasterDataRequestInvalidError } from './master-data/master-data-request.parser';
 import {
+  BackofficeAccountConflictError,
+  BackofficeAccountNotFoundError,
+  LastAdministratorError,
+} from './master-data/backoffice-account.errors';
+import {
   MasterDataDateRangeError,
   MasterDataInactiveSiteError,
   MasterDataNotFoundError,
@@ -84,7 +89,10 @@ export class ApiExceptionFilter implements ExceptionFilter {
       return this.response(HttpStatus.FORBIDDEN, exception.code, '无权执行该操作');
     }
 
-    if (exception instanceof MasterDataNotFoundError) {
+    if (
+      exception instanceof MasterDataNotFoundError ||
+      exception instanceof BackofficeAccountNotFoundError
+    ) {
       return this.response(HttpStatus.NOT_FOUND, exception.code, '目标数据不存在');
     }
 
@@ -99,6 +107,13 @@ export class ApiExceptionFilter implements ExceptionFilter {
       exception instanceof MasterDataSiteMismatchError
     ) {
       return this.response(HttpStatus.CONFLICT, exception.code, '数据状态冲突，请刷新后重试');
+    }
+
+    if (
+      exception instanceof BackofficeAccountConflictError ||
+      exception instanceof LastAdministratorError
+    ) {
+      return this.response(HttpStatus.CONFLICT, exception.code, '账号或角色状态冲突');
     }
 
     if (exception instanceof BindingTargetUnavailableError) {

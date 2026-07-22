@@ -70,6 +70,10 @@ test('OpenAPI 契约包含认证、主数据路径和分页查询参数', async 
       '/auth/logout',
       '/auth/logout-all',
       '/backoffice/binding-codes',
+      '/backoffice/accounts',
+      '/backoffice/accounts/{id}',
+      '/backoffice/accounts/{id}/roles',
+      '/backoffice/roles/{id}/revoke',
       '/master-data/sites',
       '/master-data/hosts',
       '/master-data/artists',
@@ -84,6 +88,11 @@ test('OpenAPI 契约包含认证、主数据路径和分页查询参数', async 
   );
   expect(document.components?.securitySchemes).toHaveProperty('access-token');
   expect(document.paths?.['/backoffice/binding-codes']).toHaveProperty('post');
+  expect(document.paths?.['/backoffice/accounts']).toHaveProperty('get');
+  expect(document.paths?.['/backoffice/accounts']).toHaveProperty('post');
+  expect(document.paths?.['/backoffice/accounts/{id}']).toHaveProperty('patch');
+  expect(document.paths?.['/backoffice/accounts/{id}/roles']).toHaveProperty('post');
+  expect(document.paths?.['/backoffice/roles/{id}/revoke']).toHaveProperty('patch');
   const hostOperation = document.paths?.['/master-data/hosts'] as
     { get?: { parameters?: { name?: string }[] }; post?: unknown } | undefined;
   expect(hostOperation).toHaveProperty('post');

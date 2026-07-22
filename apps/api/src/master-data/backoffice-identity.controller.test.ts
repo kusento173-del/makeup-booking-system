@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { AccessTokenClaims } from '../auth/auth-session.types';
 import type { BindingCodeIssuerService } from '../auth/binding-code-issuer.service';
+import type { BackofficeAccountService } from './backoffice-account.service';
 import type { MasterDataCommandContextService } from './master-data-command-context.service';
 import { BackofficeIdentityController } from './backoffice-identity.controller';
 
@@ -29,6 +30,7 @@ describe('BackofficeIdentityController', () => {
     const controller = new BackofficeIdentityController(
       { resolve } as unknown as MasterDataCommandContextService,
       { issue } as unknown as BindingCodeIssuerService,
+      {} as BackofficeAccountService,
     );
 
     await expect(
