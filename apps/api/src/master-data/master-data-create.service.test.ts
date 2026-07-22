@@ -6,8 +6,10 @@ import { AuditSnapshotSanitizerService } from '../audit/audit-snapshot-sanitizer
 import { AuthorizationDeniedError } from '../auth/authorization-policy.service';
 import { AuthorizationPolicyService } from '../auth/authorization-policy.service';
 import type { DatabaseService } from '../database/database.service';
+import { MasterDataAuditService } from './master-data-audit.service';
 import type { MasterDataCommandContext } from './master-data-command.types';
-import { MasterDataCreateService, MasterDataSiteMismatchError } from './master-data-create.service';
+import { MasterDataCreateService } from './master-data-create.service';
+import { MasterDataSiteMismatchError } from './master-data.errors';
 import { MasterDataNormalizationService } from './master-data-normalization.service';
 
 const context: MasterDataCommandContext = {
@@ -28,8 +30,9 @@ function createService(transaction: object) {
     ),
   };
   const service = new MasterDataCreateService(
-    new AuditEntryFactory(new AuditSnapshotSanitizerService()),
-    { append },
+    new MasterDataAuditService(new AuditEntryFactory(new AuditSnapshotSanitizerService()), {
+      append,
+    }),
     new AuthorizationPolicyService(),
     database as unknown as DatabaseService,
     new MasterDataNormalizationService(),
@@ -48,7 +51,10 @@ describe('MasterDataCreateService', () => {
       realName: '主播一',
       siteId: 'site-songjiang',
     });
-    const transaction = { hostProfile: { create } };
+    const transaction = {
+      hostProfile: { create },
+      site: { findUnique: vi.fn().mockResolvedValue({ status: 'ACTIVE' }) },
+    };
     const { append, service } = createService(transaction);
 
     await expect(
@@ -101,7 +107,10 @@ describe('MasterDataCreateService', () => {
       realName: '化妆师一',
       siteId: 'site-songjiang',
     });
-    const { service } = createService({ artistProfile: { create } });
+    const { service } = createService({
+      artistProfile: { create },
+      site: { findUnique: vi.fn().mockResolvedValue({ status: 'ACTIVE' }) },
+    });
 
     await service.createArtist(context, {
       nickname: ' 柔柔 ',

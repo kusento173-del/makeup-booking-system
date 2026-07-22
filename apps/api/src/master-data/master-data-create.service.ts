@@ -1,11 +1,9 @@
 import type { Prisma } from '@makeup/database';
 import { Injectable } from '@nestjs/common';
 
-import { AuditEntryFactory } from '../audit/audit-entry.factory';
-import { AuditLogRepository } from '../audit/audit-log.repository';
-import type { AuditSnapshot } from '../audit/audit.types';
 import { AuthorizationPolicyService } from '../auth/authorization-policy.service';
 import { DatabaseService } from '../database/database.service';
+import { MasterDataAuditService } from './master-data-audit.service';
 import type {
   AssignOperatorCommand,
   CreateArtistCommand,
@@ -14,46 +12,18 @@ import type {
   CreateSiteCommand,
   MasterDataCommandContext,
 } from './master-data-command.types';
+import {
+  MasterDataInactiveSiteError,
+  MasterDataNotFoundError,
+  MasterDataSiteMismatchError,
+} from './master-data.errors';
 import { MasterDataNormalizationService } from './master-data-normalization.service';
-
-export class MasterDataNotFoundError extends Error {
-  readonly code = 'MASTER_DATA_NOT_FOUND';
-
-  constructor(entity: string) {
-    super(`${entity} was not found`);
-    this.name = 'MasterDataNotFoundError';
-  }
-}
-
-export class MasterDataSiteMismatchError extends Error {
-  readonly code = 'MASTER_DATA_SITE_MISMATCH';
-
-  constructor() {
-    super('Related master-data records must belong to the same site');
-    this.name = 'MasterDataSiteMismatchError';
-  }
-}
-
-function requiredText(value: string, field: string): string {
-  const normalized = value.trim();
-
-  if (!normalized) {
-    throw new TypeError(`${field} must not be blank`);
-  }
-
-  return normalized;
-}
-
-function optionalText(value: string | undefined): string | undefined {
-  const normalized = value?.trim();
-  return normalized || undefined;
-}
+import { optionalMasterDataText, requiredMasterDataText } from './master-data-text';
 
 @Injectable()
 export class MasterDataCreateService {
   constructor(
-    private readonly auditFactory: AuditEntryFactory,
-    private readonly auditLogs: AuditLogRepository,
+    private readonly audit: MasterDataAuditService,
     private readonly authorization: AuthorizationPolicyService,
     private readonly database: DatabaseService,
     private readonly normalization: MasterDataNormalizationService,
@@ -65,15 +35,15 @@ export class MasterDataCreateService {
     return this.database.transaction(async (transaction) => {
       const site = await transaction.site.create({
         data: {
-          code: requiredText(command.code, 'code').toLocaleUpperCase('en-US'),
-          name: requiredText(command.name, 'name'),
+          code: requiredMasterDataText(command.code, 'code').toLocaleUpperCase('en-US'),
+          name: requiredMasterDataText(command.name, 'name'),
           sortOrder: command.sortOrder ?? 0,
-          timezone: optionalText(command.timezone) ?? 'Asia/Shanghai',
+          timezone: optionalMasterDataText(command.timezone) ?? 'Asia/Shanghai',
         },
         select: { code: true, id: true, name: true, sortOrder: true, status: true, timezone: true },
       });
 
-      await this.appendAudit(transaction, context, {
+      await this.audit.append(transaction, context, {
         action: 'SITE_CREATED',
         afterData: site,
         objectId: site.id,
@@ -89,11 +59,12 @@ export class MasterDataCreateService {
     this.authorization.assertSiteScope(context, command.siteId);
 
     return this.database.transaction(async (transaction) => {
+      await this.assertActiveSite(transaction, command.siteId);
       const host = await transaction.hostProfile.create({
         data: {
-          hostCode: requiredText(command.hostCode, 'hostCode'),
-          nickname: optionalText(command.nickname) ?? null,
-          realName: requiredText(command.realName, 'realName'),
+          hostCode: requiredMasterDataText(command.hostCode, 'hostCode'),
+          nickname: optionalMasterDataText(command.nickname) ?? null,
+          realName: requiredMasterDataText(command.realName, 'realName'),
           siteId: command.siteId,
         },
         select: {
@@ -106,7 +77,7 @@ export class MasterDataCreateService {
         },
       });
 
-      await this.appendAudit(transaction, context, {
+      await this.audit.append(transaction, context, {
         action: 'HOST_CREATED',
         afterData: host,
         objectId: host.id,
@@ -120,14 +91,15 @@ export class MasterDataCreateService {
 
   createArtist(context: MasterDataCommandContext, command: CreateArtistCommand): Promise<string> {
     this.authorization.assertSiteScope(context, command.siteId);
-    const nickname = requiredText(command.nickname, 'nickname');
+    const nickname = requiredMasterDataText(command.nickname, 'nickname');
 
     return this.database.transaction(async (transaction) => {
+      await this.assertActiveSite(transaction, command.siteId);
       const artist = await transaction.artistProfile.create({
         data: {
           nickname,
           nicknameNormalized: this.normalization.normalizeMatchText(nickname, 'nickname'),
-          realName: requiredText(command.realName, 'realName'),
+          realName: requiredMasterDataText(command.realName, 'realName'),
           siteId: command.siteId,
         },
         select: {
@@ -139,7 +111,7 @@ export class MasterDataCreateService {
         },
       });
 
-      await this.appendAudit(transaction, context, {
+      await this.audit.append(transaction, context, {
         action: 'ARTIST_CREATED',
         afterData: artist,
         objectId: artist.id,
@@ -156,9 +128,10 @@ export class MasterDataCreateService {
     command: CreateOperatorCommand,
   ): Promise<string> {
     this.authorization.assertSiteScope(context, command.siteId);
-    const realName = requiredText(command.realName, 'realName');
+    const realName = requiredMasterDataText(command.realName, 'realName');
 
     return this.database.transaction(async (transaction) => {
+      await this.assertActiveSite(transaction, command.siteId);
       const operator = await transaction.operatorProfile.create({
         data: {
           nameNormalized: this.normalization.normalizeMatchText(realName, 'realName'),
@@ -168,7 +141,7 @@ export class MasterDataCreateService {
         select: { employmentStatus: true, id: true, realName: true, siteId: true },
       });
 
-      await this.appendAudit(transaction, context, {
+      await this.audit.append(transaction, context, {
         action: 'OPERATOR_CREATED',
         afterData: operator,
         objectId: operator.id,
@@ -209,9 +182,10 @@ export class MasterDataCreateService {
       }
 
       this.authorization.assertSiteScope(context, host.siteId);
+      await this.assertActiveSite(transaction, host.siteId);
       const relation = await transaction.hostOperatorRelation.create({
         data: {
-          changeReason: optionalText(command.changeReason) ?? null,
+          changeReason: optionalMasterDataText(command.changeReason) ?? null,
           hostId: host.id,
           operatorId: operator.id,
           validFrom: command.validFrom,
@@ -227,7 +201,7 @@ export class MasterDataCreateService {
         },
       });
 
-      await this.appendAudit(transaction, context, {
+      await this.audit.append(transaction, context, {
         action: 'HOST_OPERATOR_ASSIGNED',
         afterData: {
           changeReason: relation.changeReason,
@@ -246,30 +220,21 @@ export class MasterDataCreateService {
     });
   }
 
-  private appendAudit(
+  private async assertActiveSite(
     transaction: Prisma.TransactionClient,
-    context: MasterDataCommandContext,
-    entry: {
-      readonly action: string;
-      readonly afterData: AuditSnapshot;
-      readonly objectId: string;
-      readonly objectType: string;
-      readonly reason?: string | undefined;
-      readonly siteId: string;
-    },
-  ): Promise<string> {
-    return this.auditLogs.append(
-      transaction,
-      this.auditFactory.create({
-        ...entry,
-        actorName: context.actorName,
-        actorRole: context.roleCode,
-        actorUserId: context.userId,
-        clientType: context.clientType,
-        ipAddress: context.ipAddress,
-        requestId: context.requestId,
-        userAgent: context.userAgent,
-      }),
-    );
+    siteId: string,
+  ): Promise<void> {
+    const site = await transaction.site.findUnique({
+      select: { status: true },
+      where: { id: siteId },
+    });
+
+    if (!site) {
+      throw new MasterDataNotFoundError('Site');
+    }
+
+    if (site.status !== 'ACTIVE') {
+      throw new MasterDataInactiveSiteError();
+    }
   }
 }

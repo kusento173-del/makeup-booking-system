@@ -40,3 +40,49 @@ export interface AssignOperatorCommand {
   readonly validFrom: Date;
   readonly validUntil?: Date;
 }
+
+export interface UpdateSiteCommand {
+  readonly expectedRowVersion: number;
+  readonly id: string;
+  readonly name: string;
+  readonly reason: string;
+  readonly sortOrder: number;
+  readonly status: 'ACTIVE' | 'INACTIVE';
+  readonly timezone: string;
+}
+
+export interface UpdateHostCommand {
+  readonly expectedRowVersion: number;
+  readonly id: string;
+  readonly nickname?: string;
+  readonly qualificationStatus: 'ACTIVE' | 'SUSPENDED' | 'CANCELLED';
+  readonly realName: string;
+  readonly reason: string;
+  readonly siteId: string;
+}
+
+export interface UpdateArtistCommand {
+  readonly employmentStatus: 'ACTIVE' | 'INACTIVE';
+  readonly expectedRowVersion: number;
+  readonly id: string;
+  readonly nickname: string;
+  readonly realName: string;
+  readonly reason: string;
+  readonly siteId: string;
+}
+
+export interface UpdateOperatorCommand {
+  readonly employmentStatus: 'ACTIVE' | 'INACTIVE';
+  readonly expectedRowVersion: number;
+  readonly id: string;
+  readonly realName: string;
+  readonly reason: string;
+  readonly siteId: string;
+}
+
+export interface EndOperatorAssignmentCommand {
+  readonly expectedRowVersion: number;
+  readonly id: string;
+  readonly reason: string;
+  readonly validUntil: Date;
+}
