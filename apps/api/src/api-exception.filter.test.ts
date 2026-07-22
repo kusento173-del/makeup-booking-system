@@ -9,6 +9,8 @@ import {
   MasterDataNotFoundError,
   MasterDataVersionConflictError,
 } from './master-data/master-data.errors';
+import { InitialShiftAlreadyConfiguredError, ShiftArtistNotFoundError } from './shift/shift.errors';
+import { ShiftDefinitionInvalidError } from './shift/shift-time';
 
 function createHost() {
   const send = vi.fn();
@@ -86,6 +88,33 @@ describe('ApiExceptionFilter', () => {
     expect(response.status).toHaveBeenCalledWith(409);
     expect(send).toHaveBeenCalledWith({
       error: { code: 'LAST_ADMINISTRATOR_REQUIRED', message: '账号或角色状态冲突' },
+      statusCode: 409,
+    });
+  });
+
+  it('maps shift validation, absence and duplicate setup without internal details', () => {
+    const invalid = createHost();
+    const missing = createHost();
+    const conflict = createHost();
+    const filter = new ApiExceptionFilter();
+
+    filter.catch(new ShiftDefinitionInvalidError('TIME_STEP_INVALID'), invalid.host);
+    filter.catch(new ShiftArtistNotFoundError(), missing.host);
+    filter.catch(new InitialShiftAlreadyConfiguredError(), conflict.host);
+
+    expect(invalid.response.status).toHaveBeenCalledWith(400);
+    expect(invalid.send).toHaveBeenCalledWith({
+      error: { code: 'SHIFT_DEFINITION_INVALID', message: '请求内容不正确' },
+      statusCode: 400,
+    });
+    expect(missing.response.status).toHaveBeenCalledWith(404);
+    expect(missing.send).toHaveBeenCalledWith({
+      error: { code: 'SHIFT_ARTIST_NOT_FOUND', message: '目标数据不存在' },
+      statusCode: 404,
+    });
+    expect(conflict.response.status).toHaveBeenCalledWith(409);
+    expect(conflict.send).toHaveBeenCalledWith({
+      error: { code: 'INITIAL_SHIFT_ALREADY_CONFIGURED', message: '数据状态冲突，请刷新后重试' },
       statusCode: 409,
     });
   });

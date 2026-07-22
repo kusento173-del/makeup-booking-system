@@ -41,6 +41,13 @@ import {
   MasterDataSiteMismatchError,
   MasterDataVersionConflictError,
 } from './master-data/master-data.errors';
+import {
+  InitialShiftAlreadyConfiguredError,
+  ShiftArtistNotFoundError,
+  ShiftArtistUnavailableError,
+} from './shift/shift.errors';
+import { ShiftRequestInvalidError } from './shift/shift-request.parser';
+import { ShiftDefinitionInvalidError } from './shift/shift-time';
 
 interface ErrorResponse {
   readonly error: {
@@ -80,7 +87,9 @@ export class ApiExceptionFilter implements ExceptionFilter {
 
     if (
       exception instanceof AuthRequestInvalidError ||
-      exception instanceof MasterDataRequestInvalidError
+      exception instanceof MasterDataRequestInvalidError ||
+      exception instanceof ShiftRequestInvalidError ||
+      exception instanceof ShiftDefinitionInvalidError
     ) {
       return this.response(HttpStatus.BAD_REQUEST, exception.code, '请求内容不正确');
     }
@@ -91,7 +100,8 @@ export class ApiExceptionFilter implements ExceptionFilter {
 
     if (
       exception instanceof MasterDataNotFoundError ||
-      exception instanceof BackofficeAccountNotFoundError
+      exception instanceof BackofficeAccountNotFoundError ||
+      exception instanceof ShiftArtistNotFoundError
     ) {
       return this.response(HttpStatus.NOT_FOUND, exception.code, '目标数据不存在');
     }
@@ -104,7 +114,9 @@ export class ApiExceptionFilter implements ExceptionFilter {
       exception instanceof MasterDataVersionConflictError ||
       exception instanceof MasterDataDateRangeError ||
       exception instanceof MasterDataInactiveSiteError ||
-      exception instanceof MasterDataSiteMismatchError
+      exception instanceof MasterDataSiteMismatchError ||
+      exception instanceof InitialShiftAlreadyConfiguredError ||
+      exception instanceof ShiftArtistUnavailableError
     ) {
       return this.response(HttpStatus.CONFLICT, exception.code, '数据状态冲突，请刷新后重试');
     }
