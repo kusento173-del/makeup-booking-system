@@ -189,6 +189,85 @@ export class FixedRequestCreateResultDto {
   request!: FixedRequestSummaryDto;
 }
 
+export class FixedRequestListItemDto {
+  @ApiProperty({ format: 'date' })
+  effectiveFrom!: string;
+
+  @ApiProperty()
+  hostCode!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  hostId!: string;
+
+  @ApiProperty()
+  hostName!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty()
+  reason!: string;
+
+  @ApiProperty({ enum: ['CANCEL', 'CHANGE', 'CREATE'] })
+  requestType!: string;
+
+  @ApiProperty({ nullable: true })
+  reviewComment!: string | null;
+
+  @ApiProperty({ format: 'date-time', nullable: true })
+  reviewedAt!: string | null;
+
+  @ApiProperty({ minimum: 1 })
+  rowVersion!: number;
+
+  @ApiProperty({ format: 'uuid' })
+  siteId!: string;
+
+  @ApiProperty()
+  siteName!: string;
+
+  @ApiProperty({ enum: ['APPROVED', 'PENDING', 'REJECTED', 'WITHDRAWN'] })
+  status!: string;
+
+  @ApiProperty({ format: 'date-time' })
+  submittedAt!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  submittedByOperatorId!: string;
+
+  @ApiProperty()
+  submittedByOperatorName!: string;
+
+  @ApiProperty({ format: 'uuid', nullable: true })
+  targetArtistId!: string | null;
+
+  @ApiProperty({ nullable: true })
+  targetArtistNickname!: string | null;
+
+  @ApiProperty({ enum: [15, 30, 45, 60], nullable: true })
+  targetDurationMinutes!: number | null;
+
+  @ApiProperty({ maximum: 1425, minimum: 0, multipleOf: 15, nullable: true })
+  targetStartMinute!: number | null;
+
+  @ApiProperty({ isArray: true, maximum: 7, minimum: 1, type: Number })
+  targetWeekdays!: number[];
+}
+
+export class FixedRequestPageDto {
+  @ApiProperty({ isArray: true, type: FixedRequestListItemDto })
+  items!: FixedRequestListItemDto[];
+
+  @ApiProperty({ minimum: 1 })
+  page!: number;
+
+  @ApiProperty({ maximum: 100, minimum: 1 })
+  pageSize!: number;
+
+  @ApiProperty({ minimum: 0 })
+  total!: number;
+}
+
 export class CreateBookingRequestDto {
   @ApiProperty({ format: 'uuid' })
   artistId!: string;

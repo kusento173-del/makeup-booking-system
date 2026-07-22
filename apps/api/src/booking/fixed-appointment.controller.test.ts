@@ -4,6 +4,7 @@ import type { AccessTokenClaims } from '../auth/auth-session.types';
 import type { MasterDataCommandContextService } from '../master-data/master-data-command-context.service';
 import { FixedAppointmentController } from './fixed-appointment.controller';
 import type { FixedAvailabilityService } from './fixed-availability.service';
+import type { FixedRequestQueryService } from './fixed-request-query.service';
 import type { FixedRequestService } from './fixed-request.service';
 
 const artistId = '019f7a17-6845-7a90-94cb-e5f5caabd5f6';
@@ -25,6 +26,7 @@ describe('FixedAppointmentController', () => {
         getAvailability,
       } as unknown as FixedAvailabilityService,
       {} as MasterDataCommandContextService,
+      {} as FixedRequestQueryService,
       {} as FixedRequestService,
     );
 
@@ -55,6 +57,7 @@ describe('FixedAppointmentController', () => {
     const controller = new FixedAppointmentController(
       {} as FixedAvailabilityService,
       { resolve } as unknown as MasterDataCommandContextService,
+      {} as FixedRequestQueryService,
       { create } as unknown as FixedRequestService,
     );
 
@@ -90,6 +93,28 @@ describe('FixedAppointmentController', () => {
       reason: '申请固定',
       startMinute: 540,
       weekdays: [1, 3],
+    });
+  });
+
+  it('lists requests with strict filters and verified identity', async () => {
+    const list = vi.fn().mockResolvedValue({ items: [], page: 2, pageSize: 20, total: 0 });
+    const controller = new FixedAppointmentController(
+      {} as FixedAvailabilityService,
+      {} as MasterDataCommandContextService,
+      { list } as unknown as FixedRequestQueryService,
+      {} as FixedRequestService,
+    );
+
+    await controller.listRequests(
+      { page: '2', pageSize: '20', requestType: 'CREATE', status: 'PENDING' },
+      authorization,
+    );
+
+    expect(list).toHaveBeenCalledWith(authorization, {
+      page: 2,
+      pageSize: 20,
+      requestType: 'CREATE',
+      status: 'PENDING',
     });
   });
 });

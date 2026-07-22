@@ -8,6 +8,11 @@ import type { AppointmentDisplayStatus, AppointmentListInput } from './appointme
 import type { BookingSlotInput } from './booking-slot.types';
 import type { FixedAvailabilityInput } from './fixed-availability.types';
 import type { CreateFixedRequestCommand } from './fixed-request.types';
+import type {
+  FixedRequestListInput,
+  FixedRequestStatus,
+  FixedRequestType,
+} from './fixed-request-query.types';
 
 export class BookingRequestInvalidError extends Error {
   readonly code = 'INVALID_REQUEST';
@@ -116,6 +121,31 @@ export function parseCreateFixedRequest(
     reason: input.reason,
     startMinute: integer(input.startMinute, false),
     weekdays: input.weekdays.map((weekday) => integer(weekday, false)),
+  };
+}
+
+export function parseFixedRequestList(query: unknown): FixedRequestListInput {
+  const input = record(query);
+  exactKeys(input, ['page', 'pageSize', 'requestType', 'status']);
+  const page = input.page === undefined ? 1 : integer(input.page, true);
+  const pageSize = input.pageSize === undefined ? 50 : integer(input.pageSize, true);
+  const requestTypes: readonly FixedRequestType[] = ['CANCEL', 'CHANGE', 'CREATE'];
+  const statuses: readonly FixedRequestStatus[] = ['APPROVED', 'PENDING', 'REJECTED', 'WITHDRAWN'];
+  if (
+    page < 1 ||
+    pageSize < 1 ||
+    pageSize > 100 ||
+    (input.requestType !== undefined &&
+      !requestTypes.includes(input.requestType as FixedRequestType)) ||
+    (input.status !== undefined && !statuses.includes(input.status as FixedRequestStatus))
+  ) {
+    throw new BookingRequestInvalidError();
+  }
+  return {
+    page,
+    pageSize,
+    ...(input.requestType ? { requestType: input.requestType as FixedRequestType } : {}),
+    ...(input.status ? { status: input.status as FixedRequestStatus } : {}),
   };
 }
 

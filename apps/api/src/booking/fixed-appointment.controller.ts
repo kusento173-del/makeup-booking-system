@@ -20,13 +20,20 @@ import type { AccessTokenClaims } from '../auth/auth-session.types';
 import { CurrentAuth } from '../auth/current-auth.decorator';
 import { MasterDataCommandContextService } from '../master-data/master-data-command-context.service';
 import {
+  CreateFixedRequestDto,
   FixedAvailabilityResultDto,
   FixedRequestCreateResultDto,
-  CreateFixedRequestDto,
+  FixedRequestPageDto,
 } from './booking-openapi.dto';
-import { parseCreateFixedRequest, parseFixedAvailabilityRequest } from './booking-request.parser';
+import {
+  parseCreateFixedRequest,
+  parseFixedAvailabilityRequest,
+  parseFixedRequestList,
+} from './booking-request.parser';
 import { FixedAvailabilityService } from './fixed-availability.service';
 import type { FixedAvailabilityResult } from './fixed-availability.types';
+import { FixedRequestQueryService } from './fixed-request-query.service';
+import type { FixedRequestPage } from './fixed-request-query.types';
 import { FixedRequestService } from './fixed-request.service';
 import type { FixedRequestCreateResult } from './fixed-request.types';
 
@@ -41,6 +48,7 @@ export class FixedAppointmentController {
   constructor(
     private readonly availability: FixedAvailabilityService,
     private readonly contexts: MasterDataCommandContextService,
+    private readonly requestQueries: FixedRequestQueryService,
     private readonly requests: FixedRequestService,
   ) {}
 
@@ -59,6 +67,24 @@ export class FixedAppointmentController {
     @CurrentAuth() authorization: AccessTokenClaims,
   ): Promise<FixedAvailabilityResult> {
     return this.availability.getAvailability(authorization, parseFixedAvailabilityRequest(query));
+  }
+
+  @Get('requests')
+  @ApiOperation({ summary: '按角色范围查询固定预约申请' })
+  @ApiQuery({ minimum: 1, name: 'page', required: false, type: Number })
+  @ApiQuery({ maximum: 100, minimum: 1, name: 'pageSize', required: false, type: Number })
+  @ApiQuery({ enum: ['CANCEL', 'CHANGE', 'CREATE'], name: 'requestType', required: false })
+  @ApiQuery({
+    enum: ['APPROVED', 'PENDING', 'REJECTED', 'WITHDRAWN'],
+    name: 'status',
+    required: false,
+  })
+  @ApiOkResponse({ type: FixedRequestPageDto })
+  listRequests(
+    @Query() query: unknown,
+    @CurrentAuth() authorization: AccessTokenClaims,
+  ): Promise<FixedRequestPage> {
+    return this.requestQueries.list(authorization, parseFixedRequestList(query));
   }
 
   @Post('requests')

@@ -8,6 +8,7 @@ import {
   parseCreateBookingRequest,
   parseCreateFixedRequest,
   parseFixedAvailabilityRequest,
+  parseFixedRequestList,
   parseRescheduleBookingRequest,
 } from './booking-request.parser';
 
@@ -115,6 +116,19 @@ describe('booking request parser', () => {
         'fixed-key-0001',
       ),
     ).toThrow(BookingRequestInvalidError);
+  });
+
+  it('parses bounded fixed-request list filters', () => {
+    expect(
+      parseFixedRequestList({
+        page: '2',
+        pageSize: '100',
+        requestType: 'CHANGE',
+        status: 'APPROVED',
+      }),
+    ).toEqual({ page: 2, pageSize: 100, requestType: 'CHANGE', status: 'APPROVED' });
+    expect(() => parseFixedRequestList({ pageSize: '101' })).toThrow(BookingRequestInvalidError);
+    expect(() => parseFixedRequestList({ siteId: 'forged' })).toThrow(BookingRequestInvalidError);
   });
 
   it.each([
