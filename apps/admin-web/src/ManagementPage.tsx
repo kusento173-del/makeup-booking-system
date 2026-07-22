@@ -1,11 +1,15 @@
-import { type FormEvent, useEffect, useMemo, useState } from 'react';
+import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from 'react';
 
 import { ApiError } from './api-client';
 import type { SessionTokenPair } from './auth-session';
+import { CreateRecordDialog } from './CreateRecordDialog';
 import {
   type AccountSummary,
   type ArtistSummary,
+  createManagementItem,
   type HostSummary,
+  issueBindingCode,
+  type IssuedBindingCode,
   listManagementItems,
   listSites,
   type ManagementItem,
@@ -23,7 +27,7 @@ interface ManagementPageProps {
 interface Column {
   readonly key: string;
   readonly label: string;
-  readonly render: (item: ManagementItem) => string;
+  readonly render: (item: ManagementItem) => ReactNode;
 }
 
 const STATUS_NAMES: Record<string, string> = {
@@ -172,6 +176,11 @@ export function ManagementPage({ onUnauthorized, session }: ManagementPageProps)
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [mutating, setMutating] = useState(false);
+  const [reloadVersion, setReloadVersion] = useState(0);
+  const [bindingCode, setBindingCode] = useState<IssuedBindingCode | null>(null);
+  const [mutationError, setMutationError] = useState<string | null>(null);
 
   const visibleNavigation = NAV_ITEMS.filter(
     (item) => item.id !== 'accounts' || session.role.roleCode === 'ADMIN',
@@ -224,7 +233,7 @@ export function ManagementPage({ onUnauthorized, session }: ManagementPageProps)
     return () => {
       active = false;
     };
-  }, [onUnauthorized, page, search, session.accessToken, view]);
+  }, [onUnauthorized, page, reloadVersion, search, session.accessToken, view]);
 
   function switchView(next: ManagementView) {
     setView(next);
@@ -237,6 +246,44 @@ export function ManagementPage({ onUnauthorized, session }: ManagementPageProps)
     event.preventDefault();
     setPage(1);
     setSearch(draftSearch.trim());
+  }
+
+  async function createRecord(body: Record<string, unknown>) {
+    if (view === 'relations') {
+      return;
+    }
+    setMutating(true);
+    setMutationError(null);
+    try {
+      await createManagementItem(view, session.accessToken, body);
+      setCreateOpen(false);
+      setReloadVersion((value) => value + 1);
+    } catch (cause) {
+      if (cause instanceof ApiError && cause.status === 401) {
+        onUnauthorized();
+        return;
+      }
+      setMutationError(cause instanceof ApiError ? cause.message : '保存失败，请稍后重试');
+    } finally {
+      setMutating(false);
+    }
+  }
+
+  async function createBindingCode(item: HostSummary | ArtistSummary | OperatorSummary) {
+    const roleCode = view === 'hosts' ? 'HOST' : view === 'artists' ? 'ARTIST' : 'OPERATOR';
+    setMutating(true);
+    setError(null);
+    try {
+      setBindingCode(await issueBindingCode(session.accessToken, item.id, roleCode));
+    } catch (cause) {
+      if (cause instanceof ApiError && cause.status === 401) {
+        onUnauthorized();
+        return;
+      }
+      setError(cause instanceof ApiError ? cause.message : '绑定码生成失败，请稍后重试');
+    } finally {
+      setMutating(false);
+    }
   }
 
   const title = NAV_ITEMS.find((item) => item.id === view)?.label ?? '主数据';
@@ -265,20 +312,34 @@ export function ManagementPage({ onUnauthorized, session }: ManagementPageProps)
             <p className="eyebrow">主数据管理</p>
             <h1>{title}</h1>
           </div>
-          {view === 'sites' ? null : (
-            <form className="search-form" onSubmit={submitSearch}>
-              <label className="sr-only" htmlFor="management-search">
-                搜索
-              </label>
-              <input
-                id="management-search"
-                onChange={(event) => setDraftSearch(event.target.value)}
-                placeholder="输入姓名或编号"
-                value={draftSearch}
-              />
-              <button type="submit">搜索</button>
-            </form>
-          )}
+          <div className="header-actions">
+            {view === 'sites' ? null : (
+              <form className="search-form" onSubmit={submitSearch}>
+                <label className="sr-only" htmlFor="management-search">
+                  搜索
+                </label>
+                <input
+                  id="management-search"
+                  onChange={(event) => setDraftSearch(event.target.value)}
+                  placeholder="输入姓名或编号"
+                  value={draftSearch}
+                />
+                <button type="submit">搜索</button>
+              </form>
+            )}
+            {view !== 'relations' && (view !== 'sites' || session.role.roleCode === 'ADMIN') ? (
+              <button
+                className="primary-action"
+                onClick={() => {
+                  setMutationError(null);
+                  setCreateOpen(true);
+                }}
+                type="button"
+              >
+                新增
+              </button>
+            ) : null}
+          </div>
         </header>
 
         <div className="table-card">
@@ -298,6 +359,9 @@ export function ManagementPage({ onUnauthorized, session }: ManagementPageProps)
                     {tableColumns.map((column) => (
                       <th key={column.key}>{column.label}</th>
                     ))}
+                    {view === 'hosts' || view === 'artists' || view === 'operators' ? (
+                      <th>账号绑定</th>
+                    ) : null}
                   </tr>
                 </thead>
                 <tbody>
@@ -306,6 +370,26 @@ export function ManagementPage({ onUnauthorized, session }: ManagementPageProps)
                       {tableColumns.map((column) => (
                         <td key={column.key}>{column.render(item)}</td>
                       ))}
+                      {view === 'hosts' || view === 'artists' || view === 'operators' ? (
+                        <td>
+                          {(item as HostSummary | ArtistSummary | OperatorSummary).accountBound ? (
+                            <span className="muted-text">已绑定</span>
+                          ) : (
+                            <button
+                              className="table-action"
+                              disabled={mutating}
+                              onClick={() =>
+                                void createBindingCode(
+                                  item as HostSummary | ArtistSummary | OperatorSummary,
+                                )
+                              }
+                              type="button"
+                            >
+                              生成绑定码
+                            </button>
+                          )}
+                        </td>
+                      ) : null}
                     </tr>
                   ))}
                 </tbody>
@@ -335,6 +419,54 @@ export function ManagementPage({ onUnauthorized, session }: ManagementPageProps)
           ) : null}
         </div>
       </section>
+
+      {createOpen && view !== 'relations' ? (
+        <CreateRecordDialog
+          busy={mutating}
+          error={mutationError}
+          onClose={() => {
+            setCreateOpen(false);
+            setMutationError(null);
+          }}
+          onSubmit={createRecord}
+          session={session}
+          sites={sites}
+          view={view}
+        />
+      ) : null}
+
+      {bindingCode ? (
+        <div className="dialog-backdrop" role="presentation">
+          <section
+            aria-labelledby="binding-code-title"
+            aria-modal="true"
+            className="dialog"
+            role="dialog"
+          >
+            <div className="dialog-header">
+              <h2 id="binding-code-title">一次性绑定码</h2>
+              <button
+                aria-label="关闭"
+                className="icon-button"
+                onClick={() => setBindingCode(null)}
+                type="button"
+              >
+                ×
+              </button>
+            </div>
+            <p className="dialog-note">绑定码只显示这一次，请立即安全地交给本人。</p>
+            <strong className="binding-code">{bindingCode.code}</strong>
+            <p className="dialog-note">
+              有效期至 {new Date(bindingCode.expiresAt).toLocaleString('zh-CN', { hour12: false })}
+            </p>
+            <div className="dialog-actions">
+              <button className="primary-button" onClick={() => setBindingCode(null)} type="button">
+                我已记录
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </div>
   );
 }

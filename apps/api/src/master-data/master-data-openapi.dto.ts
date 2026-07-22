@@ -179,6 +179,9 @@ export class SiteSummaryDto {
 
 export class HostSummaryDto {
   @ApiProperty()
+  accountBound!: boolean;
+
+  @ApiProperty()
   hostCode!: string;
 
   @ApiProperty({ format: 'uuid' })
@@ -201,6 +204,9 @@ export class HostSummaryDto {
 }
 
 export class ArtistSummaryDto {
+  @ApiProperty()
+  accountBound!: boolean;
+
   @ApiProperty({ enum: EMPLOYMENT_STATUSES })
   employmentStatus!: string;
 
@@ -224,6 +230,9 @@ export class ArtistSummaryDto {
 }
 
 export class OperatorSummaryDto {
+  @ApiProperty()
+  accountBound!: boolean;
+
   @ApiProperty({ enum: EMPLOYMENT_STATUSES })
   employmentStatus!: string;
 

@@ -14,6 +14,7 @@ export interface SiteSummary {
 }
 
 export interface HostSummary {
+  readonly accountBound: boolean;
   readonly hostCode: string;
   readonly id: string;
   readonly nickname: string | null;
@@ -24,6 +25,7 @@ export interface HostSummary {
 }
 
 export interface ArtistSummary {
+  readonly accountBound: boolean;
   readonly employmentStatus: EmploymentStatus;
   readonly id: string;
   readonly initialShiftConfigured: boolean;
@@ -34,6 +36,7 @@ export interface ArtistSummary {
 }
 
 export interface OperatorSummary {
+  readonly accountBound: boolean;
   readonly employmentStatus: EmploymentStatus;
   readonly id: string;
   readonly realName: string;

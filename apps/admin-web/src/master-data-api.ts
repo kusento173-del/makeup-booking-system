@@ -10,6 +10,7 @@ export interface SiteSummary {
 }
 
 export interface HostSummary {
+  readonly accountBound: boolean;
   readonly hostCode: string;
   readonly id: string;
   readonly nickname: string | null;
@@ -20,6 +21,7 @@ export interface HostSummary {
 }
 
 export interface ArtistSummary {
+  readonly accountBound: boolean;
   readonly employmentStatus: 'ACTIVE' | 'INACTIVE';
   readonly id: string;
   readonly initialShiftConfigured: boolean;
@@ -30,6 +32,7 @@ export interface ArtistSummary {
 }
 
 export interface OperatorSummary {
+  readonly accountBound: boolean;
   readonly employmentStatus: 'ACTIVE' | 'INACTIVE';
   readonly id: string;
   readonly realName: string;
@@ -101,4 +104,34 @@ export function listManagementItems(
     query.set('search', search);
   }
   return apiRequest(`${PATHS[view]}?${query.toString()}`, { token });
+}
+
+export function createManagementItem(
+  view: Exclude<ManagementView, 'relations'>,
+  token: string,
+  body: unknown,
+): Promise<{ readonly id: string }> {
+  const path = view === 'accounts' ? '/backoffice/accounts' : `/master-data/${view}`;
+  return apiRequest(path, { body, method: 'POST', token });
+}
+
+export interface IssuedBindingCode {
+  readonly bindingCodeId: string;
+  readonly code: string;
+  readonly expiresAt: string;
+  readonly profileId: string;
+  readonly roleCode: 'HOST' | 'ARTIST' | 'OPERATOR';
+  readonly siteId: string;
+}
+
+export function issueBindingCode(
+  token: string,
+  profileId: string,
+  roleCode: IssuedBindingCode['roleCode'],
+): Promise<IssuedBindingCode> {
+  return apiRequest('/backoffice/binding-codes', {
+    body: { profileId, roleCode },
+    method: 'POST',
+    token,
+  });
 }

@@ -136,6 +136,40 @@ describe('MasterDataQueryService', () => {
     });
   });
 
+  it('exposes only a binding flag instead of a host account identifier', async () => {
+    const service = createService({
+      hostProfile: {
+        count: vi.fn().mockResolvedValue(1),
+        findMany: vi.fn().mockResolvedValue([
+          {
+            hostCode: 'ZB0001',
+            id: 'host-1',
+            nickname: '小雨',
+            qualificationStatus: 'ACTIVE',
+            realName: '主播一',
+            rowVersion: 1,
+            siteId: 'site-songjiang',
+            userId: 'private-user-id',
+          },
+        ]),
+      },
+    });
+
+    const result = await service.listHosts(baseContext, asOf, page);
+
+    expect(result.items[0]).toEqual({
+      accountBound: true,
+      hostCode: 'ZB0001',
+      id: 'host-1',
+      nickname: '小雨',
+      qualificationStatus: 'ACTIVE',
+      realName: '主播一',
+      rowVersion: 1,
+      siteId: 'site-songjiang',
+    });
+    expect(result.items[0]).not.toHaveProperty('userId');
+  });
+
   it('shows inactive sites only to administrators', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
     const service = createService({ site: { findMany } });

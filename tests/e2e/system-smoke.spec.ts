@@ -82,4 +82,8 @@ test('已登录管理员可看到结构化主播列表', async ({ page }) => {
   await expect(page.getByText('小雨（主播一）')).toBeVisible();
   await expect(page.getByText('ZB0001')).toBeVisible();
   await expect(page.getByText('松江', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '新增' }).click();
+  await expect(page.getByRole('heading', { name: '新增主播' })).toBeVisible();
+  await expect(page.getByLabel('主播编号')).toBeVisible();
+  await expect(page.getByLabel('所属场地')).toBeVisible();
 });

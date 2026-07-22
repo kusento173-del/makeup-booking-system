@@ -22,6 +22,7 @@ const HOST_SELECT = {
   realName: true,
   rowVersion: true,
   siteId: true,
+  userId: true,
 } satisfies Prisma.HostProfileSelect;
 
 const ARTIST_SELECT = {
@@ -32,6 +33,7 @@ const ARTIST_SELECT = {
   realName: true,
   rowVersion: true,
   siteId: true,
+  userId: true,
 } satisfies Prisma.ArtistProfileSelect;
 
 const OPERATOR_SELECT = {
@@ -40,6 +42,7 @@ const OPERATOR_SELECT = {
   realName: true,
   rowVersion: true,
   siteId: true,
+  userId: true,
 } satisfies Prisma.OperatorProfileSelect;
 
 function requireSiteId(siteId: string | null): string {
@@ -111,7 +114,15 @@ export class MasterDataQueryService {
         client.hostProfile.count({ where }),
       ]);
 
-      return { items: items as HostSummary[], page: input.page, pageSize: input.pageSize, total };
+      return {
+        items: items.map(({ userId, ...host }) => ({
+          ...host,
+          accountBound: userId !== null,
+        })) as HostSummary[],
+        page: input.page,
+        pageSize: input.pageSize,
+        total,
+      };
     });
   }
 
@@ -146,8 +157,9 @@ export class MasterDataQueryService {
       ]);
 
       return {
-        items: artists.map(({ initialShiftConfiguredAt, ...artist }) => ({
+        items: artists.map(({ initialShiftConfiguredAt, userId, ...artist }) => ({
           ...artist,
+          accountBound: userId !== null,
           initialShiftConfigured: initialShiftConfiguredAt !== null,
         })) as ArtistSummary[],
         page: input.page,
@@ -181,7 +193,10 @@ export class MasterDataQueryService {
       ]);
 
       return {
-        items: items as OperatorSummary[],
+        items: items.map(({ userId, ...operator }) => ({
+          ...operator,
+          accountBound: userId !== null,
+        })) as OperatorSummary[],
         page: input.page,
         pageSize: input.pageSize,
         total,
