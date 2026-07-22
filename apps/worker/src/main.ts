@@ -1,12 +1,32 @@
-import { Logger, Module } from '@nestjs/common';
-import { NestFactory } from '@nestjs/core';
+import { resolve } from 'node:path';
 
-@Module({})
-class WorkerModule {}
+import { Logger } from '@nestjs/common';
 
-async function bootstrap(): Promise<void> {
-  await NestFactory.createApplicationContext(WorkerModule);
-  new Logger('Worker').log('Worker process is ready');
+import { FixedGenerationScheduler } from './fixed-generation.scheduler';
+
+function loadEnvironment(): void {
+  try {
+    process.loadEnvFile(resolve(__dirname, '../../../.env'));
+  } catch {
+    // Production environments normally inject variables without a local .env file.
+  }
 }
 
-void bootstrap();
+loadEnvironment();
+const logger = new Logger('FixedGenerationWorker');
+const scheduler = new FixedGenerationScheduler(
+  {
+    apiUrl: process.env.INTERNAL_API_URL ?? 'http://127.0.0.1:3000',
+    intervalMs: Number(process.env.FIXED_GENERATION_INTERVAL_MS ?? '60000'),
+    token: process.env.INTERNAL_WORKER_TOKEN ?? '',
+  },
+  logger,
+);
+scheduler.start();
+
+for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+  process.once(signal, () => {
+    scheduler.stop();
+    process.exitCode = 0;
+  });
+}

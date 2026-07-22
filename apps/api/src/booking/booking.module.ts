@@ -17,9 +17,11 @@ import { FixedGenerationService } from './fixed-generation.service';
 import { FixedRequestService } from './fixed-request.service';
 import { FixedRequestQueryService } from './fixed-request-query.service';
 import { FixedRequestReviewService } from './fixed-request-review.service';
+import { InternalFixedGenerationController } from './internal-fixed-generation.controller';
+import { InternalWorkerGuard } from './internal-worker.guard';
 
 @Module({
-  controllers: [BookingController, FixedAppointmentController],
+  controllers: [BookingController, FixedAppointmentController, InternalFixedGenerationController],
   imports: [AuditModule, AuthModule, AvailabilityModule, DatabaseModule, MasterDataModule],
   providers: [
     AppointmentQueryService,
@@ -32,6 +34,7 @@ import { FixedRequestReviewService } from './fixed-request-review.service';
     FixedRequestQueryService,
     FixedRequestReviewService,
     FixedRequestService,
+    InternalWorkerGuard,
   ],
   exports: [
     AppointmentQueryService,
