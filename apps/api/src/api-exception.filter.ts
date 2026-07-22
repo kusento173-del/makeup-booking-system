@@ -42,6 +42,15 @@ import {
   MasterDataVersionConflictError,
 } from './master-data/master-data.errors';
 import {
+  LeaveDateRangeInvalidError,
+  LeaveImpactChangedError,
+  LeaveNotFoundError,
+  LeaveReasonInvalidError,
+  LeaveStateConflictError,
+  LeaveSubjectUnavailableError,
+} from './leave/leave.errors';
+import { LeaveRequestInvalidError } from './leave/leave-request.parser';
+import {
   InitialShiftAlreadyConfiguredError,
   ShiftArtistNotFoundError,
   ShiftArtistUnavailableError,
@@ -93,10 +102,12 @@ export class ApiExceptionFilter implements ExceptionFilter {
 
     if (
       exception instanceof AuthRequestInvalidError ||
+      exception instanceof LeaveRequestInvalidError ||
       exception instanceof MasterDataRequestInvalidError ||
       exception instanceof ShiftRequestInvalidError ||
       exception instanceof ShiftDefinitionInvalidError ||
-      exception instanceof ShiftChangeReasonInvalidError
+      exception instanceof ShiftChangeReasonInvalidError ||
+      exception instanceof LeaveReasonInvalidError
     ) {
       return this.response(HttpStatus.BAD_REQUEST, exception.code, '请求内容不正确');
     }
@@ -108,6 +119,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
     if (
       exception instanceof MasterDataNotFoundError ||
       exception instanceof BackofficeAccountNotFoundError ||
+      exception instanceof LeaveNotFoundError ||
       exception instanceof ShiftArtistNotFoundError ||
       exception instanceof ShiftChangeNotFoundError
     ) {
@@ -123,6 +135,10 @@ export class ApiExceptionFilter implements ExceptionFilter {
       exception instanceof MasterDataDateRangeError ||
       exception instanceof MasterDataInactiveSiteError ||
       exception instanceof MasterDataSiteMismatchError ||
+      exception instanceof LeaveDateRangeInvalidError ||
+      exception instanceof LeaveImpactChangedError ||
+      exception instanceof LeaveStateConflictError ||
+      exception instanceof LeaveSubjectUnavailableError ||
       exception instanceof InitialShiftAlreadyConfiguredError ||
       exception instanceof ShiftArtistUnavailableError ||
       exception instanceof ShiftChangeEffectiveDateError ||

@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ApiExceptionFilter } from './api-exception.filter';
 import { AuthSessionInvalidError } from './auth/auth-session.errors';
 import { AuthorizationDeniedError } from './auth/authorization-policy.service';
+import { LeaveNotFoundError, LeaveStateConflictError } from './leave/leave.errors';
 import { LastAdministratorError } from './master-data/backoffice-account.errors';
 import {
   MasterDataNotFoundError,
@@ -131,6 +132,26 @@ describe('ApiExceptionFilter', () => {
     expect(response.status).toHaveBeenCalledWith(409);
     expect(send).toHaveBeenCalledWith({
       error: { code: 'SHIFT_CHANGE_STATE_CONFLICT', message: '数据状态冲突，请刷新后重试' },
+      statusCode: 409,
+    });
+  });
+
+  it('maps leave absence and state conflicts without internal details', () => {
+    const missing = createHost();
+    const conflict = createHost();
+    const filter = new ApiExceptionFilter();
+
+    filter.catch(new LeaveNotFoundError(), missing.host);
+    filter.catch(new LeaveStateConflictError(), conflict.host);
+
+    expect(missing.response.status).toHaveBeenCalledWith(404);
+    expect(missing.send).toHaveBeenCalledWith({
+      error: { code: 'LEAVE_NOT_FOUND', message: '目标数据不存在' },
+      statusCode: 404,
+    });
+    expect(conflict.response.status).toHaveBeenCalledWith(409);
+    expect(conflict.send).toHaveBeenCalledWith({
+      error: { code: 'LEAVE_STATE_CONFLICT', message: '数据状态冲突，请刷新后重试' },
       statusCode: 409,
     });
   });
