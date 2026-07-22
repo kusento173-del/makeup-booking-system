@@ -1,4 +1,5 @@
 const BUSINESS_TIME_ZONE = 'Asia/Shanghai';
+const BUSINESS_UTC_OFFSET_MINUTES = 8 * 60;
 const BUSINESS_DATE_FORMATTER = new Intl.DateTimeFormat('en-US', {
   day: '2-digit',
   month: '2-digit',
@@ -19,4 +20,8 @@ export function formatDateOnly(value: Date): string {
 
 export function isoWeekdayForDate(value: Date): number {
   return value.getUTCDay() || 7;
+}
+
+export function businessDateMinuteToInstant(date: Date, minute: number): Date {
+  return new Date(date.getTime() + (minute - BUSINESS_UTC_OFFSET_MINUTES) * 60_000);
 }
