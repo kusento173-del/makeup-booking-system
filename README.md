@@ -74,6 +74,14 @@ pnpm --filter @makeup/admin-web dev
 pnpm --filter @makeup/miniapp dev
 ```
 
+验收管理后台时，在项目根目录运行一个命令即可同时启动 API 和管理页面：
+
+```powershell
+pnpm dev:admin
+```
+
+终端显示启动成功后访问 `http://127.0.0.1:5173`；验收结束在该终端按 `Ctrl+C`，Windows 询问时输入 `Y` 停止两个进程。手动停止时出现 `Failed` 只表示开发进程被中断，不是系统故障。该命令不会启动或停止 Docker，运行前可用 `pnpm infra:status` 确认 PostgreSQL 和 Redis 为 `healthy`。
+
 `pnpm e2e` 会构建四个应用，并使用本机 Chrome 启动管理后台和 API，执行当前真实可用范围内的端到端冒烟。提交时 Husky 会调用 lint-staged，只检查暂存的代码和文档；完整格式、Lint、类型、测试、构建、安全与端到端检查仍由 CI 统一执行。
 
 提交前运行 `pnpm security:check`，检查 Git 已跟踪文件中是否混入人员表、环境配置、密钥、备份或导出文件，并阻止生产依赖中的高危和严重漏洞。`pnpm security:audit:all` 用于查看包含构建工具在内的完整依赖审计；该命令可能因 Taro 上游尚无可用修复版本而失败，不能通过忽略规则或未经验证的跨主版本覆盖强行消除结果。

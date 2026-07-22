@@ -6,7 +6,9 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "predev": "pnpm --filter @makeup/database build",
-    "dev": "tsx watch src/main.ts",
+    "dev": "pnpm build && pnpm --parallel run \"/^dev:(compile|serve)$/\"",
+    "dev:compile": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "dev:serve": "node --watch --watch-preserve-output dist/main.js",
     "start": "node dist/main.js",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"

@@ -17,6 +17,7 @@
     "db:generate": "prisma generate",
     "db:status": "prisma migrate status",
     "db:validate": "prisma validate",
+    "dev:admin": "pnpm --parallel --filter @makeup/api --filter @makeup/admin-web run dev",
     "e2e": "pnpm build && pnpm e2e:test",
     "e2e:test": "playwright test",
     "format": "prettier --write .",
