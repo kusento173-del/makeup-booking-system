@@ -6,7 +6,10 @@ DECLARE
     site_id UUID;
     user_one_id UUID;
     user_two_id UUID;
+    binding_host_id UUID;
+    binding_code_id UUID;
     role_id UUID;
+    binding_hash TEXT;
     mobile_hash TEXT;
     refresh_hash TEXT;
 BEGIN
@@ -18,6 +21,7 @@ BEGIN
 
     mobile_hash := lpad(test_suffix, 64, 'a');
     refresh_hash := lpad(test_suffix, 64, 'c');
+    binding_hash := lpad(test_suffix, 64, 'e');
 
     INSERT INTO "app_users" (
         "display_name",
@@ -188,6 +192,91 @@ BEGIN
         RAISE EXCEPTION 'One user was bound to multiple host profiles';
     EXCEPTION
         WHEN unique_violation THEN NULL;
+    END;
+
+    INSERT INTO "host_profiles" ("host_code", "real_name", "site_id")
+    VALUES ('IDENTITY-BIND-HOST-' || test_suffix, 'Binding Host', site_id)
+    RETURNING "id" INTO binding_host_id;
+
+    INSERT INTO "account_binding_codes" (
+        "role_code",
+        "site_id",
+        "host_profile_id",
+        "code_hash",
+        "expires_at",
+        "created_by_user_id"
+    ) VALUES (
+        'HOST',
+        site_id,
+        binding_host_id,
+        binding_hash,
+        CURRENT_TIMESTAMP + INTERVAL '1 day',
+        user_one_id
+    ) RETURNING "id" INTO binding_code_id;
+
+    BEGIN
+        INSERT INTO "account_binding_codes" (
+            "role_code",
+            "site_id",
+            "host_profile_id",
+            "code_hash",
+            "expires_at",
+            "created_by_user_id"
+        ) VALUES (
+            'HOST',
+            site_id,
+            binding_host_id,
+            lpad(test_suffix, 64, 'f'),
+            CURRENT_TIMESTAMP + INTERVAL '1 day',
+            user_one_id
+        );
+        RAISE EXCEPTION 'Multiple active binding codes for one host were accepted';
+    EXCEPTION
+        WHEN unique_violation THEN NULL;
+    END;
+
+    BEGIN
+        INSERT INTO "account_binding_codes" (
+            "role_code",
+            "site_id",
+            "host_profile_id",
+            "code_hash",
+            "expires_at",
+            "created_by_user_id"
+        ) VALUES (
+            'ARTIST',
+            site_id,
+            binding_host_id,
+            lpad(test_suffix, 64, 'b'),
+            CURRENT_TIMESTAMP + INTERVAL '1 day',
+            user_one_id
+        );
+        RAISE EXCEPTION 'Binding role and profile mismatch was accepted';
+    EXCEPTION
+        WHEN check_violation THEN NULL;
+    END;
+
+    BEGIN
+        UPDATE "account_binding_codes"
+        SET "failed_attempt_count" = 6
+        WHERE "id" = binding_code_id;
+        RAISE EXCEPTION 'Binding-code attempts above the maximum were accepted';
+    EXCEPTION
+        WHEN check_violation THEN NULL;
+    END;
+
+    UPDATE "account_binding_codes"
+    SET
+        "consumed_at" = CURRENT_TIMESTAMP,
+        "consumed_by_user_id" = user_two_id,
+        "row_version" = "row_version" + 1
+    WHERE "id" = binding_code_id;
+
+    BEGIN
+        DELETE FROM "account_binding_codes" WHERE "id" = binding_code_id;
+        RAISE EXCEPTION 'Binding-code history was deleted';
+    EXCEPTION
+        WHEN SQLSTATE '55000' THEN NULL;
     END;
 
     BEGIN

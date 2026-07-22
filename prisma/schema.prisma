@@ -24,6 +24,7 @@ model Site {
   operators     OperatorProfile[]
   userRoles     UserRole[]
   operationLogs OperationLog[]
+  bindingCodes  AccountBindingCode[]
 
   @@index([status, sortOrder], map: "sites_status_sort_order_idx")
   @@map("sites")
@@ -53,6 +54,9 @@ model AppUser {
   qualificationChanges   HostQualificationHistory[] @relation("HostQualificationChangedBy")
   uploadedImportBatches  ImportBatch[]              @relation("ImportBatchUploader")
   confirmedImportBatches ImportBatch[]              @relation("ImportBatchConfirmer")
+  createdBindingCodes    AccountBindingCode[]       @relation("BindingCodeCreator")
+  consumedBindingCodes   AccountBindingCode[]       @relation("BindingCodeConsumer")
+  revokedBindingCodes    AccountBindingCode[]       @relation("BindingCodeRevoker")
 
   @@index([status], map: "app_users_status_idx")
   @@map("app_users")
@@ -151,6 +155,7 @@ model HostProfile {
   sourceImportBatch      ImportBatch?               @relation("HostSourceImportBatch", fields: [sourceImportBatchId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   operatorRelations      HostOperatorRelation[]
   qualificationHistories HostQualificationHistory[]
+  bindingCodes           AccountBindingCode[]
 
   @@index([realName], map: "host_profiles_real_name_idx")
   @@index([siteId, qualificationStatus], map: "host_profiles_site_status_idx")
@@ -190,9 +195,10 @@ model ArtistProfile {
   rowVersion               Int       @default(1) @map("row_version")
   sourceImportBatchId      String?   @map("source_import_batch_id") @db.Uuid
 
-  site              Site         @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  user              AppUser?     @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  sourceImportBatch ImportBatch? @relation("ArtistSourceImportBatch", fields: [sourceImportBatchId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  site              Site                 @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  user              AppUser?             @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sourceImportBatch ImportBatch?         @relation("ArtistSourceImportBatch", fields: [sourceImportBatchId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  bindingCodes      AccountBindingCode[]
 
   @@index([realName], map: "artist_profiles_real_name_idx")
   @@index([siteId, employmentStatus], map: "artist_profiles_site_status_idx")
@@ -216,6 +222,7 @@ model OperatorProfile {
   user              AppUser?               @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   sourceImportBatch ImportBatch?           @relation("OperatorSourceImportBatch", fields: [sourceImportBatchId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   hostRelations     HostOperatorRelation[]
+  bindingCodes      AccountBindingCode[]
 
   @@unique([siteId, nameNormalized], map: "operator_profiles_active_name_site_uq", where: raw("((employment_status)::text = 'ACTIVE'::text)"))
   @@index([siteId, employmentStatus], map: "operator_profiles_site_status_idx")
@@ -330,4 +337,42 @@ model ImportRow {
   @@index([importBatchId, validationStatus], map: "import_rows_batch_validation_idx")
   @@index([targetEntityId], map: "import_rows_target_entity_idx")
   @@map("import_rows")
+}
+
+model AccountBindingCode {
+  id                 String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  roleCode           String    @map("role_code") @db.VarChar(32)
+  siteId             String    @map("site_id") @db.Uuid
+  hostProfileId      String?   @map("host_profile_id") @db.Uuid
+  artistProfileId    String?   @map("artist_profile_id") @db.Uuid
+  operatorProfileId  String?   @map("operator_profile_id") @db.Uuid
+  codeHash           String    @unique(map: "account_binding_codes_code_hash_uq") @map("code_hash") @db.Char(64)
+  expiresAt          DateTime  @map("expires_at") @db.Timestamptz(3)
+  failedAttemptCount Int       @default(0) @map("failed_attempt_count")
+  maxAttempts        Int       @default(5) @map("max_attempts")
+  consumedAt         DateTime? @map("consumed_at") @db.Timestamptz(3)
+  consumedByUserId   String?   @map("consumed_by_user_id") @db.Uuid
+  revokedAt          DateTime? @map("revoked_at") @db.Timestamptz(3)
+  revokedByUserId    String?   @map("revoked_by_user_id") @db.Uuid
+  revokeReason       String?   @map("revoke_reason") @db.VarChar(500)
+  createdByUserId    String    @map("created_by_user_id") @db.Uuid
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  rowVersion         Int       @default(1) @map("row_version")
+
+  site            Site             @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  hostProfile     HostProfile?     @relation(fields: [hostProfileId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  artistProfile   ArtistProfile?   @relation(fields: [artistProfileId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  operatorProfile OperatorProfile? @relation(fields: [operatorProfileId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  createdBy       AppUser          @relation("BindingCodeCreator", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  consumedBy      AppUser?         @relation("BindingCodeConsumer", fields: [consumedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  revokedBy       AppUser?         @relation("BindingCodeRevoker", fields: [revokedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([hostProfileId], map: "account_binding_codes_active_host_uq", where: raw("(host_profile_id IS NOT NULL AND consumed_at IS NULL AND revoked_at IS NULL)"))
+  @@unique([artistProfileId], map: "account_binding_codes_active_artist_uq", where: raw("(artist_profile_id IS NOT NULL AND consumed_at IS NULL AND revoked_at IS NULL)"))
+  @@unique([operatorProfileId], map: "account_binding_codes_active_operator_uq", where: raw("(operator_profile_id IS NOT NULL AND consumed_at IS NULL AND revoked_at IS NULL)"))
+  @@index([siteId, roleCode, createdAt(sort: Desc)], map: "account_binding_codes_site_role_created_idx")
+  @@index([expiresAt], map: "account_binding_codes_expires_idx")
+  @@index([createdByUserId, createdAt(sort: Desc)], map: "account_binding_codes_creator_created_idx")
+  @@map("account_binding_codes")
 }
