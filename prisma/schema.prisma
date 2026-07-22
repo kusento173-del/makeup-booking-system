@@ -19,12 +19,13 @@ model Site {
   updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
   rowVersion Int      @default(1) @map("row_version")
 
-  hosts         HostProfile[]
-  artists       ArtistProfile[]
-  operators     OperatorProfile[]
-  userRoles     UserRole[]
-  operationLogs OperationLog[]
-  bindingCodes  AccountBindingCode[]
+  hosts               HostProfile[]
+  artists             ArtistProfile[]
+  operators           OperatorProfile[]
+  userRoles           UserRole[]
+  operationLogs       OperationLog[]
+  bindingCodes        AccountBindingCode[]
+  shiftChangeRequests ArtistShiftChangeRequest[]
 
   @@index([status, sortOrder], map: "sites_status_sort_order_idx")
   @@map("sites")
@@ -59,6 +60,9 @@ model AppUser {
   revokedBindingCodes     AccountBindingCode[]         @relation("BindingCodeRevoker")
   bindingChallenges       AuthBindingChallenge[]
   roleSelectionChallenges AuthRoleSelectionChallenge[]
+  createdShiftTemplates   ArtistShiftTemplate[]        @relation("ArtistShiftCreatedBy")
+  submittedShiftChanges   ArtistShiftChangeRequest[]   @relation("ArtistShiftSubmittedBy")
+  reviewedShiftChanges    ArtistShiftChangeRequest[]   @relation("ArtistShiftReviewedBy")
 
   @@index([status], map: "app_users_status_idx")
   @@map("app_users")
@@ -233,15 +237,84 @@ model ArtistProfile {
   rowVersion               Int       @default(1) @map("row_version")
   sourceImportBatchId      String?   @map("source_import_batch_id") @db.Uuid
 
-  site              Site                 @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  user              AppUser?             @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  sourceImportBatch ImportBatch?         @relation("ArtistSourceImportBatch", fields: [sourceImportBatchId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  bindingCodes      AccountBindingCode[]
+  site                Site                       @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  user                AppUser?                   @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sourceImportBatch   ImportBatch?               @relation("ArtistSourceImportBatch", fields: [sourceImportBatchId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  bindingCodes        AccountBindingCode[]
+  shiftTemplates      ArtistShiftTemplate[]
+  shiftChangeRequests ArtistShiftChangeRequest[]
 
   @@index([realName], map: "artist_profiles_real_name_idx")
   @@index([siteId, employmentStatus], map: "artist_profiles_site_status_idx")
   @@index([sourceImportBatchId], map: "artist_profiles_source_import_batch_idx")
   @@map("artist_profiles")
+}
+
+model ArtistShiftTemplate {
+  id               String                    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  artistId         String                    @map("artist_id") @db.Uuid
+  versionNo        Int                       @map("version_no")
+  workdays         Int[]                     @db.SmallInt
+  workStartMinute  Int                       @map("work_start_minute") @db.SmallInt
+  breakStartMinute Int?                      @map("break_start_minute") @db.SmallInt
+  breakEndMinute   Int?                      @map("break_end_minute") @db.SmallInt
+  workEndMinute    Int                       @map("work_end_minute") @db.SmallInt
+  validFrom        DateTime                  @map("valid_from") @db.Date
+  validUntil       DateTime?                 @map("valid_until") @db.Date
+  createdByUserId  String?                   @map("created_by_user_id") @db.Uuid
+  sourceRequestId  String?                   @map("source_request_id") @db.Uuid
+  activeRange      Unsupported("daterange")? @default(dbgenerated("daterange(valid_from, valid_until, '[)'::text)")) @map("active_range")
+  createdAt        DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  artist             ArtistProfile              @relation(fields: [artistId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  createdBy          AppUser?                   @relation("ArtistShiftCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sourceRequest      ArtistShiftChangeRequest?  @relation("ArtistShiftResult", fields: [sourceRequestId, artistId], references: [id, artistId], onDelete: Restrict, onUpdate: Cascade, map: "artist_shift_templates_source_request_artist_fkey")
+  currentForRequests ArtistShiftChangeRequest[] @relation("ArtistShiftCurrent")
+
+  @@unique([artistId, versionNo], map: "artist_shift_templates_artist_version_uq")
+  @@unique([id, artistId], map: "artist_shift_templates_id_artist_uq")
+  @@unique([sourceRequestId, artistId], map: "artist_shift_templates_source_request_artist_uq")
+  @@index([artistId, validFrom(sort: Desc)], map: "artist_shift_templates_artist_valid_from_idx")
+  @@index([createdByUserId], map: "artist_shift_templates_created_by_idx")
+  @@map("artist_shift_templates")
+}
+
+model ArtistShiftChangeRequest {
+  id                       String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  artistId                 String    @map("artist_id") @db.Uuid
+  siteId                   String    @map("site_id") @db.Uuid
+  currentShiftId           String    @map("current_shift_id") @db.Uuid
+  proposedWorkdays         Int[]     @map("proposed_workdays") @db.SmallInt
+  proposedWorkStartMinute  Int       @map("proposed_work_start_minute") @db.SmallInt
+  proposedBreakStartMinute Int?      @map("proposed_break_start_minute") @db.SmallInt
+  proposedBreakEndMinute   Int?      @map("proposed_break_end_minute") @db.SmallInt
+  proposedWorkEndMinute    Int       @map("proposed_work_end_minute") @db.SmallInt
+  effectiveFrom            DateTime  @map("effective_from") @db.Date
+  reason                   String    @db.VarChar(500)
+  status                   String    @default("PENDING") @db.VarChar(16)
+  submittedByUserId        String    @map("submitted_by_user_id") @db.Uuid
+  submittedAt              DateTime  @default(now()) @map("submitted_at") @db.Timestamptz(3)
+  reviewedByUserId         String?   @map("reviewed_by_user_id") @db.Uuid
+  reviewedAt               DateTime? @map("reviewed_at") @db.Timestamptz(3)
+  reviewComment            String?   @map("review_comment") @db.VarChar(500)
+  affectedAppointmentCount Int       @default(0) @map("affected_appointment_count")
+  createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  rowVersion               Int       @default(1) @map("row_version")
+
+  artist         ArtistProfile        @relation(fields: [artistId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  site           Site                 @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  currentShift   ArtistShiftTemplate  @relation("ArtistShiftCurrent", fields: [currentShiftId, artistId], references: [id, artistId], onDelete: Restrict, onUpdate: Cascade, map: "artist_shift_change_requests_current_shift_artist_fkey")
+  submittedBy    AppUser              @relation("ArtistShiftSubmittedBy", fields: [submittedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  reviewedBy     AppUser?             @relation("ArtistShiftReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  resultingShift ArtistShiftTemplate? @relation("ArtistShiftResult")
+
+  @@unique([id, artistId], map: "artist_shift_change_requests_id_artist_uq")
+  @@unique([artistId], map: "artist_shift_change_requests_pending_artist_uq", where: raw("((status)::text = 'PENDING'::text)"))
+  @@index([siteId, status, submittedAt], map: "artist_shift_change_requests_site_status_submitted_idx")
+  @@index([submittedByUserId], map: "artist_shift_change_requests_submitted_by_idx")
+  @@index([reviewedByUserId], map: "artist_shift_change_requests_reviewed_by_idx")
+  @@map("artist_shift_change_requests")
 }
 
 model OperatorProfile {
