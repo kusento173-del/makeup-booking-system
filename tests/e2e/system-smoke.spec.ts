@@ -1,10 +1,11 @@
 import { expect, test } from '@playwright/test';
 
-test('管理后台可访问并显示当前工程状态', async ({ page }) => {
+test('管理后台可访问并显示真实登录入口', async ({ page }) => {
   await page.goto('/');
 
-  await expect(page.getByRole('heading', { name: '妆序管理后台' })).toBeVisible();
-  await expect(page.getByText('工程初始化', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '管理后台登录' })).toBeVisible();
+  await expect(page.getByLabel('登录名')).toBeVisible();
+  await expect(page.getByLabel('密码')).toBeVisible();
 });
 
 test('API 健康检查返回可用状态', async ({ request }) => {
