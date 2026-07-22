@@ -7,6 +7,7 @@ import { toBusinessDate } from '../shift/business-date';
 import type { AppointmentDisplayStatus, AppointmentListInput } from './appointment-query.types';
 import type { BookingSlotInput } from './booking-slot.types';
 import type { FixedAvailabilityInput } from './fixed-availability.types';
+import type { CreateFixedRequestCommand } from './fixed-request.types';
 
 export class BookingRequestInvalidError extends Error {
   readonly code = 'INVALID_REQUEST';
@@ -86,6 +87,35 @@ export function parseFixedAvailabilityRequest(query: unknown): FixedAvailability
     hostId: uuid(input.hostId),
     requestedStartDate: dateOnly(input.requestedStartDate),
     weekdays: weekdayValues,
+  };
+}
+
+export function parseCreateFixedRequest(
+  body: unknown,
+  idempotencyHeader: unknown,
+): CreateFixedRequestCommand {
+  const input = record(body);
+  exactKeys(input, [
+    'artistId',
+    'durationMinutes',
+    'effectiveFrom',
+    'hostId',
+    'reason',
+    'startMinute',
+    'weekdays',
+  ]);
+  if (!Array.isArray(input.weekdays) || typeof input.reason !== 'string') {
+    throw new BookingRequestInvalidError();
+  }
+  return {
+    artistId: uuid(input.artistId),
+    durationMinutes: integer(input.durationMinutes, false),
+    effectiveFrom: dateOnly(input.effectiveFrom),
+    hostId: uuid(input.hostId),
+    idempotencyKey: idempotencyKey(idempotencyHeader),
+    reason: input.reason,
+    startMinute: integer(input.startMinute, false),
+    weekdays: input.weekdays.map((weekday) => integer(weekday, false)),
   };
 }
 

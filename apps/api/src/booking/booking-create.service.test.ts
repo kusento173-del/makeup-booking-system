@@ -114,6 +114,8 @@ function createService(options?: {
   availability?: object;
   host?: object | null;
   idempotency?: object | null;
+  fixed?: object | null;
+  pending?: readonly object[];
 }) {
   const transaction = {
     $queryRaw: vi.fn().mockResolvedValue([{ acquired: 1 }]),
@@ -121,6 +123,12 @@ function createService(options?: {
       create: vi.fn().mockResolvedValue(appointment),
       findMany: vi.fn().mockResolvedValue(options?.active ?? []),
       findUnique: vi.fn().mockResolvedValue(appointment),
+    },
+    fixedAppointmentRequest: {
+      findMany: vi.fn().mockResolvedValue(options?.pending ?? []),
+    },
+    fixedAppointmentRuleWeekday: {
+      findFirst: vi.fn().mockResolvedValue(options?.fixed ?? null),
     },
     hostProfile: {
       findUnique: vi.fn().mockResolvedValue(options?.host === undefined ? host : options.host),
@@ -164,7 +172,7 @@ describe('BookingCreateService', () => {
       },
       replayed: false,
     });
-    expect(transaction.$queryRaw).toHaveBeenCalledTimes(3);
+    expect(transaction.$queryRaw).toHaveBeenCalledTimes(7);
     expect(transaction.appointment.create.mock.calls[0]?.[0]).toMatchObject({
       data: {
         artistNicknameSnapshot: '柔柔',
@@ -227,6 +235,21 @@ describe('BookingCreateService', () => {
     };
     await expect(
       createService({ active: [collision] }).service.create(hostContext, command, now),
+    ).rejects.toBeInstanceOf(BookingSlotConflictError);
+  });
+
+  it('does not let a single booking bypass approved or pending fixed occupation', async () => {
+    await expect(
+      createService({ fixed: { ruleId: 'fixed-rule-1' } }).service.create(
+        hostContext,
+        command,
+        now,
+      ),
+    ).rejects.toBeInstanceOf(BookingSlotConflictError);
+    await expect(
+      createService({
+        pending: [{ targetDurationMinutes: 30, targetStartMinute: 555 }],
+      }).service.create(hostContext, command, now),
     ).rejects.toBeInstanceOf(BookingSlotConflictError);
   });
 

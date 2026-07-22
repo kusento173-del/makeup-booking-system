@@ -54,6 +54,11 @@ import {
   FixedAvailabilityDateInvalidError,
   FixedAvailabilityWeekdaysInvalidError,
 } from './booking/fixed-availability.errors';
+import {
+  FixedRequestReasonInvalidError,
+  FixedRequestStateConflictError,
+  FixedRequestUnavailableError,
+} from './booking/fixed-request.errors';
 import { MasterDataRequestInvalidError } from './master-data/master-data-request.parser';
 import {
   BackofficeAccountConflictError,
@@ -146,6 +151,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
       exception instanceof BookingStartInvalidError ||
       exception instanceof FixedAvailabilityDateInvalidError ||
       exception instanceof FixedAvailabilityWeekdaysInvalidError ||
+      exception instanceof FixedRequestReasonInvalidError ||
       exception instanceof BookingIdempotencyKeyInvalidError ||
       exception instanceof BookingCancellationReasonInvalidError ||
       exception instanceof LeaveRequestInvalidError ||
@@ -236,7 +242,9 @@ export class ApiExceptionFilter implements ExceptionFilter {
       exception instanceof ShiftChangeEffectiveDateError ||
       exception instanceof ShiftChangeNoOpError ||
       exception instanceof ShiftChangePendingExistsError ||
-      exception instanceof ShiftChangeStateConflictError
+      exception instanceof ShiftChangeStateConflictError ||
+      exception instanceof FixedRequestStateConflictError ||
+      exception instanceof FixedRequestUnavailableError
     ) {
       return this.response(HttpStatus.CONFLICT, exception.code, '数据状态冲突，请刷新后重试');
     }

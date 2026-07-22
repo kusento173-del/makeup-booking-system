@@ -11,7 +11,11 @@ import {
 } from '../auth/authorization-policy.service';
 import { DatabaseService } from '../database/database.service';
 import { acquireTransactionLock } from '../database/transaction-lock';
-import { businessDateMinuteToInstant, formatDateOnly } from '../shift/business-date';
+import {
+  businessDateMinuteToInstant,
+  formatDateOnly,
+  isoWeekdayForDate,
+} from '../shift/business-date';
 import {
   BookingArtistUnavailableError,
   BookingDailyLimitReachedError,
@@ -174,21 +178,60 @@ export class BookingCreateService {
 
     const startAt = businessDateMinuteToInstant(command.date, command.startMinute);
     const endAt = new Date(startAt.getTime() + command.durationMinutes * 60_000);
-    const active = await transaction.appointment.findMany({
-      orderBy: { dailySequence: 'asc' },
-      select: {
-        artistId: true,
-        dailySequence: true,
-        endAt: true,
-        hostId: true,
-        startAt: true,
-      },
-      where: {
-        appointmentDate: command.date,
-        OR: [{ artistId: command.artistId }, { hostId: command.hostId }],
-        status: { in: [...ACTIVE_STATUSES] },
-      },
-    });
+    const weekday = isoWeekdayForDate(command.date);
+    const endMinute = command.startMinute + command.durationMinutes;
+    const [active, fixedOccupation, pendingOccupations] = await Promise.all([
+      transaction.appointment.findMany({
+        orderBy: { dailySequence: 'asc' },
+        select: {
+          artistId: true,
+          dailySequence: true,
+          endAt: true,
+          hostId: true,
+          startAt: true,
+        },
+        where: {
+          appointmentDate: command.date,
+          OR: [{ artistId: command.artistId }, { hostId: command.hostId }],
+          status: { in: [...ACTIVE_STATUSES] },
+        },
+      }),
+      transaction.fixedAppointmentRuleWeekday.findFirst({
+        select: { ruleId: true },
+        where: {
+          endMinute: { gt: command.startMinute },
+          isoWeekday: weekday,
+          OR: [{ artistId: command.artistId }, { hostId: command.hostId }],
+          startMinute: { lt: endMinute },
+          validFrom: { lte: command.date },
+          AND: [{ OR: [{ validUntil: null }, { validUntil: { gt: command.date } }] }],
+        },
+      }),
+      transaction.fixedAppointmentRequest.findMany({
+        select: { targetDurationMinutes: true, targetStartMinute: true },
+        where: {
+          effectiveFrom: { lte: command.date },
+          OR: [{ targetArtistId: command.artistId }, { hostId: command.hostId }],
+          status: 'PENDING',
+          targetWeekdays: { has: weekday },
+        },
+      }),
+    ]);
+    if (
+      fixedOccupation ||
+      pendingOccupations.some((request) => {
+        const pendingStart = request.targetStartMinute;
+        const pendingDuration = request.targetDurationMinutes;
+        return (
+          pendingStart !== null &&
+          pendingDuration !== null &&
+          command.startMinute < pendingStart + pendingDuration &&
+          pendingStart < endMinute
+        );
+      })
+    ) {
+      throw new BookingSlotConflictError();
+    }
     if (active.some((item) => startAt < item.endAt && item.startAt < endAt)) {
       throw new BookingSlotConflictError();
     }
@@ -267,8 +310,17 @@ export class BookingCreateService {
       `appointment:artist:${command.artistId}:${date}`,
       `appointment:host:${command.hostId}:${date}`,
       `idempotency:${userId}:${IDEMPOTENCY_SCOPE}:${idempotencyKey}`,
-    ].sort();
-    for (const key of keys) await acquireTransactionLock(transaction, key);
+    ];
+    const weekday = isoWeekdayForDate(command.date);
+    for (
+      let minute = command.startMinute;
+      minute < command.startMinute + command.durationMinutes;
+      minute += 15
+    ) {
+      keys.push(`fixed:artist:${command.artistId}:${weekday}:${minute}`);
+      keys.push(`fixed:host:${command.hostId}:${weekday}:${minute}`);
+    }
+    for (const key of keys.sort()) await acquireTransactionLock(transaction, key);
   }
 
   async prepareIdempotency(

@@ -1,4 +1,4 @@
-import type { DatabaseClient } from '@makeup/database';
+import type { DatabaseClient, Prisma } from '@makeup/database';
 import { Injectable } from '@nestjs/common';
 
 import { AvailabilityArtistNotFoundError } from '../availability/artist-availability.errors';
@@ -41,7 +41,10 @@ function addDays(date: Date, days: number): Date {
   return new Date(date.getTime() + days * DAY_MS);
 }
 
-function assertInput(input: FixedAvailabilityInput, now: Date): readonly number[] {
+export function validateFixedAvailabilityInput(
+  input: FixedAvailabilityInput,
+  now: Date,
+): readonly number[] {
   validateBookingDuration(input.durationMinutes);
   if (
     Number.isNaN(input.requestedStartDate.getTime()) ||
@@ -113,13 +116,24 @@ export class FixedAvailabilityService {
     input: FixedAvailabilityInput,
     now = new Date(),
   ): Promise<FixedAvailabilityResult> {
+    return this.database.read((client) =>
+      this.getAvailabilityWithClient(client, context, input, now),
+    );
+  }
+
+  getAvailabilityWithClient(
+    client: DatabaseClient | Prisma.TransactionClient,
+    context: VerifiedAuthorizationContext,
+    input: FixedAvailabilityInput,
+    now = new Date(),
+  ): Promise<FixedAvailabilityResult> {
     this.authorization.assertRole(context, ['OPERATOR', 'CUSTOMER_SERVICE', 'ADMIN']);
-    const weekdays = assertInput(input, now);
-    return this.database.read((client) => this.query(client, context, input, weekdays));
+    const weekdays = validateFixedAvailabilityInput(input, now);
+    return this.query(client, context, input, weekdays);
   }
 
   private async query(
-    client: DatabaseClient,
+    client: DatabaseClient | Prisma.TransactionClient,
     context: VerifiedAuthorizationContext,
     input: FixedAvailabilityInput,
     weekdays: readonly number[],
@@ -136,7 +150,11 @@ export class FixedAvailabilityService {
           },
           operatorRelations: {
             orderBy: { validFrom: 'desc' },
-            select: { operator: { select: { userId: true } } },
+            select: {
+              operator: {
+                select: { employmentStatus: true, siteId: true, userId: true },
+              },
+            },
             take: 1,
             where: {
               validFrom: { lte: input.requestedStartDate },
@@ -180,7 +198,7 @@ export class FixedAvailabilityService {
     ]);
     if (!host) throw new BookingHostNotFoundError();
     if (!artist) throw new AvailabilityArtistNotFoundError();
-    this.assertActorScope(context, host.siteId, host.operatorRelations[0]?.operator.userId ?? null);
+    this.assertActorScope(context, host.siteId, host.operatorRelations[0]?.operator ?? null);
     if (host.siteId !== artist.siteId) throw new BookingSiteMismatchError();
 
     const unavailableReason = this.unavailableReason(host, artist);
@@ -296,7 +314,7 @@ export class FixedAvailabilityService {
   }
 
   private findSingles(
-    client: DatabaseClient,
+    client: DatabaseClient | Prisma.TransactionClient,
     field: 'artistId' | 'hostId',
     id: string,
     fromDate: Date,
@@ -387,10 +405,21 @@ export class FixedAvailabilityService {
   private assertActorScope(
     context: VerifiedAuthorizationContext,
     siteId: string,
-    operatorUserId: string | null,
+    operator: {
+      readonly employmentStatus: string;
+      readonly siteId: string;
+      readonly userId: string | null;
+    } | null,
   ): void {
-    if (context.roleCode === 'OPERATOR' && operatorUserId !== context.userId) {
-      throw new AuthorizationDeniedError();
+    if (context.roleCode === 'OPERATOR') {
+      if (
+        operator?.userId !== context.userId ||
+        operator.employmentStatus !== 'ACTIVE' ||
+        operator.siteId !== siteId
+      ) {
+        throw new AuthorizationDeniedError();
+      }
+      return;
     }
     if (context.roleCode === 'CUSTOMER_SERVICE') {
       this.authorization.assertSiteScope(context, siteId);

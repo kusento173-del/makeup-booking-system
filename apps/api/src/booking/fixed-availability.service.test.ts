@@ -35,7 +35,15 @@ const host = {
       startDate: new Date('2026-07-28T00:00:00.000Z'),
     },
   ],
-  operatorRelations: [{ operator: { userId: 'operator-user-1' } }],
+  operatorRelations: [
+    {
+      operator: {
+        employmentStatus: 'ACTIVE',
+        siteId: 'site-1',
+        userId: 'operator-user-1',
+      },
+    },
+  ],
   qualificationStatus: 'ACTIVE',
   site: { status: 'ACTIVE' },
   siteId: 'site-1',

@@ -53,11 +53,19 @@ const input = {
 function createService(options?: {
   appointments?: readonly object[];
   availability?: ArtistDayAvailability;
+  fixed?: readonly object[];
   host?: object | null;
+  pending?: readonly object[];
 }) {
   const getDay = vi.fn().mockResolvedValue(options?.availability ?? available);
   const client = {
     appointment: { findMany: vi.fn().mockResolvedValue(options?.appointments ?? []) },
+    fixedAppointmentRequest: {
+      findMany: vi.fn().mockResolvedValue(options?.pending ?? []),
+    },
+    fixedAppointmentRuleWeekday: {
+      findMany: vi.fn().mockResolvedValue(options?.fixed ?? []),
+    },
     hostProfile: {
       findUnique: vi.fn().mockResolvedValue(options?.host === undefined ? host : options.host),
     },
@@ -138,6 +146,19 @@ describe('BookingSlotService', () => {
       slots: [],
       unavailableReason: 'HOST_DAILY_LIMIT_REACHED',
     });
+  });
+
+  it('removes approved and pending recurring occupation before it becomes a daily instance', async () => {
+    const { service } = createService({
+      fixed: [{ endMinute: 570, startMinute: 540 }],
+      pending: [{ targetDurationMinutes: 30, targetStartMinute: 780 }],
+    });
+
+    const result = await service.getSlots(context, input, now);
+
+    expect(result.slots.map((slot) => slot.startMinute)).not.toEqual(
+      expect.arrayContaining([540, 555, 780, 795]),
+    );
   });
 
   it.each([

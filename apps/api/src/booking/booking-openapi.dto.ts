@@ -114,6 +114,81 @@ export class FixedAvailabilityResultDto {
   weekdays!: number[];
 }
 
+export class CreateFixedRequestDto {
+  @ApiProperty({ format: 'uuid' })
+  artistId!: string;
+
+  @ApiProperty({ enum: [15, 30, 45, 60] })
+  durationMinutes!: number;
+
+  @ApiProperty({ format: 'date' })
+  effectiveFrom!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  hostId!: string;
+
+  @ApiProperty({ maxLength: 500 })
+  reason!: string;
+
+  @ApiProperty({ maximum: 1425, minimum: 0, multipleOf: 15 })
+  startMinute!: number;
+
+  @ApiProperty({ isArray: true, maximum: 7, minimum: 1, type: Number })
+  weekdays!: number[];
+}
+
+export class FixedRequestSummaryDto {
+  @ApiProperty({ format: 'date' })
+  effectiveFrom!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  hostId!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty()
+  reason!: string;
+
+  @ApiProperty({ enum: ['CREATE'] })
+  requestType!: string;
+
+  @ApiProperty({ minimum: 1 })
+  rowVersion!: number;
+
+  @ApiProperty({ format: 'uuid' })
+  siteId!: string;
+
+  @ApiProperty({ enum: ['PENDING'] })
+  status!: string;
+
+  @ApiProperty({ format: 'date-time' })
+  submittedAt!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  submittedByOperatorId!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  targetArtistId!: string;
+
+  @ApiProperty({ enum: [15, 30, 45, 60] })
+  targetDurationMinutes!: number;
+
+  @ApiProperty({ maximum: 1425, minimum: 0, multipleOf: 15 })
+  targetStartMinute!: number;
+
+  @ApiProperty({ isArray: true, maximum: 7, minimum: 1, type: Number })
+  targetWeekdays!: number[];
+}
+
+export class FixedRequestCreateResultDto {
+  @ApiProperty()
+  replayed!: boolean;
+
+  @ApiProperty({ type: FixedRequestSummaryDto })
+  request!: FixedRequestSummaryDto;
+}
+
 export class CreateBookingRequestDto {
   @ApiProperty({ format: 'uuid' })
   artistId!: string;

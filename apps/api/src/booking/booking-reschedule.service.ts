@@ -10,7 +10,7 @@ import {
 } from '../auth/authorization-policy.service';
 import { DatabaseService } from '../database/database.service';
 import { acquireTransactionLock } from '../database/transaction-lock';
-import { formatDateOnly, toBusinessDate } from '../shift/business-date';
+import { formatDateOnly, isoWeekdayForDate, toBusinessDate } from '../shift/business-date';
 import {
   BookingAppointmentNotFoundError,
   BookingCancellationCutoffError,
@@ -210,6 +210,15 @@ export class BookingRescheduleService {
       `appointment:reschedule:${original.id}`,
       `idempotency:${userId}:${IDEMPOTENCY_SCOPE}:${idempotencyKey}`,
     ];
+    const weekday = isoWeekdayForDate(command.date);
+    for (
+      let minute = command.startMinute;
+      minute < command.startMinute + command.durationMinutes;
+      minute += 15
+    ) {
+      keys.push(`fixed:artist:${command.artistId}:${weekday}:${minute}`);
+      keys.push(`fixed:host:${original.hostId}:${weekday}:${minute}`);
+    }
     for (const key of [...new Set(keys)].sort()) await acquireTransactionLock(transaction, key);
   }
 

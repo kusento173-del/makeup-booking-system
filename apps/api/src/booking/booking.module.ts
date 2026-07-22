@@ -13,6 +13,7 @@ import { BookingController } from './booking.controller';
 import { AppointmentQueryService } from './appointment-query.service';
 import { FixedAppointmentController } from './fixed-appointment.controller';
 import { FixedAvailabilityService } from './fixed-availability.service';
+import { FixedRequestService } from './fixed-request.service';
 
 @Module({
   controllers: [BookingController, FixedAppointmentController],
@@ -24,6 +25,7 @@ import { FixedAvailabilityService } from './fixed-availability.service';
     BookingRescheduleService,
     BookingSlotService,
     FixedAvailabilityService,
+    FixedRequestService,
   ],
   exports: [
     AppointmentQueryService,
@@ -32,6 +34,7 @@ import { FixedAvailabilityService } from './fixed-availability.service';
     BookingRescheduleService,
     BookingSlotService,
     FixedAvailabilityService,
+    FixedRequestService,
   ],
 })
 export class BookingModule {}

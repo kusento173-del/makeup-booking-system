@@ -6,6 +6,7 @@ import {
   parseBookingSlotsRequest,
   parseCancelBookingRequest,
   parseCreateBookingRequest,
+  parseCreateFixedRequest,
   parseFixedAvailabilityRequest,
   parseRescheduleBookingRequest,
 } from './booking-request.parser';
@@ -72,6 +73,47 @@ describe('booking request parser', () => {
         siteId: 'forged',
         weekdays: '1,3',
       }),
+    ).toThrow(BookingRequestInvalidError);
+  });
+
+  it('parses a strict fixed-request body without accepting forged scope', () => {
+    expect(
+      parseCreateFixedRequest(
+        {
+          artistId,
+          durationMinutes: 30,
+          effectiveFrom: '2026-07-27',
+          hostId,
+          reason: '申请固定',
+          startMinute: 540,
+          weekdays: [1, 3],
+        },
+        'fixed-key-0001',
+      ),
+    ).toEqual({
+      artistId,
+      durationMinutes: 30,
+      effectiveFrom: new Date('2026-07-27T00:00:00.000Z'),
+      hostId,
+      idempotencyKey: 'fixed-key-0001',
+      reason: '申请固定',
+      startMinute: 540,
+      weekdays: [1, 3],
+    });
+    expect(() =>
+      parseCreateFixedRequest(
+        {
+          artistId,
+          durationMinutes: 30,
+          effectiveFrom: '2026-07-27',
+          hostId,
+          reason: '申请固定',
+          siteId: 'forged',
+          startMinute: 540,
+          weekdays: [1, 3],
+        },
+        'fixed-key-0001',
+      ),
     ).toThrow(BookingRequestInvalidError);
   });
 

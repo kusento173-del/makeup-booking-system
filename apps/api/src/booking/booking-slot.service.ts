@@ -8,7 +8,11 @@ import {
 } from '../auth/authorization-policy.service';
 import type { VerifiedAuthorizationContext } from '../auth/authorization.types';
 import { DatabaseService } from '../database/database.service';
-import { businessDateMinuteToInstant, formatDateOnly } from '../shift/business-date';
+import {
+  businessDateMinuteToInstant,
+  formatDateOnly,
+  isoWeekdayForDate,
+} from '../shift/business-date';
 import { BookingHostNotFoundError, BookingSiteMismatchError } from './booking-slot.errors';
 import type {
   BookingSlotInput,
@@ -82,15 +86,37 @@ export class BookingSlotService {
       return this.unavailable(input, availability, availability.reason);
     }
 
-    const appointments = await this.database.read((client) =>
-      client.appointment.findMany({
-        select: { artistId: true, endAt: true, hostId: true, startAt: true },
-        where: {
-          appointmentDate: input.date,
-          OR: [{ artistId: input.artistId }, { hostId: input.hostId }],
-          status: { in: ['BOOKED', 'COMPLETED'] },
-        },
-      }),
+    const weekday = isoWeekdayForDate(input.date);
+    const [appointments, fixedOccupations, pendingOccupations] = await this.database.read(
+      (client) =>
+        Promise.all([
+          client.appointment.findMany({
+            select: { artistId: true, endAt: true, hostId: true, startAt: true },
+            where: {
+              appointmentDate: input.date,
+              OR: [{ artistId: input.artistId }, { hostId: input.hostId }],
+              status: { in: ['BOOKED', 'COMPLETED'] },
+            },
+          }),
+          client.fixedAppointmentRuleWeekday.findMany({
+            select: { endMinute: true, startMinute: true },
+            where: {
+              isoWeekday: weekday,
+              OR: [{ artistId: input.artistId }, { hostId: input.hostId }],
+              validFrom: { lte: input.date },
+              AND: [{ OR: [{ validUntil: null }, { validUntil: { gt: input.date } }] }],
+            },
+          }),
+          client.fixedAppointmentRequest.findMany({
+            select: { targetDurationMinutes: true, targetStartMinute: true },
+            where: {
+              effectiveFrom: { lte: input.date },
+              OR: [{ targetArtistId: input.artistId }, { hostId: input.hostId }],
+              status: 'PENDING',
+              targetWeekdays: { has: weekday },
+            },
+          }),
+        ]),
     );
     const existingAppointmentCount = appointments.filter(
       (appointment) => appointment.hostId === input.hostId,
@@ -99,12 +125,23 @@ export class BookingSlotService {
       return this.result(input, null, existingAppointmentCount, [], 'HOST_DAILY_LIMIT_REACHED');
     }
 
-    const starts = listFreeStartMinutes(
-      input.date,
-      availability.intervals,
-      input.durationMinutes,
-      appointments,
-    );
+    const recurringOccupations = [
+      ...fixedOccupations,
+      ...pendingOccupations.flatMap((request) => {
+        const startMinute = request.targetStartMinute;
+        const durationMinutes = request.targetDurationMinutes;
+        return startMinute === null || durationMinutes === null
+          ? []
+          : [{ endMinute: startMinute + durationMinutes, startMinute }];
+      }),
+    ].map((occupation) => ({
+      endAt: businessDateMinuteToInstant(input.date, occupation.endMinute),
+      startAt: businessDateMinuteToInstant(input.date, occupation.startMinute),
+    }));
+    const starts = listFreeStartMinutes(input.date, availability.intervals, input.durationMinutes, [
+      ...appointments,
+      ...recurringOccupations,
+    ]);
     return this.result(
       input,
       availability.source,
