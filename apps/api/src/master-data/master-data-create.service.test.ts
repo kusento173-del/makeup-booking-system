@@ -1,12 +1,12 @@
 import type { Prisma } from '@makeup/database';
 import { describe, expect, it, vi } from 'vitest';
 
+import { AuditCommandService } from '../audit/audit-command.service';
 import { AuditEntryFactory } from '../audit/audit-entry.factory';
 import { AuditSnapshotSanitizerService } from '../audit/audit-snapshot-sanitizer.service';
 import { AuthorizationDeniedError } from '../auth/authorization-policy.service';
 import { AuthorizationPolicyService } from '../auth/authorization-policy.service';
 import type { DatabaseService } from '../database/database.service';
-import { MasterDataAuditService } from './master-data-audit.service';
 import type { MasterDataCommandContext } from './master-data-command.types';
 import { MasterDataCreateService } from './master-data-create.service';
 import { MasterDataSiteMismatchError } from './master-data.errors';
@@ -30,7 +30,7 @@ function createService(transaction: object) {
     ),
   };
   const service = new MasterDataCreateService(
-    new MasterDataAuditService(new AuditEntryFactory(new AuditSnapshotSanitizerService()), {
+    new AuditCommandService(new AuditEntryFactory(new AuditSnapshotSanitizerService()), {
       append,
     }),
     new AuthorizationPolicyService(),

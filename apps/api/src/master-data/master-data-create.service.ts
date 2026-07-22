@@ -1,9 +1,9 @@
 import type { Prisma } from '@makeup/database';
 import { Injectable } from '@nestjs/common';
 
+import { AuditCommandService } from '../audit/audit-command.service';
 import { AuthorizationPolicyService } from '../auth/authorization-policy.service';
 import { DatabaseService } from '../database/database.service';
-import { MasterDataAuditService } from './master-data-audit.service';
 import type {
   AssignOperatorCommand,
   CreateArtistCommand,
@@ -23,7 +23,7 @@ import { optionalMasterDataText, requiredMasterDataText } from './master-data-te
 @Injectable()
 export class MasterDataCreateService {
   constructor(
-    private readonly audit: MasterDataAuditService,
+    private readonly audit: AuditCommandService,
     private readonly authorization: AuthorizationPolicyService,
     private readonly database: DatabaseService,
     private readonly normalization: MasterDataNormalizationService,

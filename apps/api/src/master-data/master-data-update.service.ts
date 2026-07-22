@@ -1,9 +1,9 @@
 import type { Prisma } from '@makeup/database';
 import { Injectable } from '@nestjs/common';
 
+import { AuditCommandService } from '../audit/audit-command.service';
 import { AuthorizationPolicyService } from '../auth/authorization-policy.service';
 import { DatabaseService } from '../database/database.service';
-import { MasterDataAuditService } from './master-data-audit.service';
 import type {
   EndOperatorAssignmentCommand,
   MasterDataCommandContext,
@@ -29,7 +29,7 @@ function assertUpdated(count: number): void {
 @Injectable()
 export class MasterDataUpdateService {
   constructor(
-    private readonly audit: MasterDataAuditService,
+    private readonly audit: AuditCommandService,
     private readonly authorization: AuthorizationPolicyService,
     private readonly database: DatabaseService,
     private readonly normalization: MasterDataNormalizationService,
