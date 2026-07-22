@@ -27,6 +27,7 @@ model Site {
   bindingCodes        AccountBindingCode[]
   shiftChangeRequests ArtistShiftChangeRequest[]
   artistOvertimes     ArtistOvertime[]
+  appointments        Appointment[]
 
   @@index([status, sortOrder], map: "sites_status_sort_order_idx")
   @@map("sites")
@@ -68,6 +69,8 @@ model AppUser {
   reviewedOvertimes       ArtistOvertime[]             @relation("ArtistOvertimeReviewedBy")
   createdLeaveRecords     LeaveRecord[]                @relation("LeaveRecordCreatedBy")
   cancelledLeaveRecords   LeaveRecord[]                @relation("LeaveRecordCancelledBy")
+  createdAppointments     Appointment[]                @relation("AppointmentCreatedBy")
+  cancelledAppointments   Appointment[]                @relation("AppointmentCancelledBy")
 
   @@index([status], map: "app_users_status_idx")
   @@map("app_users")
@@ -204,7 +207,9 @@ model HostProfile {
   qualificationHistories HostQualificationHistory[]
   bindingCodes           AccountBindingCode[]
   leaveRecords           LeaveRecord[]
+  appointments           Appointment[]
 
+  @@unique([id, siteId], map: "host_profiles_id_site_uq")
   @@index([realName], map: "host_profiles_real_name_idx")
   @@index([siteId, qualificationStatus], map: "host_profiles_site_status_idx")
   @@index([sourceImportBatchId], map: "host_profiles_source_import_batch_idx")
@@ -251,7 +256,9 @@ model ArtistProfile {
   shiftChangeRequests ArtistShiftChangeRequest[]
   overtimes           ArtistOvertime[]
   leaveRecords        LeaveRecord[]
+  appointments        Appointment[]
 
+  @@unique([id, siteId], map: "artist_profiles_id_site_uq")
   @@index([realName], map: "artist_profiles_real_name_idx")
   @@index([siteId, employmentStatus], map: "artist_profiles_site_status_idx")
   @@index([sourceImportBatchId], map: "artist_profiles_source_import_batch_idx")
@@ -389,6 +396,59 @@ model LeaveRecord {
   @@map("leave_records")
 }
 
+model Appointment {
+  id                           String                    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  hostId                       String                    @map("host_id") @db.Uuid
+  hostCodeSnapshot             String                    @map("host_code_snapshot") @db.VarChar(32)
+  hostNameSnapshot             String                    @map("host_name_snapshot") @db.VarChar(64)
+  artistId                     String                    @map("artist_id") @db.Uuid
+  artistNicknameSnapshot       String                    @map("artist_nickname_snapshot") @db.VarChar(64)
+  siteId                       String                    @map("site_id") @db.Uuid
+  siteNameSnapshot             String                    @map("site_name_snapshot") @db.VarChar(64)
+  operatorIdAtBooking          String?                   @map("operator_id_at_booking") @db.Uuid
+  operatorNameSnapshot         String?                   @map("operator_name_snapshot") @db.VarChar(64)
+  appointmentDate              DateTime                  @map("appointment_date") @db.Date
+  startAt                      DateTime                  @map("start_at") @db.Timestamptz(3)
+  endAt                        DateTime                  @map("end_at") @db.Timestamptz(3)
+  durationMinutes              Int                       @map("duration_minutes") @db.SmallInt
+  timeRange                    Unsupported("tstzrange")? @default(dbgenerated("tstzrange(start_at, end_at, '[)'::text)")) @map("time_range")
+  appointmentType              String                    @default("SINGLE") @map("appointment_type") @db.VarChar(16)
+  status                       String                    @default("BOOKED") @db.VarChar(16)
+  dailySequence                Int                       @map("daily_sequence") @db.SmallInt
+  rescheduledFromAppointmentId String?                   @unique(map: "appointments_rescheduled_from_uq") @map("rescheduled_from_appointment_id") @db.Uuid
+  createdByUserId              String?                   @map("created_by_user_id") @db.Uuid
+  createdByRole                String                    @map("created_by_role") @db.VarChar(32)
+  createdAt                    DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
+  cancelledAt                  DateTime?                 @map("cancelled_at") @db.Timestamptz(3)
+  cancelledByUserId            String?                   @map("cancelled_by_user_id") @db.Uuid
+  cancellationReasonCode       String?                   @map("cancellation_reason_code") @db.VarChar(64)
+  cancellationReasonText       String?                   @map("cancellation_reason_text") @db.VarChar(500)
+  cancellationSourceType       String?                   @map("cancellation_source_type") @db.VarChar(32)
+  cancellationSourceId         String?                   @map("cancellation_source_id") @db.Uuid
+  completedAt                  DateTime?                 @map("completed_at") @db.Timestamptz(3)
+  updatedAt                    DateTime                  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  rowVersion                   Int                       @default(1) @map("row_version")
+
+  host            HostProfile      @relation(fields: [hostId, siteId], references: [id, siteId], onDelete: Restrict, onUpdate: Cascade, map: "appointments_host_site_fkey")
+  artist          ArtistProfile    @relation(fields: [artistId, siteId], references: [id, siteId], onDelete: Restrict, onUpdate: Cascade, map: "appointments_artist_site_fkey")
+  site            Site             @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  operator        OperatorProfile? @relation(fields: [operatorIdAtBooking, siteId], references: [id, siteId], onDelete: Restrict, onUpdate: Cascade, map: "appointments_operator_site_fkey")
+  createdBy       AppUser?         @relation("AppointmentCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  cancelledBy     AppUser?         @relation("AppointmentCancelledBy", fields: [cancelledByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  rescheduledFrom Appointment?     @relation("AppointmentReschedule", fields: [rescheduledFromAppointmentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  rescheduledTo   Appointment?     @relation("AppointmentReschedule")
+
+  @@unique([hostId, appointmentDate, dailySequence], map: "appointments_active_host_daily_sequence_uq", where: raw("((status)::text = ANY ((ARRAY['BOOKED'::character varying, 'COMPLETED'::character varying])::text[]))"))
+  @@index([siteId, appointmentDate, startAt], map: "appointments_site_date_start_idx")
+  @@index([hostId, appointmentDate, status], map: "appointments_host_date_status_idx")
+  @@index([artistId, appointmentDate, status], map: "appointments_artist_date_status_idx")
+  @@index([operatorIdAtBooking, appointmentDate], map: "appointments_operator_date_idx")
+  @@index([status, startAt], map: "appointments_status_start_idx")
+  @@index([createdByUserId, createdAt(sort: Desc)], map: "appointments_created_by_idx")
+  @@index([cancelledByUserId, cancelledAt(sort: Desc)], map: "appointments_cancelled_by_idx")
+  @@map("appointments")
+}
+
 model OperatorProfile {
   id                  String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
   userId              String?  @unique(map: "operator_profiles_user_id_uq") @map("user_id") @db.Uuid
@@ -401,12 +461,14 @@ model OperatorProfile {
   rowVersion          Int      @default(1) @map("row_version")
   sourceImportBatchId String?  @map("source_import_batch_id") @db.Uuid
 
-  site              Site                   @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  user              AppUser?               @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  sourceImportBatch ImportBatch?           @relation("OperatorSourceImportBatch", fields: [sourceImportBatchId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  hostRelations     HostOperatorRelation[]
-  bindingCodes      AccountBindingCode[]
+  site               Site                   @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  user               AppUser?               @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sourceImportBatch  ImportBatch?           @relation("OperatorSourceImportBatch", fields: [sourceImportBatchId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  hostRelations      HostOperatorRelation[]
+  bindingCodes       AccountBindingCode[]
+  bookedAppointments Appointment[]
 
+  @@unique([id, siteId], map: "operator_profiles_id_site_uq")
   @@unique([siteId, nameNormalized], map: "operator_profiles_active_name_site_uq", where: raw("((employment_status)::text = 'ACTIVE'::text)"))
   @@index([siteId, employmentStatus], map: "operator_profiles_site_status_idx")
   @@index([sourceImportBatchId], map: "operator_profiles_source_import_batch_idx")
