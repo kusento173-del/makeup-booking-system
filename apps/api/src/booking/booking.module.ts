@@ -13,6 +13,7 @@ import { BookingController } from './booking.controller';
 import { AppointmentQueryService } from './appointment-query.service';
 import { FixedAppointmentController } from './fixed-appointment.controller';
 import { FixedAvailabilityService } from './fixed-availability.service';
+import { FixedGenerationService } from './fixed-generation.service';
 import { FixedRequestService } from './fixed-request.service';
 import { FixedRequestQueryService } from './fixed-request-query.service';
 import { FixedRequestReviewService } from './fixed-request-review.service';
@@ -27,6 +28,7 @@ import { FixedRequestReviewService } from './fixed-request-review.service';
     BookingRescheduleService,
     BookingSlotService,
     FixedAvailabilityService,
+    FixedGenerationService,
     FixedRequestQueryService,
     FixedRequestReviewService,
     FixedRequestService,
@@ -38,6 +40,7 @@ import { FixedRequestReviewService } from './fixed-request-review.service';
     BookingRescheduleService,
     BookingSlotService,
     FixedAvailabilityService,
+    FixedGenerationService,
     FixedRequestQueryService,
     FixedRequestReviewService,
     FixedRequestService,
