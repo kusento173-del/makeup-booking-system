@@ -23,3 +23,25 @@ test('当前身份接口默认拒绝未登录请求', async ({ request }) => {
     statusCode: 401,
   });
 });
+
+test('OpenAPI 契约包含完整认证路径和访问令牌方案', async ({ request }) => {
+  const response = await request.get(`${apiUrl}/openapi.json`);
+
+  expect(response.ok()).toBe(true);
+  const document = (await response.json()) as {
+    components?: { securitySchemes?: Record<string, unknown> };
+    paths?: Record<string, unknown>;
+  };
+  expect(Object.keys(document.paths ?? {})).toEqual(
+    expect.arrayContaining([
+      '/auth/wechat/login',
+      '/auth/wechat/bind',
+      '/auth/role-selection',
+      '/auth/refresh',
+      '/auth/me',
+      '/auth/logout',
+      '/auth/logout-all',
+    ]),
+  );
+  expect(document.components?.securitySchemes).toHaveProperty('access-token');
+});

@@ -13,6 +13,7 @@ test('API 健康检查返回可用状态', async ({ request }) => {
   expect(response.ok()).toBe(true);
   await expect(response.json()).resolves.toEqual({
     database: 'ok',
+    redis: 'ok',
     service: 'api',
     status: 'ok',
   });

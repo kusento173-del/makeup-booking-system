@@ -16,8 +16,12 @@
     "@nestjs/common": "11.1.28",
     "@nestjs/core": "11.1.28",
     "@nestjs/platform-fastify": "11.1.28",
+    "@nestjs/swagger": "catalog:",
+    "class-transformer": "catalog:",
+    "class-validator": "catalog:",
     "dotenv": "catalog:",
     "jose": "catalog:",
+    "redis": "catalog:",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2"
   }

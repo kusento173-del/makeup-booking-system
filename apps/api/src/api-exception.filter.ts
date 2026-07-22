@@ -7,6 +7,11 @@ import {
 } from '@nestjs/common';
 
 import { AuthRequestInvalidError } from './auth/auth-request.parser';
+import {
+  AuthRateLimitExceededError,
+  RateLimitConfigurationError,
+  RateLimitUnavailableError,
+} from './auth/auth-rate-limit.errors';
 import { AuthSessionInvalidError, AuthConfigurationError } from './auth/auth-session.errors';
 import { BindingCodeInvalidError } from './auth/binding-code.errors';
 import {
@@ -25,6 +30,7 @@ interface ErrorResponse {
 }
 
 interface HttpResponse {
+  header(name: string, value: string): HttpResponse;
   status(code: number): HttpResponse;
   send(body: ErrorResponse): void;
 }
@@ -34,10 +40,23 @@ export class ApiExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
     const response = host.switchToHttp().getResponse<HttpResponse>();
     const mapped = this.map(exception);
+
+    if (exception instanceof AuthRateLimitExceededError) {
+      response.header('Retry-After', String(exception.retryAfterSeconds));
+    }
+
     response.status(mapped.statusCode).send(mapped);
   }
 
   private map(exception: unknown): ErrorResponse {
+    if (exception instanceof AuthRateLimitExceededError) {
+      return this.response(
+        HttpStatus.TOO_MANY_REQUESTS,
+        exception.code,
+        `请求过于频繁，请在 ${exception.retryAfterSeconds} 秒后重试`,
+      );
+    }
+
     if (exception instanceof AuthRequestInvalidError) {
       return this.response(HttpStatus.BAD_REQUEST, exception.code, '请求内容不正确');
     }
@@ -59,6 +78,8 @@ export class ApiExceptionFilter implements ExceptionFilter {
 
     if (
       exception instanceof AuthConfigurationError ||
+      exception instanceof RateLimitConfigurationError ||
+      exception instanceof RateLimitUnavailableError ||
       exception instanceof WechatLoginConfigurationError
     ) {
       return this.response(HttpStatus.SERVICE_UNAVAILABLE, exception.code, '登录服务暂不可用');

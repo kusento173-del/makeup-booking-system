@@ -36,10 +36,17 @@ describe('AccessTokenService', () => {
 
   it('rejects altered tokens without exposing verification details', async () => {
     const issued = await service.issue('user-1', 'session-1', role);
+    const segments = issued.token.split('.');
+    const signature = segments[2];
 
-    await expect(service.verify(`${issued.token.slice(0, -1)}x`)).rejects.toBeInstanceOf(
-      AuthSessionInvalidError,
-    );
+    if (!segments[0] || !segments[1] || !signature) {
+      throw new Error('Issued token is not a compact JWT');
+    }
+
+    const tamperedSignature = `${signature[0] === 'A' ? 'B' : 'A'}${signature.slice(1)}`;
+    const tamperedToken = `${segments[0]}.${segments[1]}.${tamperedSignature}`;
+
+    await expect(service.verify(tamperedToken)).rejects.toBeInstanceOf(AuthSessionInvalidError);
   });
 
   it('refuses to sign with a short secret', async () => {

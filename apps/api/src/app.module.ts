@@ -5,9 +5,10 @@ import { AuthModule } from './auth/auth.module';
 import { DatabaseModule } from './database/database.module';
 import { HealthController } from './health.controller';
 import { MasterDataModule } from './master-data/master-data.module';
+import { RedisModule } from './redis/redis.module';
 
 @Module({
-  imports: [AuditModule, AuthModule, DatabaseModule, MasterDataModule],
+  imports: [AuditModule, AuthModule, DatabaseModule, MasterDataModule, RedisModule],
   controllers: [HealthController],
 })
 export class AppModule {}

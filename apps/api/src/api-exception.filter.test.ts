@@ -6,7 +6,8 @@ import { AuthSessionInvalidError } from './auth/auth-session.errors';
 
 function createHost() {
   const send = vi.fn();
-  const response = { send, status: vi.fn() };
+  const response = { header: vi.fn(), send, status: vi.fn() };
+  response.header.mockReturnValue(response);
   response.status.mockReturnValue(response);
   const host = {
     switchToHttp: () => ({ getResponse: () => response }),
