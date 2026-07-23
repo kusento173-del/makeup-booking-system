@@ -66,5 +66,7 @@ export function getAllowedFeature(
 }
 
 export function featureRoute(featureId: MobileFeatureId): string {
-  return `/pages/feature/index?feature=${featureId}`;
+  return featureId === 'schedule'
+    ? '/pages/schedule/index'
+    : `/pages/feature/index?feature=${featureId}`;
 }

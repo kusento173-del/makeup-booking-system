@@ -1,5 +1,5 @@
 export default defineAppConfig({
-  pages: ['pages/index/index', 'pages/feature/index'],
+  pages: ['pages/index/index', 'pages/schedule/index', 'pages/feature/index'],
   window: {
     navigationBarTitleText: '妆序',
     navigationBarBackgroundColor: '#ffffff',
