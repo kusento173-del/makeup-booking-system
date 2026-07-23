@@ -19,7 +19,8 @@ describe('mobile navigation', () => {
   });
 
   it('生成稳定的小程序业务入口地址', () => {
-    expect(featureRoute('schedule')).toBe('/pages/schedule/index');
-    expect(featureRoute('booking')).toBe('/pages/feature/index?feature=booking');
+    expect(featureRoute('schedule', 'HOST')).toBe('/pages/schedule/index');
+    expect(featureRoute('booking', 'HOST')).toBe('/pages/booking/index');
+    expect(featureRoute('booking', 'OPERATOR')).toBe('/pages/feature/index?feature=booking');
   });
 });

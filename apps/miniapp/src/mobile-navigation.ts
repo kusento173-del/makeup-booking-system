@@ -65,8 +65,8 @@ export function getAllowedFeature(
   return getMobileHome(roleCode)?.features.find((feature) => feature.id === featureId) ?? null;
 }
 
-export function featureRoute(featureId: MobileFeatureId): string {
-  return featureId === 'schedule'
-    ? '/pages/schedule/index'
-    : `/pages/feature/index?feature=${featureId}`;
+export function featureRoute(featureId: MobileFeatureId, roleCode?: RoleCode): string {
+  if (featureId === 'schedule') return '/pages/schedule/index';
+  if (featureId === 'booking' && roleCode === 'HOST') return '/pages/booking/index';
+  return `/pages/feature/index?feature=${featureId}`;
 }

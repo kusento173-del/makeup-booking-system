@@ -253,7 +253,11 @@ export default function IndexPage() {
               <Button
                 className="business-entry"
                 key={feature.id}
-                onClick={() => void Taro.navigateTo({ url: featureRoute(feature.id) })}
+                onClick={() =>
+                  void Taro.navigateTo({
+                    url: featureRoute(feature.id, session.role.roleCode),
+                  })
+                }
               >
                 <View>
                   <Text className="entry-title">{feature.title}</Text>

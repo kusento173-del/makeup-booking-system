@@ -24,6 +24,7 @@ export async function apiRequest<T>(
   path: string,
   options: {
     readonly body?: unknown;
+    readonly headers?: Readonly<Record<string, string>>;
     readonly method?: 'GET' | 'POST';
     readonly token?: string;
   } = {},
@@ -33,6 +34,7 @@ export async function apiRequest<T>(
     header: {
       'Content-Type': 'application/json',
       ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
+      ...options.headers,
     },
     method: options.method ?? 'GET',
     url: `${API_BASE_URL}${path}`,
