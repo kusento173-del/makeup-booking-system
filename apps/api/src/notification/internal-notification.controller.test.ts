@@ -104,4 +104,30 @@ describe('InternalNotificationController', () => {
       else process.env.NOTIFICATION_CHANNEL = previous;
     }
   });
+
+  it('runs the locked daily summaries through the configured channel', async () => {
+    const previous = process.env.NOTIFICATION_CHANNEL;
+    process.env.NOTIFICATION_CHANNEL = 'WECHAT_MINI_PROGRAM';
+    const runDailySummary = vi.fn().mockResolvedValue({
+      createdTaskCount: 4,
+      eligible: true,
+      missingTemplateRoles: [],
+    });
+    const controller = new InternalNotificationController(
+      {} as NotificationDeliveryService,
+      {} as NotificationOutboxService,
+      { runDailySummary } as unknown as NotificationScheduleService,
+      {} as WechatMiniProgramNotificationAdapter,
+    );
+    try {
+      await expect(controller.runDailySummaries()).resolves.toMatchObject({
+        createdTaskCount: 4,
+        eligible: true,
+      });
+      expect(runDailySummary).toHaveBeenCalledWith('WECHAT_MINI_PROGRAM');
+    } finally {
+      if (previous === undefined) delete process.env.NOTIFICATION_CHANNEL;
+      else process.env.NOTIFICATION_CHANNEL = previous;
+    }
+  });
 });

@@ -10,6 +10,7 @@ import { NotificationOutboxService } from './notification-outbox.service';
 import { NotificationScheduleService } from './notification-schedule.service';
 import type {
   NotificationChannel,
+  NotificationDailySummaryBatchResult,
   NotificationOutboxBatchResult,
   NotificationReminderBatchResult,
 } from './notification.types';
@@ -52,6 +53,14 @@ export class InternalNotificationController {
   @HttpCode(200)
   runReminders(): Promise<NotificationReminderBatchResult> {
     return this.schedule.runReminderBatch(
+      configuredNotificationChannel(process.env.NOTIFICATION_CHANNEL),
+    );
+  }
+
+  @Post('notification-daily-summaries')
+  @HttpCode(200)
+  runDailySummaries(): Promise<NotificationDailySummaryBatchResult> {
+    return this.schedule.runDailySummary(
       configuredNotificationChannel(process.env.NOTIFICATION_CHANNEL),
     );
   }

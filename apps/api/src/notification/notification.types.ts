@@ -27,3 +27,9 @@ export interface NotificationReminderBatchResult {
   readonly createdTaskCount: number;
   readonly templateAvailable: boolean;
 }
+
+export interface NotificationDailySummaryBatchResult {
+  readonly createdTaskCount: number;
+  readonly eligible: boolean;
+  readonly missingTemplateRoles: readonly ('ARTIST' | 'OPERATOR')[];
+}
