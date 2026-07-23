@@ -38,7 +38,7 @@ function createService(options?: {
   readonly createCount?: number;
   readonly event?: object | null;
   readonly operatorRelation?: object | null;
-  readonly template?: object | null;
+  readonly templates?: readonly object[];
 }) {
   const event =
     options?.event === undefined
@@ -67,11 +67,13 @@ function createService(options?: {
       createMany: vi.fn().mockResolvedValue({ count: options?.createCount ?? 3 }),
     },
     notificationTemplateVersion: {
-      findFirst: vi
-        .fn()
-        .mockResolvedValue(
-          options?.template === undefined ? { id: 'template-1' } : options.template,
-        ),
+      findMany: vi.fn().mockResolvedValue(
+        options?.templates ?? [
+          { id: 'template-host', recipientRoleCode: 'HOST' },
+          { id: 'template-artist', recipientRoleCode: 'ARTIST' },
+          { id: 'template-operator', recipientRoleCode: 'OPERATOR' },
+        ],
+      ),
     },
     outboxEvent: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
   };
@@ -117,9 +119,11 @@ describe('NotificationOutboxService', () => {
       data: readonly {
         businessKey: string;
         lastErrorCode?: string;
+        payload: Record<string, unknown>;
         recipientRoleCode: string;
         recipientUserId?: string;
         status?: string;
+        templateVersionId: string;
       }[];
     };
     const tasks = createInput.data;
@@ -130,18 +134,26 @@ describe('NotificationOutboxService', () => {
           businessKey: 'APPOINTMENT_CREATED:appointment-1:HOST:host-1',
           recipientRoleCode: 'HOST',
           recipientUserId: 'host-user-1',
+          templateVersionId: 'template-host',
         }),
         expect.objectContaining({
           lastErrorCode: 'RECIPIENT_UNBOUND',
           recipientRoleCode: 'ARTIST',
           status: 'FAILED',
+          templateVersionId: 'template-artist',
         }),
         expect.objectContaining({
           recipientRoleCode: 'OPERATOR',
           recipientUserId: 'operator-user-1',
+          templateVersionId: 'template-operator',
         }),
       ]),
     );
+    expect(tasks.find((task) => task.recipientRoleCode === 'HOST')?.payload).toMatchObject({
+      appointmentDateTime: '2026-07-23 09:30',
+      appointmentStatus: '已预约',
+      noticeText: '请按预约时间到场化妆',
+    });
     const publishInput = transaction.outboxEvent.updateMany.mock.calls.at(-1)?.[0] as unknown as {
       data: { status?: string };
     };
@@ -149,7 +161,7 @@ describe('NotificationOutboxService', () => {
   });
 
   it('defers a supported event without an active channel template', async () => {
-    const { service, transaction } = createService({ template: null });
+    const { service, transaction } = createService({ templates: [] });
 
     await expect(service.runOne('WECHAT_MINI_PROGRAM', now)).resolves.toEqual({
       eventId: 'event-1',
@@ -228,7 +240,7 @@ describe('NotificationOutboxService', () => {
       status: 'EMPTY',
       taskCount: 0,
     });
-    expect(transaction.notificationTemplateVersion.findFirst).not.toHaveBeenCalled();
+    expect(transaction.notificationTemplateVersion.findMany).not.toHaveBeenCalled();
     expect(transaction.outboxEvent.updateMany).not.toHaveBeenCalled();
   });
 });

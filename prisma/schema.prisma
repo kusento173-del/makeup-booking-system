@@ -611,6 +611,7 @@ model OutboxEvent {
 model NotificationTemplateVersion {
   id                  String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
   templateCode        String    @map("template_code") @db.VarChar(64)
+  recipientRoleCode   String    @map("recipient_role_code") @db.VarChar(32)
   version             Int       @db.SmallInt
   channel             String    @db.VarChar(32)
   subscriptionType    String    @default("ONE_TIME") @map("subscription_type") @db.VarChar(16)
@@ -626,9 +627,9 @@ model NotificationTemplateVersion {
   tasks NotificationTask[]
   subscriptionDecisions NotificationSubscriptionDecision[]
 
-  @@unique([templateCode, version], map: "notification_template_versions_code_version_uq")
-  @@unique([templateCode, channel], map: "notification_template_versions_active_uq", where: raw("((status)::text = 'ACTIVE'::text)"))
-  @@index([status, templateCode], map: "notification_template_versions_status_code_idx")
+  @@unique([templateCode, recipientRoleCode, version], map: "notification_template_versions_code_role_version_uq")
+  @@unique([templateCode, recipientRoleCode, channel], map: "notification_template_versions_active_uq", where: raw("((status)::text = 'ACTIVE'::text)"))
+  @@index([status, templateCode, recipientRoleCode], map: "notification_template_versions_status_code_role_idx")
   @@map("notification_template_versions")
 }
 

@@ -1,8 +1,10 @@
 import { NotificationTemplateRequestInvalidError } from './notification-template.errors';
 import {
+  NOTIFICATION_RECIPIENT_ROLES,
   NOTIFICATION_TEMPLATE_CODES,
   type CreateNotificationTemplateCommand,
   type NotificationTemplateCode,
+  type NotificationRecipientRole,
   type NotificationSubscriptionType,
   type TransitionNotificationTemplateCommand,
 } from './notification-template.types';
@@ -49,7 +51,13 @@ export function parseCreateNotificationTemplateRequest(
   body: unknown,
 ): CreateNotificationTemplateCommand {
   const value = record(body);
-  exactKeys(value, ['providerTemplateKey', 'subscriptionType', 'templateCode', 'variableMappings']);
+  exactKeys(value, [
+    'providerTemplateKey',
+    'recipientRoleCode',
+    'subscriptionType',
+    'templateCode',
+    'variableMappings',
+  ]);
   if (!NOTIFICATION_TEMPLATE_CODES.includes(value.templateCode as NotificationTemplateCode)) {
     throw new NotificationTemplateRequestInvalidError();
   }
@@ -59,8 +67,14 @@ export function parseCreateNotificationTemplateRequest(
   if (!['ONE_TIME', 'PERMANENT'].includes(value.subscriptionType as string)) {
     throw new NotificationTemplateRequestInvalidError();
   }
+  if (
+    !NOTIFICATION_RECIPIENT_ROLES.includes(value.recipientRoleCode as NotificationRecipientRole)
+  ) {
+    throw new NotificationTemplateRequestInvalidError();
+  }
   return {
     providerTemplateKey: text(value.providerTemplateKey, 128),
+    recipientRoleCode: value.recipientRoleCode as NotificationRecipientRole,
     subscriptionType: value.subscriptionType as NotificationSubscriptionType,
     templateCode: value.templateCode as NotificationTemplateCode,
     variableMappings: value.variableMappings.map((mapping) => text(mapping, 64)),

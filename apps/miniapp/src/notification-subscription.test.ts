@@ -10,12 +10,12 @@ const group: SubscriptionGroup = {
   templates: [
     {
       providerTemplateKey: 'wechat-template-1',
-      templateCode: 'APPOINTMENT_CREATED',
+      templateCode: 'APPOINTMENT_NOTICE',
       templateVersionId: '019b0000-0000-7000-8000-000000000002',
     },
     {
       providerTemplateKey: 'wechat-template-2',
-      templateCode: 'APPOINTMENT_CANCELLED',
+      templateCode: 'APPOINTMENT_NOTICE',
       templateVersionId: '019b0000-0000-7000-8000-000000000003',
     },
   ],

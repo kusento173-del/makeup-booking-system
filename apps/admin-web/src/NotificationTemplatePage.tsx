@@ -6,10 +6,11 @@ import {
   activateNotificationTemplate,
   createNotificationTemplate,
   listNotificationTemplates,
-  NOTIFICATION_TEMPLATE_CODES,
+  NOTIFICATION_RECIPIENT_ROLES,
   type NotificationTemplate,
   type NotificationTemplateCode,
   type NotificationTemplatePreview,
+  type NotificationRecipientRole,
   type NotificationSubscriptionType,
   previewNotificationTemplate,
   retireNotificationTemplate,
@@ -21,9 +22,13 @@ interface NotificationTemplatePageProps {
 }
 
 const CODE_LABELS: Record<NotificationTemplateCode, string> = {
-  APPOINTMENT_CANCELLED: '预约取消',
-  APPOINTMENT_CREATED: '预约新增',
-  APPOINTMENT_RESCHEDULED: '预约改期',
+  APPOINTMENT_NOTICE: '预约通知',
+};
+
+const ROLE_LABELS: Record<NotificationRecipientRole, string> = {
+  ARTIST: '化妆师',
+  HOST: '主播',
+  OPERATOR: '运营',
 };
 
 const STATUS_LABELS = { ACTIVE: '使用中', DRAFT: '草稿', RETIRED: '已退役' } as const;
@@ -56,7 +61,8 @@ export function NotificationTemplatePage({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reloadVersion, setReloadVersion] = useState(0);
-  const [templateCode, setTemplateCode] = useState<NotificationTemplateCode>('APPOINTMENT_CREATED');
+  const templateCode: NotificationTemplateCode = 'APPOINTMENT_NOTICE';
+  const [recipientRoleCode, setRecipientRoleCode] = useState<NotificationRecipientRole>('HOST');
   const [providerTemplateKey, setProviderTemplateKey] = useState('');
   const [subscriptionType, setSubscriptionType] =
     useState<NotificationSubscriptionType>('ONE_TIME');
@@ -91,10 +97,12 @@ export function NotificationTemplatePage({
     };
   }, [onUnauthorized, reloadVersion, session.accessToken]);
 
-  const activeCodes = useMemo(
+  const activeScopes = useMemo(
     () =>
       new Set(
-        templates.filter((item) => item.status === 'ACTIVE').map((item) => item.templateCode),
+        templates
+          .filter((item) => item.status === 'ACTIVE')
+          .map((item) => `${item.templateCode}:${item.recipientRoleCode}`),
       ),
     [templates],
   );
@@ -121,6 +129,7 @@ export function NotificationTemplatePage({
     try {
       await createNotificationTemplate(session.accessToken, {
         providerTemplateKey: providerTemplateKey.trim(),
+        recipientRoleCode,
         subscriptionType,
         templateCode,
         variableMappings,
@@ -195,9 +204,13 @@ export function NotificationTemplatePage({
 
       <section className="template-readiness" aria-label="通知模板配置状态">
         <strong>当前生效：</strong>
-        {NOTIFICATION_TEMPLATE_CODES.map((code) => (
-          <span className={activeCodes.has(code) ? 'ready' : 'missing'} key={code}>
-            {CODE_LABELS[code]} {activeCodes.has(code) ? '已配置' : '未配置'}
+        {NOTIFICATION_RECIPIENT_ROLES.map((roleCode) => (
+          <span
+            className={activeScopes.has(`APPOINTMENT_NOTICE:${roleCode}`) ? 'ready' : 'missing'}
+            key={roleCode}
+          >
+            {ROLE_LABELS[roleCode]}{' '}
+            {activeScopes.has(`APPOINTMENT_NOTICE:${roleCode}`) ? '已配置' : '未配置'}
           </span>
         ))}
         <p>AppID 和 AppSecret 只在部署环境配置，本页面不会显示密钥或发送测试消息。</p>
@@ -207,16 +220,16 @@ export function NotificationTemplatePage({
         <section className="template-create-card" aria-label="新建通知模板草稿">
           <div className="template-create-fields">
             <label className="compact-field">
-              <span>业务通知</span>
+              <span>接收角色</span>
               <select
                 onChange={(event) =>
-                  setTemplateCode(event.target.value as NotificationTemplateCode)
+                  setRecipientRoleCode(event.target.value as NotificationRecipientRole)
                 }
-                value={templateCode}
+                value={recipientRoleCode}
               >
-                {NOTIFICATION_TEMPLATE_CODES.map((code) => (
-                  <option key={code} value={code}>
-                    {CODE_LABELS[code]}
+                {NOTIFICATION_RECIPIENT_ROLES.map((roleCode) => (
+                  <option key={roleCode} value={roleCode}>
+                    {ROLE_LABELS[roleCode]}
                   </option>
                 ))}
               </select>
@@ -253,7 +266,7 @@ export function NotificationTemplatePage({
           </div>
           <div className="template-create-help">
             <span>
-              可用业务字段：hostName、hostCode、artistName、siteName、appointmentDate、startTime、endTime、timeRange、durationMinutes
+              可用业务字段：appointmentDate、appointmentDateTime、appointmentStatus、appointmentCount、hostName、hostCode、artistName、siteName、startTime、endTime、timeRange、durationMinutes、noticeText
             </span>
             <button
               className="primary-action"
@@ -290,6 +303,7 @@ export function NotificationTemplatePage({
               <thead>
                 <tr>
                   <th>业务通知</th>
+                  <th>接收角色</th>
                   <th>版本</th>
                   <th>状态</th>
                   <th>订阅类型</th>
@@ -305,6 +319,7 @@ export function NotificationTemplatePage({
                     <td>
                       <strong>{CODE_LABELS[template.templateCode]}</strong>
                     </td>
+                    <td>{ROLE_LABELS[template.recipientRoleCode]}</td>
                     <td>v{template.version}</td>
                     <td>
                       <span className={`template-status ${template.status.toLowerCase()}`}>
@@ -356,7 +371,9 @@ export function NotificationTemplatePage({
       {preview ? (
         <section className="template-preview" aria-label="模板示例预览">
           <div>
-            <strong>{CODE_LABELS[preview.templateCode]}示例</strong>
+            <strong>
+              {ROLE_LABELS[preview.recipientRoleCode]} · {CODE_LABELS[preview.templateCode]}示例
+            </strong>
             <button className="text-button" onClick={() => setPreview(null)} type="button">
               关闭
             </button>
@@ -379,6 +396,8 @@ export function NotificationTemplatePage({
               <div>
                 <p className="dialog-subtitle">
                   {CODE_LABELS[action.template.templateCode]} · v{action.template.version}
+                  {' · '}
+                  {ROLE_LABELS[action.template.recipientRoleCode]}
                 </p>
                 <h2>{action.kind === 'activate' ? '启用此模板版本' : '退役当前模板'}</h2>
               </div>

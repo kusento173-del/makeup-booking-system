@@ -4,12 +4,13 @@ export class CreateNotificationTemplateRequestDto {
   @ApiProperty({ maxLength: 128 })
   providerTemplateKey!: string;
 
+  @ApiProperty({ enum: ['HOST', 'ARTIST', 'OPERATOR'] })
+  recipientRoleCode!: string;
+
   @ApiProperty({ enum: ['ONE_TIME', 'PERMANENT'] })
   subscriptionType!: string;
 
-  @ApiProperty({
-    enum: ['APPOINTMENT_CANCELLED', 'APPOINTMENT_CREATED', 'APPOINTMENT_RESCHEDULED'],
-  })
+  @ApiProperty({ enum: ['APPOINTMENT_NOTICE'] })
   templateCode!: string;
 
   @ApiProperty({
@@ -47,6 +48,9 @@ export class NotificationTemplateSummaryDto {
   @ApiProperty({ nullable: true })
   providerTemplateKey!: string | null;
 
+  @ApiProperty({ enum: ['HOST', 'ARTIST', 'OPERATOR'] })
+  recipientRoleCode!: string;
+
   @ApiProperty({ format: 'date-time', nullable: true })
   retiredAt!: string | null;
 
@@ -59,9 +63,7 @@ export class NotificationTemplateSummaryDto {
   @ApiProperty({ enum: ['ONE_TIME', 'PERMANENT'] })
   subscriptionType!: string;
 
-  @ApiProperty({
-    enum: ['APPOINTMENT_CANCELLED', 'APPOINTMENT_CREATED', 'APPOINTMENT_RESCHEDULED'],
-  })
+  @ApiProperty({ enum: ['APPOINTMENT_NOTICE'] })
   templateCode!: string;
 
   @ApiProperty({ isArray: true, type: String })
@@ -77,6 +79,9 @@ export class NotificationTemplatePreviewDto {
 
   @ApiProperty({ nullable: true })
   providerTemplateKey!: string | null;
+
+  @ApiProperty({ enum: ['HOST', 'ARTIST', 'OPERATOR'] })
+  recipientRoleCode!: string;
 
   @ApiProperty()
   templateCode!: string;

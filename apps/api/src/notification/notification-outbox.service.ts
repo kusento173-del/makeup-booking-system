@@ -30,13 +30,28 @@ interface Recipient {
   readonly userStatus: string | null;
 }
 
-const EVENT_TEMPLATE: Readonly<Record<NotificationEventType, string>> = {
+const EVENT_BUSINESS_KIND: Readonly<Record<NotificationEventType, string>> = {
   APPOINTMENT_CANCELLED: 'APPOINTMENT_CANCELLED',
   APPOINTMENT_CREATED: 'APPOINTMENT_CREATED',
   APPOINTMENT_RESCHEDULED_FROM: 'APPOINTMENT_RESCHEDULED',
   APPOINTMENT_RESCHEDULED_TO: 'APPOINTMENT_RESCHEDULED',
   FIXED_APPOINTMENT_CANCELLED_BY_RULE_REQUEST: 'APPOINTMENT_CANCELLED',
   FIXED_APPOINTMENT_GENERATED: 'APPOINTMENT_CREATED',
+};
+
+const EVENT_STATUS: Readonly<Record<NotificationEventType, string>> = {
+  APPOINTMENT_CANCELLED: '已取消',
+  APPOINTMENT_CREATED: '已预约',
+  APPOINTMENT_RESCHEDULED_FROM: '已改期',
+  APPOINTMENT_RESCHEDULED_TO: '已改期',
+  FIXED_APPOINTMENT_CANCELLED_BY_RULE_REQUEST: '已取消',
+  FIXED_APPOINTMENT_GENERATED: '已预约',
+};
+
+const ROLE_NOTICE: Readonly<Record<Recipient['roleCode'], string>> = {
+  ARTIST: '请进入小程序查看完整排班',
+  HOST: '请按预约时间到场化妆',
+  OPERATOR: '请关注负责主播的化妆安排',
 };
 
 const APPOINTMENT_SELECT = {
@@ -100,23 +115,6 @@ export class NotificationOutboxService {
       const event = await this.claim(transaction, now);
       if (!event) return { eventId: null, status: 'EMPTY', taskCount: 0 };
 
-      const templateCode = EVENT_TEMPLATE[event.eventType];
-      const template = await transaction.notificationTemplateVersion.findFirst({
-        orderBy: { version: 'desc' },
-        select: { id: true },
-        where: { channel, status: 'ACTIVE', templateCode },
-      });
-      if (!template) {
-        await transaction.outboxEvent.updateMany({
-          data: {
-            attemptCount: { increment: 1 },
-            availableAt: new Date(now.getTime() + 5 * 60_000),
-          },
-          where: { id: event.id, status: 'PENDING' },
-        });
-        return { eventId: event.id, status: 'DEFERRED', taskCount: 0 };
-      }
-
       const payload = this.payload(event.payload);
       const replacementId =
         event.eventType === 'APPOINTMENT_RESCHEDULED_FROM'
@@ -130,12 +128,38 @@ export class NotificationOutboxService {
         replacementId ?? payload.appointmentId,
       );
       const recipients = await this.recipients(transaction, event, payload, appointment);
+      const roles = [...new Set(recipients.map((recipient) => recipient.roleCode))];
+      const templates = await transaction.notificationTemplateVersion.findMany({
+        orderBy: { version: 'desc' },
+        select: { id: true, recipientRoleCode: true },
+        where: {
+          channel,
+          recipientRoleCode: { in: roles },
+          status: 'ACTIVE',
+          templateCode: 'APPOINTMENT_NOTICE',
+        },
+      });
+      const templateByRole = new Map(
+        templates.map((template) => [template.recipientRoleCode, template.id]),
+      );
+      if (roles.some((role) => !templateByRole.has(role))) {
+        await transaction.outboxEvent.updateMany({
+          data: {
+            attemptCount: { increment: 1 },
+            availableAt: new Date(now.getTime() + 5 * 60_000),
+          },
+          where: { id: event.id, status: 'PENDING' },
+        });
+        return { eventId: event.id, status: 'DEFERRED', taskCount: 0 };
+      }
+
       const businessRoot = replacementId ?? appointment.id;
-      const taskPayload = this.taskPayload(appointment);
       const data = recipients.map((recipient) => {
         const available = recipient.userId !== null && recipient.userStatus === 'ACTIVE';
+        const templateVersionId = templateByRole.get(recipient.roleCode);
+        if (!templateVersionId) throw new Error('Notification role template is unavailable');
         return {
-          businessKey: `${templateCode}:${businessRoot}:${recipient.roleCode}:${recipient.profileId}`,
+          businessKey: `${EVENT_BUSINESS_KIND[event.eventType]}:${businessRoot}:${recipient.roleCode}:${recipient.profileId}`,
           ...(available
             ? { recipientUserId: recipient.userId }
             : {
@@ -149,14 +173,14 @@ export class NotificationOutboxService {
                 ...(recipient.userId ? { recipientUserId: recipient.userId } : {}),
                 status: 'FAILED',
               }),
-          payload: taskPayload,
+          payload: this.taskPayload(appointment, event.eventType, recipient.roleCode),
           recipientNameSnapshot: recipient.name,
           recipientProfileId: recipient.profileId,
           recipientRoleCode: recipient.roleCode,
           scheduledAt: now,
           siteId: appointment.siteId,
           sourceOutboxEventId: event.id,
-          templateVersionId: template.id,
+          templateVersionId,
         } satisfies Prisma.NotificationTaskCreateManyInput;
       });
       const created =
@@ -281,7 +305,12 @@ export class NotificationOutboxService {
     };
   }
 
-  private taskPayload(appointment: AppointmentRecord): Prisma.InputJsonObject {
+  private taskPayload(
+    appointment: AppointmentRecord,
+    eventType: NotificationEventType,
+    recipientRoleCode: Recipient['roleCode'],
+  ): Prisma.InputJsonObject {
+    const appointmentDate = formatDateOnly(appointment.appointmentDate);
     const startTime = this.clock(
       instantToBusinessDateMinute(appointment.appointmentDate, appointment.startAt),
     );
@@ -289,14 +318,18 @@ export class NotificationOutboxService {
       instantToBusinessDateMinute(appointment.appointmentDate, appointment.endAt),
     );
     return {
-      appointmentDate: formatDateOnly(appointment.appointmentDate),
+      appointmentCount: 1,
+      appointmentDate,
+      appointmentDateTime: `${appointmentDate} ${startTime}`,
       appointmentId: appointment.id,
+      appointmentStatus: EVENT_STATUS[eventType],
       artistName: appointment.artistNicknameSnapshot,
       durationMinutes: appointment.durationMinutes,
       endAt: appointment.endAt.toISOString(),
       endTime,
       hostCode: appointment.hostCodeSnapshot,
       hostName: appointment.hostNameSnapshot,
+      noticeText: ROLE_NOTICE[recipientRoleCode],
       siteName: appointment.siteNameSnapshot,
       startAt: appointment.startAt.toISOString(),
       startTime,

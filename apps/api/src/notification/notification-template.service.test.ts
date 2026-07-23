@@ -14,11 +14,12 @@ const draft = {
   createdAt: now,
   id: '019b0000-0000-7000-8000-000000000001',
   providerTemplateKey: 'template-2',
+  recipientRoleCode: 'HOST',
   retiredAt: null,
   rowVersion: 1,
   status: 'DRAFT',
   subscriptionType: 'ONE_TIME',
-  templateCode: 'APPOINTMENT_CREATED',
+  templateCode: 'APPOINTMENT_NOTICE',
   variableKeys: ['thing1=hostName', 'time2=timeRange'],
   version: 2,
 };
@@ -90,8 +91,9 @@ describe('NotificationTemplateService', () => {
     await expect(
       service.createDraft(admin, {
         providerTemplateKey: 'template-2',
+        recipientRoleCode: 'HOST',
         subscriptionType: 'ONE_TIME',
-        templateCode: 'APPOINTMENT_CREATED',
+        templateCode: 'APPOINTMENT_NOTICE',
         variableMappings: ['thing1=hostName', 'time2=timeRange'],
       }),
     ).resolves.toMatchObject({ status: 'DRAFT', version: 2 });
@@ -126,8 +128,9 @@ describe('NotificationTemplateService', () => {
     expect(() =>
       service.createDraft(admin, {
         providerTemplateKey: 'template-3',
+        recipientRoleCode: 'HOST',
         subscriptionType: 'ONE_TIME',
-        templateCode: 'APPOINTMENT_CREATED',
+        templateCode: 'APPOINTMENT_NOTICE',
         variableMappings: ['thing1=unknownField'],
       }),
     ).toThrow(NotificationTemplateRequestInvalidError);
@@ -146,8 +149,9 @@ describe('NotificationTemplateService', () => {
     expect(() =>
       service.createDraft(customerService, {
         providerTemplateKey: 'template-3',
+        recipientRoleCode: 'HOST',
         subscriptionType: 'ONE_TIME',
-        templateCode: 'APPOINTMENT_CREATED',
+        templateCode: 'APPOINTMENT_NOTICE',
         variableMappings: ['thing1=hostName'],
       }),
     ).toThrow(AuthorizationDeniedError);

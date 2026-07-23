@@ -25,8 +25,9 @@ describe('notification template API client', () => {
 
     await createNotificationTemplate('access-token', {
       providerTemplateKey: 'wechat-template-1',
+      recipientRoleCode: 'HOST',
       subscriptionType: 'ONE_TIME',
-      templateCode: 'APPOINTMENT_CREATED',
+      templateCode: 'APPOINTMENT_NOTICE',
       variableMappings: ['thing1=hostName'],
     });
 
@@ -34,8 +35,9 @@ describe('notification template API client', () => {
     expect(url).toBe('/api/notification-templates');
     expect(JSON.parse(init.body as string)).toEqual({
       providerTemplateKey: 'wechat-template-1',
+      recipientRoleCode: 'HOST',
       subscriptionType: 'ONE_TIME',
-      templateCode: 'APPOINTMENT_CREATED',
+      templateCode: 'APPOINTMENT_NOTICE',
       variableMappings: ['thing1=hostName'],
     });
   });

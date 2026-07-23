@@ -31,6 +31,7 @@ const TEMPLATE_SELECT = {
   createdAt: true,
   id: true,
   providerTemplateKey: true,
+  recipientRoleCode: true,
   retiredAt: true,
   rowVersion: true,
   status: true,
@@ -57,7 +58,7 @@ export class NotificationTemplateService {
     return this.database.read((client) =>
       client.notificationTemplateVersion
         .findMany({
-          orderBy: [{ templateCode: 'asc' }, { version: 'desc' }],
+          orderBy: [{ templateCode: 'asc' }, { recipientRoleCode: 'asc' }, { version: 'desc' }],
           select: TEMPLATE_SELECT,
           where: { channel: 'WECHAT_MINI_PROGRAM' },
         })
@@ -77,6 +78,8 @@ export class NotificationTemplateService {
       return {
         data: mappedTemplateData(templateCode, template.variableKeys),
         providerTemplateKey: template.providerTemplateKey,
+        recipientRoleCode:
+          template.recipientRoleCode as NotificationTemplatePreview['recipientRoleCode'],
         templateCode,
       };
     });
@@ -96,12 +99,15 @@ export class NotificationTemplateService {
     return this.database.transaction(async (transaction) => {
       await acquireTransactionLock(
         transaction,
-        `notification-template:${command.templateCode}:WECHAT_MINI_PROGRAM`,
+        `notification-template:${command.templateCode}:${command.recipientRoleCode}:WECHAT_MINI_PROGRAM`,
       );
       const latest = await transaction.notificationTemplateVersion.findFirst({
         orderBy: { version: 'desc' },
         select: { version: true },
-        where: { templateCode: command.templateCode },
+        where: {
+          recipientRoleCode: command.recipientRoleCode,
+          templateCode: command.templateCode,
+        },
       });
       const version = (latest?.version ?? 0) + 1;
       if (version > 32_767) throw new NotificationTemplateStateConflictError();
@@ -109,6 +115,7 @@ export class NotificationTemplateService {
         data: {
           channel: 'WECHAT_MINI_PROGRAM',
           providerTemplateKey,
+          recipientRoleCode: command.recipientRoleCode,
           subscriptionType: command.subscriptionType,
           templateCode: command.templateCode,
           variableKeys: variableMappings,
@@ -148,12 +155,13 @@ export class NotificationTemplateService {
       }
       await acquireTransactionLock(
         transaction,
-        `notification-template:${draft.templateCode}:WECHAT_MINI_PROGRAM`,
+        `notification-template:${draft.templateCode}:${draft.recipientRoleCode}:WECHAT_MINI_PROGRAM`,
       );
       const active = await transaction.notificationTemplateVersion.findFirst({
         select: TEMPLATE_SELECT,
         where: {
           channel: 'WECHAT_MINI_PROGRAM',
+          recipientRoleCode: draft.recipientRoleCode,
           status: 'ACTIVE',
           templateCode: draft.templateCode,
         },
@@ -268,6 +276,8 @@ export class NotificationTemplateService {
       createdAt: value.createdAt.toISOString(),
       id: value.id,
       providerTemplateKey: value.providerTemplateKey,
+      recipientRoleCode:
+        value.recipientRoleCode as NotificationTemplateSummary['recipientRoleCode'],
       retiredAt: value.retiredAt?.toISOString() ?? null,
       rowVersion: value.rowVersion,
       status: value.status as NotificationTemplateSummary['status'],
@@ -282,6 +292,7 @@ export class NotificationTemplateService {
     return {
       channel: value.channel,
       providerTemplateKey: value.providerTemplateKey,
+      recipientRoleCode: value.recipientRoleCode,
       rowVersion: value.rowVersion,
       status: value.status,
       subscriptionType: value.subscriptionType,

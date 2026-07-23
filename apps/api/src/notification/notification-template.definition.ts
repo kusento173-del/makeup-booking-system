@@ -1,13 +1,17 @@
 import type { NotificationTemplateCode } from './notification-template.types';
 
 const APPOINTMENT_SAMPLES = {
+  appointmentCount: '1',
   appointmentDate: '2026-07-23',
+  appointmentDateTime: '2026-07-23 09:30',
+  appointmentStatus: '已预约',
   artistName: '柔柔',
   durationMinutes: '30',
   endAt: '2026-07-23T02:00:00.000Z',
   endTime: '10:00',
   hostCode: 'ZB01842',
   hostName: '小雨',
+  noticeText: '请进入小程序查看完整安排',
   siteName: '松江场地',
   startAt: '2026-07-23T01:30:00.000Z',
   startTime: '09:30',
@@ -17,9 +21,7 @@ const APPOINTMENT_SAMPLES = {
 export const NOTIFICATION_TEMPLATE_SAMPLE_FIELDS: Readonly<
   Record<NotificationTemplateCode, Readonly<Record<string, string>>>
 > = {
-  APPOINTMENT_CANCELLED: APPOINTMENT_SAMPLES,
-  APPOINTMENT_CREATED: APPOINTMENT_SAMPLES,
-  APPOINTMENT_RESCHEDULED: APPOINTMENT_SAMPLES,
+  APPOINTMENT_NOTICE: APPOINTMENT_SAMPLES,
 };
 
 export const WECHAT_VARIABLE_MAPPING =

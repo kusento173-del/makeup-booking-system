@@ -17,9 +17,10 @@ BEGIN
 
     BEGIN
         INSERT INTO "notification_template_versions" (
-            "template_code", "version", "channel", "status", "activated_at", "variable_keys"
+            "template_code", "recipient_role_code", "version", "channel", "status",
+            "activated_at", "variable_keys"
         ) VALUES (
-            'APPOINTMENT_CREATED', 1, 'WECHAT_MINI_PROGRAM', 'ACTIVE', CURRENT_TIMESTAMP,
+            'APPOINTMENT_NOTICE', 'HOST', 1, 'WECHAT_MINI_PROGRAM', 'ACTIVE', CURRENT_TIMESTAMP,
             ARRAY['thing1=hostName']
         );
         RAISE EXCEPTION 'Active template without provider key was accepted';
@@ -27,9 +28,9 @@ BEGIN
     END;
 
     INSERT INTO "notification_template_versions" (
-        "template_code", "version", "channel", "variable_keys"
+        "template_code", "recipient_role_code", "version", "channel", "variable_keys"
     ) VALUES (
-        'APPOINTMENT_CREATED', 1, 'WECHAT_MINI_PROGRAM',
+        'APPOINTMENT_NOTICE', 'HOST', 1, 'WECHAT_MINI_PROGRAM',
         ARRAY['thing1=hostName', 'time2=startAt']
     ) RETURNING "id" INTO template_id;
 
@@ -44,9 +45,10 @@ BEGIN
 
     BEGIN
         INSERT INTO "notification_template_versions" (
-            "template_code", "version", "channel", "subscription_type", "variable_keys"
+            "template_code", "recipient_role_code", "version", "channel",
+            "subscription_type", "variable_keys"
         ) VALUES (
-            'INVALID_SUBSCRIPTION_TYPE', 1, 'WECHAT_MINI_PROGRAM', 'MIXED',
+            'INVALID_SUBSCRIPTION_TYPE', 'HOST', 1, 'WECHAT_MINI_PROGRAM', 'MIXED',
             ARRAY['thing1=hostName']
         );
         RAISE EXCEPTION 'Invalid subscription type was accepted';
@@ -62,21 +64,40 @@ BEGIN
 
     BEGIN
         INSERT INTO "notification_template_versions" (
-            "template_code", "version", "channel", "provider_template_key",
+            "template_code", "recipient_role_code", "version", "channel", "provider_template_key",
             "variable_keys", "status", "activated_at"
         ) VALUES (
-            'APPOINTMENT_CREATED', 2, 'WECHAT_MINI_PROGRAM', 'provider-template-2',
+            'APPOINTMENT_NOTICE', 'HOST', 2, 'WECHAT_MINI_PROGRAM', 'provider-template-2',
             ARRAY['thing1=hostName'], 'ACTIVE', CURRENT_TIMESTAMP
         );
         RAISE EXCEPTION 'Two active versions for one template and channel were accepted';
     EXCEPTION WHEN unique_violation THEN NULL;
     END;
 
+    INSERT INTO "notification_template_versions" (
+        "template_code", "recipient_role_code", "version", "channel", "provider_template_key",
+        "variable_keys", "status", "activated_at"
+    ) VALUES (
+        'APPOINTMENT_NOTICE', 'ARTIST', 1, 'WECHAT_MINI_PROGRAM', 'provider-template-artist',
+        ARRAY['thing1=hostName'], 'ACTIVE', CURRENT_TIMESTAMP
+    );
+
     BEGIN
         INSERT INTO "notification_template_versions" (
-            "template_code", "version", "channel", "variable_keys"
+            "template_code", "recipient_role_code", "version", "channel", "variable_keys"
         ) VALUES (
-            'INVALID_MAPPING', 1, 'WECHAT_MINI_PROGRAM', ARRAY['hostName']
+            'INVALID_ROLE', 'CUSTOMER_SERVICE', 1, 'WECHAT_MINI_PROGRAM',
+            ARRAY['thing1=hostName']
+        );
+        RAISE EXCEPTION 'Invalid template recipient role was accepted';
+    EXCEPTION WHEN check_violation THEN NULL;
+    END;
+
+    BEGIN
+        INSERT INTO "notification_template_versions" (
+            "template_code", "recipient_role_code", "version", "channel", "variable_keys"
+        ) VALUES (
+            'INVALID_MAPPING', 'HOST', 1, 'WECHAT_MINI_PROGRAM', ARRAY['hostName']
         );
         RAISE EXCEPTION 'Invalid mini-program variable mapping was accepted';
     EXCEPTION WHEN check_violation THEN NULL;
@@ -84,9 +105,9 @@ BEGIN
 
     BEGIN
         INSERT INTO "notification_template_versions" (
-            "template_code", "version", "channel", "variable_keys"
+            "template_code", "recipient_role_code", "version", "channel", "variable_keys"
         ) VALUES (
-            'DUPLICATE_MAPPING', 1, 'WECHAT_MINI_PROGRAM',
+            'DUPLICATE_MAPPING', 'HOST', 1, 'WECHAT_MINI_PROGRAM',
             ARRAY['thing1=hostName', 'thing1=artistName']
         );
         RAISE EXCEPTION 'Duplicate mini-program provider field was accepted';

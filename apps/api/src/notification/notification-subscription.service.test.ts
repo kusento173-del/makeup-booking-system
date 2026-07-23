@@ -19,17 +19,19 @@ const templates = [
     channel: 'WECHAT_MINI_PROGRAM',
     id: '019b0000-0000-7000-8000-000000000013',
     providerTemplateKey: 'wechat-template-1',
+    recipientRoleCode: 'HOST',
     status: 'ACTIVE',
     subscriptionType: 'ONE_TIME',
-    templateCode: 'APPOINTMENT_CREATED',
+    templateCode: 'APPOINTMENT_NOTICE',
   },
   {
     channel: 'WECHAT_MINI_PROGRAM',
     id: '019b0000-0000-7000-8000-000000000014',
     providerTemplateKey: 'wechat-template-2',
+    recipientRoleCode: 'HOST',
     status: 'ACTIVE',
     subscriptionType: 'PERMANENT',
-    templateCode: 'APPOINTMENT_CANCELLED',
+    templateCode: 'APPOINTMENT_NOTICE',
   },
 ];
 
@@ -52,6 +54,7 @@ function setup() {
     ),
   };
   return {
+    client,
     service: new NotificationSubscriptionService(
       new AuthorizationPolicyService(),
       database as never,
@@ -62,7 +65,7 @@ function setup() {
 
 describe('NotificationSubscriptionService', () => {
   it('returns active templates in separate one-time and permanent groups', async () => {
-    const { service } = setup();
+    const { client, service } = setup();
     await expect(service.listActive(context)).resolves.toEqual([
       expect.objectContaining({
         subscriptionType: 'ONE_TIME',
@@ -73,6 +76,10 @@ describe('NotificationSubscriptionService', () => {
         templates: [expect.objectContaining({ templateVersionId: templates[1]?.id })],
       }),
     ]);
+    const listInput = client.notificationTemplateVersion.findMany.mock.calls[0]?.[0] as unknown as {
+      where: { recipientRoleCode?: string };
+    };
+    expect(listInput.where.recipientRoleCode).toBe('HOST');
   });
 
   it('records an immutable decision snapshot and replays the same request idempotently', async () => {
@@ -117,5 +124,20 @@ describe('NotificationSubscriptionService', () => {
     await expect(service.listActive({ ...context, roleCode: 'CUSTOMER_SERVICE' })).rejects.toThrow(
       AuthorizationDeniedError,
     );
+
+    transaction.notificationTemplateVersion.findMany.mockResolvedValue([
+      { ...templates[0], recipientRoleCode: 'ARTIST' },
+    ]);
+    await expect(
+      service.record(context, {
+        decisions: [
+          {
+            decision: 'ACCEPT',
+            templateVersionId: templates[0]?.id as string,
+          },
+        ],
+        requestId: '019b0000-0000-7000-8000-000000000015',
+      }),
+    ).rejects.toThrow(NotificationSubscriptionStateConflictError);
   });
 });

@@ -34,11 +34,13 @@ export class NotificationSubscriptionService {
         select: {
           id: true,
           providerTemplateKey: true,
+          recipientRoleCode: true,
           subscriptionType: true,
           templateCode: true,
         },
         where: {
           channel: 'WECHAT_MINI_PROGRAM',
+          recipientRoleCode: context.roleCode,
           status: 'ACTIVE',
           templateCode: { in: [...NOTIFICATION_TEMPLATE_CODES] },
         },
@@ -102,6 +104,7 @@ export class NotificationSubscriptionService {
           channel: true,
           id: true,
           providerTemplateKey: true,
+          recipientRoleCode: true,
           status: true,
           subscriptionType: true,
           templateCode: true,
@@ -114,6 +117,7 @@ export class NotificationSubscriptionService {
         templates.some(
           (item) =>
             item.channel !== 'WECHAT_MINI_PROGRAM' ||
+            item.recipientRoleCode !== context.roleCode ||
             !item.providerTemplateKey ||
             !['ACTIVE', 'RETIRED'].includes(item.status) ||
             !NOTIFICATION_TEMPLATE_CODES.includes(

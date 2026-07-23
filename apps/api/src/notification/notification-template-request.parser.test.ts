@@ -12,23 +12,35 @@ describe('notification template request parser', () => {
     expect(
       parseCreateNotificationTemplateRequest({
         providerTemplateKey: ' template-1 ',
+        recipientRoleCode: 'HOST',
         subscriptionType: 'ONE_TIME',
-        templateCode: 'APPOINTMENT_CREATED',
+        templateCode: 'APPOINTMENT_NOTICE',
         variableMappings: ['thing1=hostName', 'time2=timeRange'],
       }),
     ).toEqual({
       providerTemplateKey: 'template-1',
+      recipientRoleCode: 'HOST',
       subscriptionType: 'ONE_TIME',
-      templateCode: 'APPOINTMENT_CREATED',
+      templateCode: 'APPOINTMENT_NOTICE',
       variableMappings: ['thing1=hostName', 'time2=timeRange'],
     });
     expect(() =>
       parseCreateNotificationTemplateRequest({
         extra: true,
         providerTemplateKey: 'template-1',
+        recipientRoleCode: 'HOST',
         subscriptionType: 'ONE_TIME',
-        templateCode: 'APPOINTMENT_CREATED',
+        templateCode: 'APPOINTMENT_NOTICE',
         variableMappings: [],
+      }),
+    ).toThrow(NotificationTemplateRequestInvalidError);
+    expect(() =>
+      parseCreateNotificationTemplateRequest({
+        providerTemplateKey: 'template-1',
+        recipientRoleCode: 'CUSTOMER_SERVICE',
+        subscriptionType: 'ONE_TIME',
+        templateCode: 'APPOINTMENT_NOTICE',
+        variableMappings: ['thing1=hostName'],
       }),
     ).toThrow(NotificationTemplateRequestInvalidError);
   });

@@ -9,8 +9,7 @@ export interface SubscriptionGroup {
   readonly subscriptionType: 'ONE_TIME' | 'PERMANENT';
   readonly templates: readonly {
     readonly providerTemplateKey: string;
-    readonly templateCode:
-      'APPOINTMENT_CANCELLED' | 'APPOINTMENT_CREATED' | 'APPOINTMENT_RESCHEDULED';
+    readonly templateCode: 'APPOINTMENT_NOTICE';
     readonly templateVersionId: string;
   }[];
 }
