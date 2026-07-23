@@ -285,6 +285,7 @@ export class MasterDataQueryService {
               operator: { employmentStatus: 'ACTIVE', userId: context.userId },
             },
           },
+          qualificationStatus: 'ACTIVE',
         };
       case 'ARTIST':
         throw new AuthorizationDeniedError();

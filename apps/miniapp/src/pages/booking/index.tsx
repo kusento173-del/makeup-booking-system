@@ -44,7 +44,9 @@ function timeLabel(value: string): string {
 export default function BookingPage() {
   const dates = useMemo(() => bookingDateOptions(), []);
   const [session, setSession] = useState<SessionTokenPair | null>(null);
+  const [hosts, setHosts] = useState<readonly HostSummary[]>([]);
   const [host, setHost] = useState<HostSummary | null>(null);
+  const [hostSearch, setHostSearch] = useState('');
   const [artists, setArtists] = useState<readonly ArtistSummary[]>([]);
   const [date, setDate] = useState(dates[0]?.date ?? '');
   const [durationMinutes, setDurationMinutes] = useState<(typeof DURATIONS)[number]>(30);
@@ -55,6 +57,14 @@ export default function BookingPage() {
   const [idempotencyKey, setIdempotencyKey] = useState('');
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const visibleHosts = useMemo(() => {
+    const search = hostSearch.trim().toLocaleLowerCase();
+    return search
+      ? hosts.filter((item) =>
+          `${item.hostCode} ${item.nickname ?? item.realName}`.toLocaleLowerCase().includes(search),
+        )
+      : hosts;
+  }, [hostSearch, hosts]);
   const visibleArtists = useMemo(() => {
     const search = artistSearch.trim().toLocaleLowerCase();
     return search
@@ -75,13 +85,14 @@ export default function BookingPage() {
         await Taro.reLaunch({ url: '/pages/index/index' });
         return;
       }
-      if (restored.role.roleCode !== 'HOST') {
-        setError('当前页面仅供主播本人预约');
+      if (restored.role.roleCode !== 'HOST' && restored.role.roleCode !== 'OPERATOR') {
+        setError('当前角色不能创建预约');
         return;
       }
       const people = await loadBookingPeople(restored.accessToken, date);
       setSession(restored);
-      setHost(people.host);
+      setHosts(people.hosts);
+      setHost(restored.role.roleCode === 'HOST' ? (people.hosts[0] ?? null) : null);
       setArtists(people.artists);
     } catch (cause) {
       setError(errorMessage(cause));
@@ -115,9 +126,21 @@ export default function BookingPage() {
     }
   }
 
-  function changeDate(nextDate: string): void {
+  async function changeDate(nextDate: string): Promise<void> {
     setDate(nextDate);
     clearSelection();
+    if (!session) return;
+    setBusy(true);
+    try {
+      const people = await loadBookingPeople(session.accessToken, nextDate);
+      setHosts(people.hosts);
+      setHost(session.role.roleCode === 'HOST' ? (people.hosts[0] ?? null) : null);
+      setArtists(people.artists);
+    } catch (cause) {
+      setError(errorMessage(cause));
+    } finally {
+      setBusy(false);
+    }
   }
 
   function changeDuration(nextDuration: (typeof DURATIONS)[number]): void {
@@ -131,6 +154,11 @@ export default function BookingPage() {
     setIdempotencyKey('');
     setSlotResult(null);
     setError(null);
+  }
+
+  function selectHost(nextHost: HostSummary): void {
+    setHost(nextHost);
+    clearSelection();
   }
 
   async function submit(): Promise<void> {
@@ -184,7 +212,7 @@ export default function BookingPage() {
             <Button
               className={date === option.date ? 'date-option active' : 'date-option'}
               key={option.date}
-              onClick={() => changeDate(option.date)}
+              onClick={() => void changeDate(option.date)}
             >
               <Text>{option.weekday}</Text>
               <Text>{option.day}</Text>
@@ -192,6 +220,37 @@ export default function BookingPage() {
           ))}
         </View>
       </View>
+
+      {session?.role.roleCode === 'OPERATOR' ? (
+        <View className="booking-section">
+          <Text className="booking-title">选择主播</Text>
+          <Text className="booking-note">名单按所选日期的负责关系生成，编号用于区分重名。</Text>
+          {hosts.length > 8 ? (
+            <Input
+              className="person-search"
+              maxlength={50}
+              onInput={(event) => setHostSearch(event.detail.value)}
+              placeholder="搜索主播姓名或编号"
+              value={hostSearch}
+            />
+          ) : null}
+          {!busy && hosts.length === 0 ? (
+            <Text className="booking-note">该日期没有由你负责的可预约主播。</Text>
+          ) : null}
+          <View className="host-list">
+            {visibleHosts.map((item) => (
+              <Button
+                className={host?.id === item.id ? 'host-option active' : 'host-option'}
+                key={item.id}
+                onClick={() => selectHost(item)}
+              >
+                <Text>{item.nickname ?? item.realName}</Text>
+                <Text className="host-code">{item.hostCode}</Text>
+              </Button>
+            ))}
+          </View>
+        </View>
+      ) : null}
 
       <View className="booking-section">
         <Text className="booking-title">化妆时长</Text>
@@ -228,7 +287,7 @@ export default function BookingPage() {
           {visibleArtists.map((artist) => (
             <Button
               className={artistId === artist.id ? 'artist active' : 'artist'}
-              disabled={busy}
+              disabled={busy || !host}
               key={artist.id}
               onClick={() => void selectArtist(artist.id)}
             >

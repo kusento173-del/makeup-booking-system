@@ -58,6 +58,7 @@ describe('MasterDataQueryService', () => {
               validFrom: { lte: asOf },
             },
           },
+          qualificationStatus: 'ACTIVE',
         },
       }),
     );

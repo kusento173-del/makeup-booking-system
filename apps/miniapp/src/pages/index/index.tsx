@@ -237,12 +237,12 @@ export default function IndexPage() {
             <Text>{roleHome.scheduleLabel}</Text>
             <Text className="entry-arrow">›</Text>
           </Button>
-          {session.role.roleCode === 'HOST' ? (
+          {session.role.roleCode === 'HOST' || session.role.roleCode === 'OPERATOR' ? (
             <Button
               className="business-entry"
               onClick={() => void Taro.navigateTo({ url: '/pages/booking/index' })}
             >
-              <Text>预约化妆</Text>
+              <Text>{session.role.roleCode === 'HOST' ? '预约化妆' : '代主播预约'}</Text>
               <Text className="entry-arrow">›</Text>
             </Button>
           ) : null}

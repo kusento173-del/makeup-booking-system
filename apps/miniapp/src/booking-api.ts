@@ -34,23 +34,30 @@ export interface BookingSlotResult {
 }
 
 export function loadBookingPeople(token: string, date: string) {
-  return Promise.all([
-    apiRequest<Page<HostSummary>>(`/master-data/hosts?asOf=${date}&page=1&pageSize=1`, { token }),
-    loadAllArtists(token),
-  ]).then(([hosts, artists]) => ({
-    artists,
-    host: hosts.items[0] ?? null,
-  }));
+  return Promise.all([loadAllHosts(token, date), loadAllArtists(token)]).then(
+    ([hosts, artists]) => ({
+      artists,
+      hosts,
+    }),
+  );
+}
+
+async function loadAllHosts(token: string, date: string): Promise<readonly HostSummary[]> {
+  return loadAllPages(token, (page) => `/master-data/hosts?asOf=${date}&page=${page}&pageSize=100`);
 }
 
 async function loadAllArtists(token: string): Promise<readonly ArtistSummary[]> {
-  const items: ArtistSummary[] = [];
+  return loadAllPages(token, (page) => `/master-data/artists?page=${page}&pageSize=100`);
+}
+
+async function loadAllPages<T>(
+  token: string,
+  path: (page: number) => string,
+): Promise<readonly T[]> {
+  const items: T[] = [];
   let page = 1;
   while (true) {
-    const result = await apiRequest<Page<ArtistSummary>>(
-      `/master-data/artists?page=${page}&pageSize=100`,
-      { token },
-    );
+    const result = await apiRequest<Page<T>>(path(page), { token });
     items.push(...result.items);
     if (items.length >= result.total || result.items.length === 0) return items;
     page += 1;
