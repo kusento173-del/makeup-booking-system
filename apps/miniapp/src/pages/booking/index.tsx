@@ -15,6 +15,7 @@ import {
   type HostSummary,
   listAvailableArtists,
   listSites,
+  type SiteSummary,
 } from '../../booking-api';
 import {
   BOOKING_DURATIONS,
@@ -24,7 +25,8 @@ import {
   slotTime,
   UNAVAILABLE_LABELS,
 } from '../../booking-view';
-import { restoreSession } from '../../auth-session';
+import { restoreSession, type RoleCode } from '../../auth-session';
+import { ManagedHostPicker } from '../../components/ManagedHostPicker';
 import { PageState } from '../../components/PageState';
 import './index.css';
 
@@ -52,8 +54,10 @@ function errorMessage(cause: unknown): string {
 export default function BookingPage() {
   const dates = useMemo(() => futureBookingDates(), []);
   const [token, setToken] = useState('');
+  const [roleCode, setRoleCode] = useState<RoleCode | null>(null);
   const [host, setHost] = useState<HostSummary | null>(null);
   const [siteName, setSiteName] = useState('');
+  const [sites, setSites] = useState<readonly SiteSummary[]>([]);
   const [artists, setArtists] = useState<readonly ArtistSummary[]>([]);
   const [date, setDate] = useState(dates[0]?.date ?? '');
   const [duration, setDuration] = useState<BookingDuration>(30);
@@ -81,28 +85,33 @@ export default function BookingPage() {
         await Taro.reLaunch({ url: '/pages/index/index' });
         return;
       }
-      if (session.role.roleCode !== 'HOST') {
-        setInitialError('只有主播本人可以使用此预约入口。');
+      if (!['HOST', 'OPERATOR'].includes(session.role.roleCode)) {
+        setInitialError('当前身份不能使用预约入口。');
         return;
       }
       const firstDate = dates[0]?.date;
       if (!firstDate) throw new Error('No booking dates');
       const [ownHost, artistItems, sites] = await Promise.all([
-        getOwnHost(session.accessToken, firstDate),
+        session.role.roleCode === 'HOST'
+          ? getOwnHost(session.accessToken, firstDate)
+          : Promise.resolve(null),
         listAvailableArtists(session.accessToken),
         listSites(session.accessToken),
       ]);
-      if (!ownHost) {
+      if (session.role.roleCode === 'HOST' && !ownHost) {
         setInitialError('当前账号没有可用的主播档案。');
         return;
       }
-      if (ownHost.qualificationStatus !== 'ACTIVE') {
+      if (ownHost && ownHost.qualificationStatus !== 'ACTIVE') {
         setInitialError('当前主播预约资格不可用，请联系所属场地客服。');
         return;
       }
+      const siteId = ownHost?.siteId ?? session.role.siteId;
       setToken(session.accessToken);
+      setRoleCode(session.role.roleCode);
       setHost(ownHost);
-      setSiteName(sites.find((site) => site.id === ownHost.siteId)?.name ?? '当前场地');
+      setSites(sites);
+      setSiteName(sites.find((site) => site.id === siteId)?.name ?? '当前场地');
       setArtists(
         artistItems.filter(
           (artist) => artist.employmentStatus === 'ACTIVE' && artist.initialShiftConfigured,
@@ -118,7 +127,27 @@ export default function BookingPage() {
   function selectDate(nextDate: string): void {
     setDate(nextDate);
     pendingAttempt.current = null;
-    if (artistId) void loadSlots(artistId, nextDate, duration);
+    if (roleCode === 'OPERATOR') {
+      setHost(null);
+      resetArtistSelection();
+    } else if (artistId) {
+      void loadSlots(artistId, nextDate, duration);
+    }
+  }
+
+  function selectHost(nextHost: HostSummary): void {
+    setHost(nextHost);
+    setSiteName(sites.find((site) => site.id === nextHost.siteId)?.name ?? '当前场地');
+    resetArtistSelection();
+  }
+
+  function resetArtistSelection(): void {
+    slotRequest.current += 1;
+    setArtistId('');
+    setSlots(null);
+    setSlotError(null);
+    setSlotBusy(false);
+    pendingAttempt.current = null;
   }
 
   function selectDuration(nextDuration: BookingDuration): void {
@@ -167,6 +196,7 @@ export default function BookingPage() {
       cancelText: '返回检查',
       confirmText: second ? '确认第二次' : '确认预约',
       content: [
+        ...(roleCode === 'OPERATOR' ? ['由运营代预约'] : []),
         `${host.nickname ?? host.realName}（${host.hostCode}）`,
         `${siteName} · ${artist.nickname}`,
         `${date} ${slotTime(slot)} · ${duration}分钟`,
@@ -180,6 +210,7 @@ export default function BookingPage() {
       artistId: artist.id,
       date,
       durationMinutes: duration,
+      hostId: host.id,
       startMinute: slot.startMinute,
     };
     const signature = bookingSignature(input);
@@ -196,7 +227,6 @@ export default function BookingPage() {
         {
           ...input,
           confirmedSecondBooking: second,
-          hostId: host.id,
         },
         attempt.key,
       );
@@ -235,8 +265,6 @@ export default function BookingPage() {
       </View>
     );
   }
-  if (!host) return null;
-
   if (result) {
     const appointment = result.appointment;
     return (
@@ -268,13 +296,20 @@ export default function BookingPage() {
   const unavailable = slots?.unavailableReason
     ? (UNAVAILABLE_LABELS[slots.unavailableReason] ?? '该日期暂无可预约时间')
     : null;
+  const durationStep = roleCode === 'OPERATOR' ? 3 : 2;
+  const artistStep = durationStep + 1;
+  const slotStep = artistStep + 1;
 
   return (
     <View className="booking-page">
       <View className="booking-summary">
-        <Text className="summary-name">{host.nickname ?? host.realName}</Text>
+        <Text className="summary-name">
+          {roleCode === 'OPERATOR' ? '运营代预约' : (host?.nickname ?? host?.realName)}
+        </Text>
         <Text className="summary-meta">
-          {host.hostCode} · {siteName}
+          {roleCode === 'OPERATOR'
+            ? `${siteName} · 按目标日期选择负责主播`
+            : `${host?.hostCode} · ${siteName}`}
         </Text>
       </View>
 
@@ -295,48 +330,65 @@ export default function BookingPage() {
         </View>
       </View>
 
-      <View className="booking-section">
-        <Text className="section-title">2. 选择时长</Text>
-        <Text className="section-note">默认 30 分钟；需要约 40 分钟的妆请选择 45 分钟。</Text>
-        <View className="duration-row">
-          {BOOKING_DURATIONS.map((minutes) => (
-            <Button
-              className={duration === minutes ? 'option-button active' : 'option-button'}
-              key={minutes}
-              onClick={() => selectDuration(minutes)}
-              size="mini"
-            >
-              {minutes} 分钟
-            </Button>
-          ))}
-        </View>
-      </View>
-
-      <View className="booking-section">
-        <Text className="section-title">3. 选择化妆师</Text>
-        {artists.length === 0 ? (
-          <Text className="section-note">当前场地暂无已设置班次的化妆师。</Text>
-        ) : (
-          <View className="artist-grid">
-            {artists.map((artist) => (
-              <Button
-                className={artistId === artist.id ? 'artist-button active' : 'artist-button'}
-                key={artist.id}
-                onClick={() => selectArtist(artist.id)}
-                size="mini"
-              >
-                {artist.nickname}
-              </Button>
-            ))}
-          </View>
-        )}
-      </View>
-
-      {selectedArtist ? (
+      {roleCode === 'OPERATOR' ? (
         <View className="booking-section">
-          <Text className="section-title">4. 选择时间</Text>
+          <Text className="section-title">2. 选择负责主播</Text>
+          <Text className="section-note">名单按所选日期的有效负责关系生成。</Text>
+          <ManagedHostPicker
+            date={date}
+            onSelect={selectHost}
+            selectedHostId={host?.id}
+            token={token}
+          />
+        </View>
+      ) : null}
+
+      {host ? (
+        <>
+          <View className="booking-section">
+            <Text className="section-title">{durationStep}. 选择时长</Text>
+            <Text className="section-note">默认 30 分钟；需要约 40 分钟的妆请选择 45 分钟。</Text>
+            <View className="duration-row">
+              {BOOKING_DURATIONS.map((minutes) => (
+                <Button
+                  className={duration === minutes ? 'option-button active' : 'option-button'}
+                  key={minutes}
+                  onClick={() => selectDuration(minutes)}
+                  size="mini"
+                >
+                  {minutes} 分钟
+                </Button>
+              ))}
+            </View>
+          </View>
+
+          <View className="booking-section">
+            <Text className="section-title">{artistStep}. 选择化妆师</Text>
+            {artists.length === 0 ? (
+              <Text className="section-note">当前场地暂无已设置班次的化妆师。</Text>
+            ) : (
+              <View className="artist-grid">
+                {artists.map((artist) => (
+                  <Button
+                    className={artistId === artist.id ? 'artist-button active' : 'artist-button'}
+                    key={artist.id}
+                    onClick={() => selectArtist(artist.id)}
+                    size="mini"
+                  >
+                    {artist.nickname}
+                  </Button>
+                ))}
+              </View>
+            )}
+          </View>
+        </>
+      ) : null}
+
+      {host && selectedArtist ? (
+        <View className="booking-section">
+          <Text className="section-title">{slotStep}. 选择时间</Text>
           <Text className="section-note">
-            {selectedArtist.nickname} · {date} · {duration} 分钟
+            {host.nickname ?? host.realName} · {selectedArtist.nickname} · {date} · {duration} 分钟
           </Text>
           {slotBusy ? <Text className="inline-state">正在查询最新空闲时间…</Text> : null}
           {slots?.requiresSecondConfirmation ? (

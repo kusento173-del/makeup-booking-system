@@ -29,9 +29,10 @@ describe('booking view', () => {
         artistId: 'artist-1',
         date: '2026-07-24',
         durationMinutes: 30,
+        hostId: 'host-1',
         startMinute: 570,
       }),
-    ).toBe('artist-1:2026-07-24:30:570');
+    ).toBe('host-1:artist-1:2026-07-24:30:570');
   });
 
   it('生成符合服务端规则的幂等键', () => {

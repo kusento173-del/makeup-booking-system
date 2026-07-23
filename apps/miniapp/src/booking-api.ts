@@ -25,7 +25,7 @@ export interface SiteSummary {
   readonly status: 'ACTIVE' | 'INACTIVE';
 }
 
-interface Page<T> {
+export interface Page<T> {
   readonly items: readonly T[];
   readonly page: number;
   readonly pageSize: number;
@@ -65,11 +65,26 @@ export interface BookingResult {
   readonly replayed: boolean;
 }
 
-export async function getOwnHost(token: string, date: string): Promise<HostSummary | null> {
-  const query = new URLSearchParams({ asOf: date, page: '1', pageSize: '1' });
-  const result = await apiRequest<Page<HostSummary>>(`/master-data/hosts?${query.toString()}`, {
-    token,
+export function listManagedHosts(
+  token: string,
+  input: {
+    readonly date: string;
+    readonly page: number;
+    readonly pageSize?: number;
+    readonly search?: string;
+  },
+): Promise<Page<HostSummary>> {
+  const query = new URLSearchParams({
+    asOf: input.date,
+    page: String(input.page),
+    pageSize: String(input.pageSize ?? 50),
   });
+  if (input.search) query.set('search', input.search);
+  return apiRequest(`/master-data/hosts?${query.toString()}`, { token });
+}
+
+export async function getOwnHost(token: string, date: string): Promise<HostSummary | null> {
+  const result = await listManagedHosts(token, { date, page: 1, pageSize: 1 });
   return result.items[0] ?? null;
 }
 

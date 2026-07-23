@@ -57,7 +57,10 @@ export function bookingSignature(input: {
   readonly artistId: string;
   readonly date: string;
   readonly durationMinutes: BookingDuration;
+  readonly hostId: string;
   readonly startMinute: number;
 }): string {
-  return [input.artistId, input.date, input.durationMinutes, input.startMinute].join(':');
+  return [input.hostId, input.artistId, input.date, input.durationMinutes, input.startMinute].join(
+    ':',
+  );
 }

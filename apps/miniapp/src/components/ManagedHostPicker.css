@@ -1,0 +1,100 @@
+.host-search {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.host-search-input {
+  flex: 1;
+  min-width: 0;
+  height: 68px;
+  box-sizing: border-box;
+  padding: 0 18px;
+  border: 1px solid #cbd6db;
+  border-radius: 10px;
+  background: #fff;
+  font-size: 25px;
+}
+
+.host-search-button,
+.host-load-more,
+.host-option,
+.host-search-button::after,
+.host-load-more::after,
+.host-option::after {
+  border: 0;
+}
+
+.host-search-button {
+  width: 128px;
+  margin: 0;
+  color: #fff;
+  background: #245c6d;
+  font-size: 25px;
+  line-height: 68px;
+}
+
+.host-picker-state,
+.host-picker-error {
+  display: block;
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 10px;
+  color: #62717b;
+  background: #f2f5f6;
+  font-size: 24px;
+}
+
+.host-picker-error {
+  color: #8b3a32;
+  background: #fff0ed;
+}
+
+.host-list {
+  margin-top: 12px;
+}
+
+.host-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin: 8px 0 0;
+  padding: 16px 18px;
+  color: #102b3a;
+  background: #edf1f3;
+  text-align: left;
+  line-height: 1.35;
+}
+
+.host-option.active {
+  color: #fff;
+  background: #245c6d;
+}
+
+.host-option-name,
+.host-option-code {
+  display: block;
+}
+
+.host-option-name {
+  font-size: 27px;
+  font-weight: 700;
+}
+
+.host-option-code,
+.host-option-status {
+  font-size: 22px;
+  opacity: 0.8;
+}
+
+.host-option-status.unavailable {
+  color: #8b3a32;
+}
+
+.host-load-more {
+  margin-top: 16px;
+  color: #245c6d;
+  background: #e8f2f3;
+  font-size: 25px;
+}
