@@ -79,7 +79,13 @@ describe('MasterDataQueryService', () => {
       where: { userId: 'user-1' },
     });
     expect(findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { siteId: 'site-songjiang' } }),
+      expect.objectContaining({
+        where: {
+          employmentStatus: 'ACTIVE',
+          initialShiftConfiguredAt: { not: null },
+          siteId: 'site-songjiang',
+        },
+      }),
     );
   });
 

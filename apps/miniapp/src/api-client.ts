@@ -24,6 +24,7 @@ export async function apiRequest<T>(
   path: string,
   options: {
     readonly body?: unknown;
+    readonly headers?: Readonly<Record<string, string>>;
     readonly method?: 'GET' | 'POST';
     readonly token?: string;
   } = {},
@@ -31,6 +32,7 @@ export async function apiRequest<T>(
   const response = await Taro.request<T | ApiErrorBody>({
     data: options.body,
     header: {
+      ...options.headers,
       'Content-Type': 'application/json',
       ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
     },

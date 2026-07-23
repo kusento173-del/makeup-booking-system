@@ -303,9 +303,17 @@ export class MasterDataQueryService {
       case 'ARTIST':
         return { userId: context.userId };
       case 'HOST':
-        return { siteId: await this.findHostSite(client, context.userId) };
+        return {
+          employmentStatus: 'ACTIVE',
+          initialShiftConfiguredAt: { not: null },
+          siteId: await this.findHostSite(client, context.userId),
+        };
       case 'OPERATOR':
-        return { siteId: await this.findOperatorSite(client, context.userId) };
+        return {
+          employmentStatus: 'ACTIVE',
+          initialShiftConfiguredAt: { not: null },
+          siteId: await this.findOperatorSite(client, context.userId),
+        };
     }
   }
 
