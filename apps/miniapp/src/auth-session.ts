@@ -88,6 +88,14 @@ export function selectLoginRole(input: {
   return apiRequest('/auth/role-selection', { body: input, method: 'POST' });
 }
 
+export async function logoutSession(accessToken: string): Promise<void> {
+  try {
+    await apiRequest<void>('/auth/logout', { method: 'POST', token: accessToken });
+  } finally {
+    clearSession();
+  }
+}
+
 export async function restoreSession(): Promise<SessionTokenPair | null> {
   const session = loadSession();
   if (!session) return null;

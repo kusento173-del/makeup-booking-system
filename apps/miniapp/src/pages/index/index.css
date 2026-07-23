@@ -129,3 +129,75 @@
   color: #9b342d;
   background: #fbecea;
 }
+
+.role-heading {
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e3e9ec;
+}
+
+.role-badge,
+.entry-title,
+.entry-description {
+  display: block;
+}
+
+.role-badge {
+  width: fit-content;
+  margin-bottom: 12px;
+  padding: 6px 16px;
+  border-radius: 999px;
+  color: #245c6d;
+  background: #e8f2f3;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.business-list {
+  margin-top: 8px;
+}
+
+.business-entry,
+.logout-button,
+.business-entry::after,
+.logout-button::after {
+  border: 0;
+}
+
+.business-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin: 0;
+  padding: 24px 4px;
+  border-bottom: 1px solid #e3e9ec;
+  border-radius: 0;
+  color: #102b3a;
+  background: #fff;
+  text-align: left;
+}
+
+.entry-title {
+  font-size: 30px;
+  font-weight: 700;
+}
+
+.entry-description {
+  margin-top: 4px;
+  color: #62717b;
+  font-size: 24px;
+  line-height: 1.45;
+}
+
+.entry-arrow {
+  margin-left: 20px;
+  color: #78909c;
+  font-size: 40px;
+}
+
+.logout-button {
+  margin-top: 24px;
+  color: #536772;
+  background: #edf1f3;
+  font-size: 28px;
+}

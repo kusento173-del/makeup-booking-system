@@ -1,4 +1,5 @@
 import { Button, Input, Text, View } from '@tarojs/components';
+import Taro from '@tarojs/taro';
 import { useEffect, useRef, useState } from 'react';
 
 import { ApiError } from '../../api-client';
@@ -8,11 +9,13 @@ import {
   type AuthFlowResult,
   type LoginRole,
   loginWithWechat,
+  logoutSession,
   restoreSession,
   saveSession,
   selectLoginRole,
   type SessionTokenPair,
 } from '../../auth-session';
+import { featureRoute, getMobileHome } from '../../mobile-navigation';
 import './index.css';
 
 const ROLE_LABELS = { ARTIST: '化妆师', HOST: '主播', OPERATOR: '运营' } as const;
@@ -45,6 +48,7 @@ export default function IndexPage() {
   const [bindingCode, setBindingCode] = useState('');
   const [targetName, setTargetName] = useState('');
   const [siteCode, setSiteCode] = useState('SONGJIANG');
+  const roleHome = session ? getMobileHome(session.role.roleCode) : null;
 
   useEffect(() => {
     if (initialized.current) return;
@@ -83,6 +87,7 @@ export default function IndexPage() {
     setSession(value);
     setBinding(null);
     setRoleSelection(null);
+    setError(null);
   }
 
   async function submitBinding(): Promise<void> {
@@ -127,6 +132,20 @@ export default function IndexPage() {
     } catch (cause) {
       setError(message(cause));
     } finally {
+      setBusy(false);
+    }
+  }
+
+  async function logout(): Promise<void> {
+    if (!session) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await logoutSession(session.accessToken);
+    } catch (cause) {
+      setError(message(cause));
+    } finally {
+      setSession(null);
       setBusy(false);
     }
   }
@@ -219,6 +238,43 @@ export default function IndexPage() {
                 : role.roleCode}
             </Button>
           ))}
+        </View>
+      ) : null}
+
+      {session && roleHome ? (
+        <View className="card role-home">
+          <View className="role-heading">
+            <Text className="role-badge">{roleHome.roleLabel}</Text>
+            <Text className="section-title">{roleHome.title}</Text>
+            <Text className="section-note">{roleHome.description}</Text>
+          </View>
+          <View className="business-list">
+            {roleHome.features.map((feature) => (
+              <Button
+                className="business-entry"
+                key={feature.id}
+                onClick={() => void Taro.navigateTo({ url: featureRoute(feature.id) })}
+              >
+                <View>
+                  <Text className="entry-title">{feature.title}</Text>
+                  <Text className="entry-description">{feature.description}</Text>
+                </View>
+                <Text className="entry-arrow">›</Text>
+              </Button>
+            ))}
+          </View>
+          <Button className="logout-button" disabled={busy} onClick={() => void logout()}>
+            退出当前身份
+          </Button>
+        </View>
+      ) : null}
+      {session && !roleHome ? (
+        <View className="card">
+          <Text className="section-title">当前身份不能使用小程序</Text>
+          <Text className="section-note">客服和管理员请使用电脑端管理后台。</Text>
+          <Button className="logout-button" disabled={busy} onClick={() => void logout()}>
+            重新选择身份
+          </Button>
         </View>
       ) : null}
 
