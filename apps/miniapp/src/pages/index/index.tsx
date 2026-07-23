@@ -246,6 +246,15 @@ export default function IndexPage() {
               <Text className="entry-arrow">›</Text>
             </Button>
           ) : null}
+          {session.role.roleCode === 'ARTIST' ? (
+            <Button
+              className="business-entry"
+              onClick={() => void Taro.navigateTo({ url: '/pages/shift/index' })}
+            >
+              <Text>班次设置与查看</Text>
+              <Text className="entry-arrow">›</Text>
+            </Button>
+          ) : null}
         </View>
       ) : null}
       {session && !roleHome ? (

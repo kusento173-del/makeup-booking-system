@@ -1,0 +1,107 @@
+.shift-page {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 24px 24px 56px;
+}
+
+.shift-card,
+.shift-state {
+  padding: 26px;
+  border: 1px solid #d7e0e4;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.shift-state {
+  color: #62717b;
+  font-size: 28px;
+  text-align: center;
+}
+
+.shift-state.error {
+  color: #9b342d;
+  background: #fff5f3;
+}
+
+.shift-title,
+.field-title,
+.shift-note {
+  display: block;
+}
+
+.shift-title {
+  color: #102b3a;
+  font-size: 34px;
+  font-weight: 700;
+}
+
+.shift-note {
+  margin-top: 12px;
+  color: #62717b;
+  font-size: 26px;
+  line-height: 1.55;
+}
+
+.shift-row,
+.time-field,
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 22px 0;
+  border-bottom: 1px solid #e4e9eb;
+  color: #243844;
+  font-size: 28px;
+}
+
+.field-title {
+  margin-top: 28px;
+  color: #243844;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.weekday-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.weekday,
+.save-shift,
+.weekday::after,
+.save-shift::after {
+  border: 0;
+}
+
+.weekday {
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  color: #42545e;
+  background: #edf1f3;
+  font-size: 26px;
+}
+
+.weekday.active {
+  color: #fff;
+  background: #245c6d;
+}
+
+.time-value {
+  min-width: 140px;
+  padding: 12px 18px;
+  border-radius: 8px;
+  color: #102b3a;
+  background: #edf1f3;
+  text-align: center;
+}
+
+.save-shift {
+  margin-top: 28px;
+  color: #fff;
+  background: #245c6d;
+  font-size: 30px;
+  font-weight: 700;
+}
