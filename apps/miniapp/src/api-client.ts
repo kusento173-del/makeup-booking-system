@@ -1,9 +1,8 @@
 import Taro from '@tarojs/taro';
 
-const API_BASE_URL = (process.env.TARO_APP_API_BASE_URL ?? 'http://127.0.0.1:3000').replace(
-  /\/+$/,
-  '',
-);
+declare const __API_BASE_URL__: string;
+
+const API_BASE_URL = __API_BASE_URL__.replace(/\/+$/, '');
 
 interface ApiErrorBody {
   readonly error?: { readonly code?: string; readonly message?: string };

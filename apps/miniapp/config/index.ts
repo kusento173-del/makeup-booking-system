@@ -1,8 +1,13 @@
 import { defineConfig } from '@tarojs/cli';
 
+const apiBaseUrl = process.env.TARO_APP_API_BASE_URL ?? 'http://127.0.0.1:3000';
+
 export default defineConfig({
   projectName: 'makeup-booking-miniapp',
   date: '2026-07-21',
+  defineConstants: {
+    __API_BASE_URL__: JSON.stringify(apiBaseUrl),
+  },
   designWidth: 750,
   deviceRatio: {
     375: 2,
