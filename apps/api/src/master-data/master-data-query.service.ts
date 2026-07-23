@@ -285,7 +285,6 @@ export class MasterDataQueryService {
               operator: { employmentStatus: 'ACTIVE', userId: context.userId },
             },
           },
-          qualificationStatus: 'ACTIVE',
         };
       case 'ARTIST':
         throw new AuthorizationDeniedError();
@@ -304,17 +303,9 @@ export class MasterDataQueryService {
       case 'ARTIST':
         return { userId: context.userId };
       case 'HOST':
-        return {
-          employmentStatus: 'ACTIVE',
-          initialShiftConfiguredAt: { not: null },
-          siteId: await this.findHostSite(client, context.userId),
-        };
+        return { siteId: await this.findHostSite(client, context.userId) };
       case 'OPERATOR':
-        return {
-          employmentStatus: 'ACTIVE',
-          initialShiftConfiguredAt: { not: null },
-          siteId: await this.findOperatorSite(client, context.userId),
-        };
+        return { siteId: await this.findOperatorSite(client, context.userId) };
     }
   }
 

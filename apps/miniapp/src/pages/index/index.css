@@ -129,35 +129,3 @@
   color: #9b342d;
   background: #fbecea;
 }
-
-.role-name {
-  display: inline-block;
-  margin-bottom: 14px;
-  color: #245c6d;
-  font-size: 26px;
-  font-weight: 700;
-}
-
-.business-entry,
-.business-entry::after {
-  border: 0;
-}
-
-.business-entry {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin: 28px 0 0;
-  padding: 0 24px;
-  color: #102b3a;
-  background: #eef4f5;
-  font-size: 30px;
-  font-weight: 700;
-  text-align: left;
-}
-
-.entry-arrow {
-  color: #245c6d;
-  font-size: 42px;
-  font-weight: 400;
-}
