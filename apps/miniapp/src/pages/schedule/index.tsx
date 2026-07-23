@@ -3,10 +3,15 @@ import Taro, { useDidShow } from '@tarojs/taro';
 import { useState } from 'react';
 
 import { ApiError } from '../../api-client';
-import { listAppointments, type AppointmentListItem } from '../../appointment-api';
+import {
+  cancelAppointment,
+  listAppointments,
+  type AppointmentListItem,
+} from '../../appointment-api';
 import {
   appointmentSubject,
   appointmentTime,
+  canCancelAppointment,
   RANGE_OPTIONS,
   scheduleDateRange,
   STATUS_LABELS,
@@ -26,6 +31,7 @@ function errorMessage(cause: unknown): string {
 export default function SchedulePage() {
   const [range, setRange] = useState<ScheduleRange>('TODAY');
   const [roleCode, setRoleCode] = useState<RoleCode | null>(null);
+  const [token, setToken] = useState('');
   const [items, setItems] = useState<readonly AppointmentListItem[]>([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -33,6 +39,8 @@ export default function SchedulePage() {
   const [windowItemCount, setWindowItemCount] = useState(0);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   useDidShow(() => {
     void load(range, 1, false, 0);
@@ -46,6 +54,7 @@ export default function SchedulePage() {
   ): Promise<void> {
     setBusy(true);
     setError(null);
+    setActionError(null);
     try {
       const session = await restoreSession();
       if (!session) {
@@ -65,6 +74,7 @@ export default function SchedulePage() {
         token: session.accessToken,
       });
       setRoleCode(session.role.roleCode);
+      setToken(session.accessToken);
       setRange(nextRange);
       setPage(result.page);
       setTotal(result.total);
@@ -79,6 +89,46 @@ export default function SchedulePage() {
       setError(errorMessage(cause));
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function cancel(item: AppointmentListItem): Promise<void> {
+    if (!roleCode || !token || cancellingId || !canCancelAppointment(item, roleCode)) return;
+    const confirmation = await Taro.showModal({
+      cancelText: '保留预约',
+      confirmColor: '#9b342d',
+      confirmText: '确认取消',
+      content: [
+        `${item.hostName}（${item.hostCode}）`,
+        `${item.artistNickname} · ${item.siteName}`,
+        `${item.date} ${appointmentTime(item)}`,
+        '取消后该时间会立即释放，原记录保留为已取消。',
+      ].join('\n'),
+      title: '确认取消预约',
+    });
+    if (!confirmation.confirm) return;
+
+    setCancellingId(item.id);
+    setActionError(null);
+    try {
+      const cancelled = await cancelAppointment(token, item.id, item.rowVersion);
+      setItems((current) =>
+        current.map((currentItem) =>
+          currentItem.id === item.id
+            ? { ...currentItem, rowVersion: cancelled.rowVersion, status: cancelled.status }
+            : currentItem,
+        ),
+      );
+      await Taro.showToast({ icon: 'success', title: '预约已取消' });
+    } catch (cause) {
+      const message =
+        cause instanceof ApiError &&
+        ['BOOKING_CANCELLATION_CUTOFF', 'BOOKING_STATE_CONFLICT'].includes(cause.code)
+          ? '预约状态或可取消时间已经变化，请刷新排班后重试。'
+          : errorMessage(cause);
+      setActionError(message);
+    } finally {
+      setCancellingId(null);
     }
   }
 
@@ -110,6 +160,7 @@ export default function SchedulePage() {
           </Button>
         </View>
       ) : null}
+      {actionError ? <View className="schedule-action-error">{actionError}</View> : null}
 
       {busy && items.length === 0 ? <PageState kind="LOADING" /> : null}
       {error ? (
@@ -151,6 +202,16 @@ export default function SchedulePage() {
                   {'\n'}实际预约化妆师：{item.artistNickname}
                 </Text>
               </View>
+              {canCancelAppointment(item, roleCode) ? (
+                <Button
+                  className="cancel-button"
+                  disabled={cancellingId !== null}
+                  onClick={() => void cancel(item)}
+                  size="mini"
+                >
+                  {cancellingId === item.id ? '正在取消…' : '取消预约'}
+                </Button>
+              ) : null}
             </View>
           ))
         : null}

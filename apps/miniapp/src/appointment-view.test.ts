@@ -4,6 +4,7 @@ import type { AppointmentListItem } from './appointment-api';
 import {
   appointmentSubject,
   appointmentTime,
+  canCancelAppointment,
   scheduleDateRange,
   STATUS_LABELS,
 } from './appointment-view';
@@ -18,6 +19,7 @@ const appointment: AppointmentListItem = {
   hostCode: 'ZB01842',
   hostName: '小雨',
   id: 'appointment-1',
+  rowVersion: 1,
   siteName: '松江',
   startAt: '2026-07-24T01:30:00.000Z',
   status: 'BOOKED',
@@ -53,5 +55,21 @@ describe('appointment view', () => {
   it('展示上海时间和统一状态文案', () => {
     expect(appointmentTime(appointment)).toBe('09:30–10:00');
     expect(STATUS_LABELS.BOOKED).toBe('已预约');
+  });
+
+  it('只允许主播和运营取消明日以后仍为已预约的排班', () => {
+    const now = new Date('2026-07-23T16:30:00.000Z');
+    expect(canCancelAppointment(appointment, 'HOST', now)).toBe(false);
+    expect(canCancelAppointment({ ...appointment, date: '2026-07-25' }, 'OPERATOR', now)).toBe(
+      true,
+    );
+    expect(canCancelAppointment({ ...appointment, date: '2026-07-25' }, 'ARTIST', now)).toBe(false);
+    expect(
+      canCancelAppointment(
+        { ...appointment, date: '2026-07-25', status: 'COMPLETED' },
+        'HOST',
+        now,
+      ),
+    ).toBe(false);
   });
 });

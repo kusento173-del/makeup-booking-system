@@ -68,3 +68,15 @@ export function appointmentSubject(item: AppointmentListItem, roleCode: RoleCode
       return `${item.hostName} · ${item.artistNickname}`;
   }
 }
+
+export function canCancelAppointment(
+  item: AppointmentListItem,
+  roleCode: RoleCode,
+  now = new Date(),
+): boolean {
+  return (
+    (roleCode === 'HOST' || roleCode === 'OPERATOR') &&
+    item.status === 'BOOKED' &&
+    item.date > dateAtOffset(0, now)
+  );
+}

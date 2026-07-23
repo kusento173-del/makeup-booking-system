@@ -12,6 +12,7 @@ export interface AppointmentListItem {
   readonly hostCode: string;
   readonly hostName: string;
   readonly id: string;
+  readonly rowVersion: number;
   readonly siteName: string;
   readonly startAt: string;
   readonly status: AppointmentStatus;
@@ -38,4 +39,21 @@ export function listAppointments(input: {
     toDate: input.toDate,
   });
   return apiRequest(`/appointments?${query.toString()}`, { token: input.token });
+}
+
+export function cancelAppointment(
+  token: string,
+  appointmentId: string,
+  expectedRowVersion: number,
+): Promise<{
+  readonly cancelledAt: string;
+  readonly id: string;
+  readonly rowVersion: number;
+  readonly status: 'CANCELLED';
+}> {
+  return apiRequest(`/appointments/${appointmentId}/cancel`, {
+    body: { expectedRowVersion },
+    method: 'POST',
+    token,
+  });
 }
