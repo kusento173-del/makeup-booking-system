@@ -1,4 +1,5 @@
 import { Button, Input, Text, View } from '@tarojs/components';
+import Taro from '@tarojs/taro';
 import { useEffect, useRef, useState } from 'react';
 
 import { ApiError } from '../../api-client';
@@ -13,6 +14,7 @@ import {
   selectLoginRole,
   type SessionTokenPair,
 } from '../../auth-session';
+import { getMobileRoleHome } from '../../role-home';
 import './index.css';
 
 const ROLE_LABELS = { ARTIST: '化妆师', HOST: '主播', OPERATOR: '运营' } as const;
@@ -45,6 +47,7 @@ export default function IndexPage() {
   const [bindingCode, setBindingCode] = useState('');
   const [targetName, setTargetName] = useState('');
   const [siteCode, setSiteCode] = useState('SONGJIANG');
+  const roleHome = session ? getMobileRoleHome(session.role.roleCode) : null;
 
   useEffect(() => {
     if (initialized.current) return;
@@ -219,6 +222,26 @@ export default function IndexPage() {
                 : role.roleCode}
             </Button>
           ))}
+        </View>
+      ) : null}
+
+      {session && roleHome ? (
+        <View className="card role-home">
+          <Text className="role-name">{roleHome.roleLabel}</Text>
+          <Text className="section-title">{roleHome.title}</Text>
+          <Text className="section-note">{roleHome.description}</Text>
+          <Button
+            className="business-entry"
+            onClick={() => void Taro.navigateTo({ url: '/pages/appointments/index' })}
+          >
+            <Text>{roleHome.scheduleLabel}</Text>
+            <Text className="entry-arrow">›</Text>
+          </Button>
+        </View>
+      ) : null}
+      {session && !roleHome ? (
+        <View className="notice error" role="alert">
+          当前角色不支持使用手机端，请使用管理后台。
         </View>
       ) : null}
 
