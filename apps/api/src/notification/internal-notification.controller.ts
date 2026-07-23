@@ -7,7 +7,12 @@ import {
   NotificationDeliveryService,
 } from './notification-delivery.service';
 import { NotificationOutboxService } from './notification-outbox.service';
-import type { NotificationChannel, NotificationOutboxBatchResult } from './notification.types';
+import { NotificationScheduleService } from './notification-schedule.service';
+import type {
+  NotificationChannel,
+  NotificationOutboxBatchResult,
+  NotificationReminderBatchResult,
+} from './notification.types';
 import { WechatMiniProgramNotificationAdapter } from './wechat-mini-program-notification.adapter';
 
 export function configuredNotificationChannel(value: string | undefined): NotificationChannel {
@@ -22,6 +27,7 @@ export class InternalNotificationController {
   constructor(
     private readonly delivery: NotificationDeliveryService,
     private readonly outbox: NotificationOutboxService,
+    private readonly schedule: NotificationScheduleService,
     private readonly wechatMiniProgram: WechatMiniProgramNotificationAdapter,
   ) {}
 
@@ -40,5 +46,13 @@ export class InternalNotificationController {
     }
     this.wechatMiniProgram.assertConfigured();
     return this.delivery.runBatch(channel, this.wechatMiniProgram);
+  }
+
+  @Post('notification-reminders')
+  @HttpCode(200)
+  runReminders(): Promise<NotificationReminderBatchResult> {
+    return this.schedule.runReminderBatch(
+      configuredNotificationChannel(process.env.NOTIFICATION_CHANNEL),
+    );
   }
 }

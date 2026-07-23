@@ -8,6 +8,7 @@ import { MasterDataModule } from '../master-data/master-data.module';
 import { InternalNotificationController } from './internal-notification.controller';
 import { NotificationDeliveryService } from './notification-delivery.service';
 import { NotificationOutboxService } from './notification-outbox.service';
+import { NotificationScheduleService } from './notification-schedule.service';
 import { NotificationSubscriptionController } from './notification-subscription.controller';
 import { NotificationSubscriptionService } from './notification-subscription.service';
 import { NotificationTemplateController } from './notification-template.controller';
@@ -20,11 +21,12 @@ import { WechatMiniProgramNotificationAdapter } from './wechat-mini-program-noti
     NotificationSubscriptionController,
     NotificationTemplateController,
   ],
-  exports: [NotificationDeliveryService, NotificationOutboxService],
+  exports: [NotificationDeliveryService, NotificationOutboxService, NotificationScheduleService],
   imports: [AuditModule, AuthModule, BookingModule, DatabaseModule, MasterDataModule],
   providers: [
     NotificationDeliveryService,
     NotificationOutboxService,
+    NotificationScheduleService,
     NotificationSubscriptionService,
     NotificationTemplateService,
     WechatMiniProgramNotificationAdapter,

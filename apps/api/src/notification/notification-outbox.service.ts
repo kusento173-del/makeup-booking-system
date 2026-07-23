@@ -2,7 +2,11 @@ import { Prisma } from '@makeup/database';
 import { Injectable } from '@nestjs/common';
 
 import { DatabaseService } from '../database/database.service';
-import { formatDateOnly, instantToBusinessDateMinute } from '../shift/business-date';
+import {
+  APPOINTMENT_NOTIFICATION_SELECT,
+  appointmentNotificationPayload,
+  type AppointmentNotificationRecord,
+} from './appointment-notification';
 import {
   NOTIFICATION_EVENT_TYPES,
   type NotificationChannel,
@@ -53,37 +57,6 @@ const ROLE_NOTICE: Readonly<Record<Recipient['roleCode'], string>> = {
   HOST: '请按预约时间到场化妆',
   OPERATOR: '请关注负责主播的化妆安排',
 };
-
-const APPOINTMENT_SELECT = {
-  appointmentDate: true,
-  artist: {
-    select: {
-      id: true,
-      nickname: true,
-      user: { select: { id: true, status: true } },
-    },
-  },
-  artistNicknameSnapshot: true,
-  durationMinutes: true,
-  endAt: true,
-  host: {
-    select: {
-      hostCode: true,
-      id: true,
-      nickname: true,
-      realName: true,
-      user: { select: { id: true, status: true } },
-    },
-  },
-  hostCodeSnapshot: true,
-  hostNameSnapshot: true,
-  id: true,
-  siteId: true,
-  siteNameSnapshot: true,
-  startAt: true,
-} satisfies Prisma.AppointmentSelect;
-
-type AppointmentRecord = Prisma.AppointmentGetPayload<{ select: typeof APPOINTMENT_SELECT }>;
 
 @Injectable()
 export class NotificationOutboxService {
@@ -159,6 +132,7 @@ export class NotificationOutboxService {
         const templateVersionId = templateByRole.get(recipient.roleCode);
         if (!templateVersionId) throw new Error('Notification role template is unavailable');
         return {
+          appointmentId: appointment.id,
           businessKey: `${EVENT_BUSINESS_KIND[event.eventType]}:${businessRoot}:${recipient.roleCode}:${recipient.profileId}`,
           ...(available
             ? { recipientUserId: recipient.userId }
@@ -173,7 +147,11 @@ export class NotificationOutboxService {
                 ...(recipient.userId ? { recipientUserId: recipient.userId } : {}),
                 status: 'FAILED',
               }),
-          payload: this.taskPayload(appointment, event.eventType, recipient.roleCode),
+          payload: appointmentNotificationPayload(
+            appointment,
+            EVENT_STATUS[event.eventType],
+            ROLE_NOTICE[recipient.roleCode],
+          ),
           recipientNameSnapshot: recipient.name,
           recipientProfileId: recipient.profileId,
           recipientRoleCode: recipient.roleCode,
@@ -237,7 +215,7 @@ export class NotificationOutboxService {
 
   private appointment(transaction: Prisma.TransactionClient, id: string) {
     return transaction.appointment
-      .findUnique({ select: APPOINTMENT_SELECT, where: { id } })
+      .findUnique({ select: APPOINTMENT_NOTIFICATION_SELECT, where: { id } })
       .then((appointment) => {
         if (!appointment) throw new Error('Notification appointment was not found');
         return appointment;
@@ -248,7 +226,7 @@ export class NotificationOutboxService {
     transaction: Prisma.TransactionClient,
     event: ClaimedEvent,
     payload: EventPayload,
-    appointment: AppointmentRecord,
+    appointment: AppointmentNotificationRecord,
   ): Promise<readonly Recipient[]> {
     if (event.eventType === 'APPOINTMENT_RESCHEDULED_FROM') {
       const original = await this.appointment(transaction, payload.appointmentId);
@@ -295,7 +273,7 @@ export class NotificationOutboxService {
     return recipients;
   }
 
-  private artistRecipient(appointment: AppointmentRecord): Recipient {
+  private artistRecipient(appointment: AppointmentNotificationRecord): Recipient {
     return {
       name: appointment.artist.nickname,
       profileId: appointment.artist.id,
@@ -303,41 +281,5 @@ export class NotificationOutboxService {
       userId: appointment.artist.user?.id ?? null,
       userStatus: appointment.artist.user?.status ?? null,
     };
-  }
-
-  private taskPayload(
-    appointment: AppointmentRecord,
-    eventType: NotificationEventType,
-    recipientRoleCode: Recipient['roleCode'],
-  ): Prisma.InputJsonObject {
-    const appointmentDate = formatDateOnly(appointment.appointmentDate);
-    const startTime = this.clock(
-      instantToBusinessDateMinute(appointment.appointmentDate, appointment.startAt),
-    );
-    const endTime = this.clock(
-      instantToBusinessDateMinute(appointment.appointmentDate, appointment.endAt),
-    );
-    return {
-      appointmentCount: 1,
-      appointmentDate,
-      appointmentDateTime: `${appointmentDate} ${startTime}`,
-      appointmentId: appointment.id,
-      appointmentStatus: EVENT_STATUS[eventType],
-      artistName: appointment.artistNicknameSnapshot,
-      durationMinutes: appointment.durationMinutes,
-      endAt: appointment.endAt.toISOString(),
-      endTime,
-      hostCode: appointment.hostCodeSnapshot,
-      hostName: appointment.hostNameSnapshot,
-      noticeText: ROLE_NOTICE[recipientRoleCode],
-      siteName: appointment.siteNameSnapshot,
-      startAt: appointment.startAt.toISOString(),
-      startTime,
-      timeRange: `${startTime}~${endTime}`,
-    };
-  }
-
-  private clock(minute: number): string {
-    return `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
   }
 }

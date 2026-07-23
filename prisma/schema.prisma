@@ -19,19 +19,19 @@ model Site {
   updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
   rowVersion Int      @default(1) @map("row_version")
 
-  hosts               HostProfile[]
-  artists             ArtistProfile[]
-  operators           OperatorProfile[]
-  userRoles           UserRole[]
-  operationLogs       OperationLog[]
-  bindingCodes        AccountBindingCode[]
-  shiftChangeRequests ArtistShiftChangeRequest[]
-  artistOvertimes     ArtistOvertime[]
-  appointments        Appointment[]
-  fixedRequests       FixedAppointmentRequest[]
-  fixedRules          FixedAppointmentRule[]
-  exportJobs          ExportJob[]
-  notificationTasks   NotificationTask[]
+  hosts                             HostProfile[]
+  artists                           ArtistProfile[]
+  operators                         OperatorProfile[]
+  userRoles                         UserRole[]
+  operationLogs                     OperationLog[]
+  bindingCodes                      AccountBindingCode[]
+  shiftChangeRequests               ArtistShiftChangeRequest[]
+  artistOvertimes                   ArtistOvertime[]
+  appointments                      Appointment[]
+  fixedRequests                     FixedAppointmentRequest[]
+  fixedRules                        FixedAppointmentRule[]
+  exportJobs                        ExportJob[]
+  notificationTasks                 NotificationTask[]
   notificationSubscriptionDecisions NotificationSubscriptionDecision[]
 
   @@index([status, sortOrder], map: "sites_status_sort_order_idx")
@@ -50,37 +50,37 @@ model AppUser {
   updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
   rowVersion       Int       @default(1) @map("row_version")
 
-  identities              UserIdentity[]
-  passwordCredential      PasswordCredential?
-  roles                   UserRole[]                   @relation("UserRoleOwner")
-  assignedRoles           UserRole[]                   @relation("UserRoleAssigner")
-  sessions                AuthSession[]
-  operationLogs           OperationLog[]
-  hostProfile             HostProfile?
-  artistProfile           ArtistProfile?
-  operatorProfile         OperatorProfile?
-  qualificationChanges    HostQualificationHistory[]   @relation("HostQualificationChangedBy")
-  uploadedImportBatches   ImportBatch[]                @relation("ImportBatchUploader")
-  confirmedImportBatches  ImportBatch[]                @relation("ImportBatchConfirmer")
-  createdBindingCodes     AccountBindingCode[]         @relation("BindingCodeCreator")
-  consumedBindingCodes    AccountBindingCode[]         @relation("BindingCodeConsumer")
-  revokedBindingCodes     AccountBindingCode[]         @relation("BindingCodeRevoker")
-  bindingChallenges       AuthBindingChallenge[]
-  roleSelectionChallenges AuthRoleSelectionChallenge[]
-  createdShiftTemplates   ArtistShiftTemplate[]        @relation("ArtistShiftCreatedBy")
-  submittedShiftChanges   ArtistShiftChangeRequest[]   @relation("ArtistShiftSubmittedBy")
-  reviewedShiftChanges    ArtistShiftChangeRequest[]   @relation("ArtistShiftReviewedBy")
-  submittedOvertimes      ArtistOvertime[]             @relation("ArtistOvertimeSubmittedBy")
-  reviewedOvertimes       ArtistOvertime[]             @relation("ArtistOvertimeReviewedBy")
-  createdLeaveRecords     LeaveRecord[]                @relation("LeaveRecordCreatedBy")
-  cancelledLeaveRecords   LeaveRecord[]                @relation("LeaveRecordCancelledBy")
-  createdAppointments     Appointment[]                @relation("AppointmentCreatedBy")
-  cancelledAppointments   Appointment[]                @relation("AppointmentCancelledBy")
-  idempotencyRecords      IdempotencyRecord[]
-  submittedFixedRequests  FixedAppointmentRequest[]    @relation("FixedRequestSubmittedBy")
-  reviewedFixedRequests   FixedAppointmentRequest[]    @relation("FixedRequestReviewedBy")
-  requestedExportJobs     ExportJob[]                  @relation("ExportJobRequester")
-  notificationTasks       NotificationTask[]           @relation("NotificationRecipient")
+  identities                        UserIdentity[]
+  passwordCredential                PasswordCredential?
+  roles                             UserRole[]                         @relation("UserRoleOwner")
+  assignedRoles                     UserRole[]                         @relation("UserRoleAssigner")
+  sessions                          AuthSession[]
+  operationLogs                     OperationLog[]
+  hostProfile                       HostProfile?
+  artistProfile                     ArtistProfile?
+  operatorProfile                   OperatorProfile?
+  qualificationChanges              HostQualificationHistory[]         @relation("HostQualificationChangedBy")
+  uploadedImportBatches             ImportBatch[]                      @relation("ImportBatchUploader")
+  confirmedImportBatches            ImportBatch[]                      @relation("ImportBatchConfirmer")
+  createdBindingCodes               AccountBindingCode[]               @relation("BindingCodeCreator")
+  consumedBindingCodes              AccountBindingCode[]               @relation("BindingCodeConsumer")
+  revokedBindingCodes               AccountBindingCode[]               @relation("BindingCodeRevoker")
+  bindingChallenges                 AuthBindingChallenge[]
+  roleSelectionChallenges           AuthRoleSelectionChallenge[]
+  createdShiftTemplates             ArtistShiftTemplate[]              @relation("ArtistShiftCreatedBy")
+  submittedShiftChanges             ArtistShiftChangeRequest[]         @relation("ArtistShiftSubmittedBy")
+  reviewedShiftChanges              ArtistShiftChangeRequest[]         @relation("ArtistShiftReviewedBy")
+  submittedOvertimes                ArtistOvertime[]                   @relation("ArtistOvertimeSubmittedBy")
+  reviewedOvertimes                 ArtistOvertime[]                   @relation("ArtistOvertimeReviewedBy")
+  createdLeaveRecords               LeaveRecord[]                      @relation("LeaveRecordCreatedBy")
+  cancelledLeaveRecords             LeaveRecord[]                      @relation("LeaveRecordCancelledBy")
+  createdAppointments               Appointment[]                      @relation("AppointmentCreatedBy")
+  cancelledAppointments             Appointment[]                      @relation("AppointmentCancelledBy")
+  idempotencyRecords                IdempotencyRecord[]
+  submittedFixedRequests            FixedAppointmentRequest[]          @relation("FixedRequestSubmittedBy")
+  reviewedFixedRequests             FixedAppointmentRequest[]          @relation("FixedRequestReviewedBy")
+  requestedExportJobs               ExportJob[]                        @relation("ExportJobRequester")
+  notificationTasks                 NotificationTask[]                 @relation("NotificationRecipient")
   notificationSubscriptionDecisions NotificationSubscriptionDecision[]
 
   @@index([status], map: "app_users_status_idx")
@@ -445,15 +445,16 @@ model Appointment {
   updatedAt                    DateTime                  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
   rowVersion                   Int                       @default(1) @map("row_version")
 
-  host            HostProfile           @relation(fields: [hostId, siteId], references: [id, siteId], onDelete: Restrict, onUpdate: Cascade, map: "appointments_host_site_fkey")
-  artist          ArtistProfile         @relation(fields: [artistId, siteId], references: [id, siteId], onDelete: Restrict, onUpdate: Cascade, map: "appointments_artist_site_fkey")
-  site            Site                  @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  operator        OperatorProfile?      @relation(fields: [operatorIdAtBooking, siteId], references: [id, siteId], onDelete: Restrict, onUpdate: Cascade, map: "appointments_operator_site_fkey")
-  createdBy       AppUser?              @relation("AppointmentCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  cancelledBy     AppUser?              @relation("AppointmentCancelledBy", fields: [cancelledByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  rescheduledFrom Appointment?          @relation("AppointmentReschedule", fields: [rescheduledFromAppointmentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  rescheduledTo   Appointment?          @relation("AppointmentReschedule")
-  fixedRule       FixedAppointmentRule? @relation(fields: [fixedRuleId, siteId], references: [id, siteId], onDelete: Restrict, onUpdate: Cascade, map: "appointments_fixed_rule_site_fkey")
+  host              HostProfile           @relation(fields: [hostId, siteId], references: [id, siteId], onDelete: Restrict, onUpdate: Cascade, map: "appointments_host_site_fkey")
+  artist            ArtistProfile         @relation(fields: [artistId, siteId], references: [id, siteId], onDelete: Restrict, onUpdate: Cascade, map: "appointments_artist_site_fkey")
+  site              Site                  @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  operator          OperatorProfile?      @relation(fields: [operatorIdAtBooking, siteId], references: [id, siteId], onDelete: Restrict, onUpdate: Cascade, map: "appointments_operator_site_fkey")
+  createdBy         AppUser?              @relation("AppointmentCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  cancelledBy       AppUser?              @relation("AppointmentCancelledBy", fields: [cancelledByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  rescheduledFrom   Appointment?          @relation("AppointmentReschedule", fields: [rescheduledFromAppointmentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  rescheduledTo     Appointment?          @relation("AppointmentReschedule")
+  fixedRule         FixedAppointmentRule? @relation(fields: [fixedRuleId, siteId], references: [id, siteId], onDelete: Restrict, onUpdate: Cascade, map: "appointments_fixed_rule_site_fkey")
+  notificationTasks NotificationTask[]
 
   @@unique([hostId, appointmentDate, dailySequence], map: "appointments_active_host_daily_sequence_uq", where: raw("((status)::text = ANY ((ARRAY['BOOKED'::character varying, 'COMPLETED'::character varying])::text[]))"))
   @@unique([fixedRuleId, appointmentDate], map: "appointments_fixed_rule_date_uq", where: raw("(fixed_rule_id IS NOT NULL)"))
@@ -624,7 +625,7 @@ model NotificationTemplateVersion {
   updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
   rowVersion          Int       @default(1) @map("row_version")
 
-  tasks NotificationTask[]
+  tasks                 NotificationTask[]
   subscriptionDecisions NotificationSubscriptionDecision[]
 
   @@unique([templateCode, recipientRoleCode, version], map: "notification_template_versions_code_role_version_uq")
@@ -659,6 +660,7 @@ model NotificationTask {
   id                    String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
   templateVersionId     String    @map("template_version_id") @db.Uuid
   sourceOutboxEventId   String?   @map("source_outbox_event_id") @db.Uuid
+  appointmentId         String?   @map("appointment_id") @db.Uuid
   recipientUserId       String?   @map("recipient_user_id") @db.Uuid
   recipientRoleCode     String    @map("recipient_role_code") @db.VarChar(32)
   recipientProfileId    String    @map("recipient_profile_id") @db.Uuid
@@ -684,6 +686,7 @@ model NotificationTask {
 
   templateVersion   NotificationTemplateVersion   @relation(fields: [templateVersionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   sourceOutboxEvent OutboxEvent?                  @relation(fields: [sourceOutboxEventId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  appointment       Appointment?                  @relation(fields: [appointmentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   recipientUser     AppUser?                      @relation("NotificationRecipient", fields: [recipientUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   site              Site                          @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   attempts          NotificationDeliveryAttempt[]
@@ -692,6 +695,7 @@ model NotificationTask {
   @@index([siteId, status, createdAt(sort: Desc)], map: "notification_tasks_site_status_created_idx")
   @@index([recipientUserId, createdAt(sort: Desc)], map: "notification_tasks_recipient_created_idx")
   @@index([sourceOutboxEventId], map: "notification_tasks_outbox_idx")
+  @@index([appointmentId, status], map: "notification_tasks_appointment_status_idx")
   @@map("notification_tasks")
 }
 

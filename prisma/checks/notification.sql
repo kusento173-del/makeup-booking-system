@@ -150,6 +150,19 @@ BEGIN
     EXCEPTION WHEN check_violation THEN NULL;
     END;
 
+    BEGIN
+        INSERT INTO "notification_tasks" (
+            "template_version_id", "recipient_user_id", "appointment_id",
+            "recipient_role_code", "recipient_profile_id", "recipient_name_snapshot",
+            "site_id", "business_key", "payload", "scheduled_at"
+        ) VALUES (
+            template_id, user_id, uuidv7(), 'HOST', uuidv7(), '小雨', site_id,
+            'notification:missing-appointment:' || suffix, '{}'::jsonb, CURRENT_TIMESTAMP
+        );
+        RAISE EXCEPTION 'Notification task accepted a missing appointment';
+    EXCEPTION WHEN foreign_key_violation THEN NULL;
+    END;
+
     INSERT INTO "notification_tasks" (
         "template_version_id", "recipient_user_id", "recipient_role_code",
         "recipient_profile_id", "recipient_name_snapshot", "site_id", "business_key",
@@ -160,6 +173,14 @@ BEGIN
         jsonb_build_object('hostName', '小雨', 'startAt', '2026-07-23 09:30'),
         CURRENT_TIMESTAMP
     ) RETURNING "id" INTO task_id;
+
+    BEGIN
+        UPDATE "notification_tasks"
+        SET "appointment_id" = uuidv7(), "row_version" = 2
+        WHERE "id" = task_id;
+        RAISE EXCEPTION 'Notification task appointment identity was mutable';
+    EXCEPTION WHEN SQLSTATE '55000' THEN NULL;
+    END;
 
     BEGIN
         INSERT INTO "notification_tasks" (

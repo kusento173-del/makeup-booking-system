@@ -21,3 +21,9 @@ export interface NotificationOutboxBatchResult {
   readonly processedEventCount: number;
   readonly taskCount: number;
 }
+
+export interface NotificationReminderBatchResult {
+  readonly cancelledTaskCount: number;
+  readonly createdTaskCount: number;
+  readonly templateAvailable: boolean;
+}

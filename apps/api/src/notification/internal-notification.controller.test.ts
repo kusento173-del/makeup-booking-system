@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { NotificationDeliveryService } from './notification-delivery.service';
 import type { NotificationOutboxService } from './notification-outbox.service';
+import type { NotificationScheduleService } from './notification-schedule.service';
 import type { WechatMiniProgramNotificationAdapter } from './wechat-mini-program-notification.adapter';
 import {
   configuredNotificationChannel,
@@ -33,6 +34,7 @@ describe('InternalNotificationController', () => {
     const controller = new InternalNotificationController(
       {} as NotificationDeliveryService,
       { runBatch } as unknown as NotificationOutboxService,
+      {} as NotificationScheduleService,
       {} as WechatMiniProgramNotificationAdapter,
     );
     try {
@@ -61,6 +63,7 @@ describe('InternalNotificationController', () => {
     const controller = new InternalNotificationController(
       { runBatch } as unknown as NotificationDeliveryService,
       {} as NotificationOutboxService,
+      {} as NotificationScheduleService,
       adapter,
     );
     try {
@@ -70,6 +73,32 @@ describe('InternalNotificationController', () => {
       });
       expect(assertConfigured).toHaveBeenCalledOnce();
       expect(runBatch).toHaveBeenCalledWith('WECHAT_MINI_PROGRAM', adapter);
+    } finally {
+      if (previous === undefined) delete process.env.NOTIFICATION_CHANNEL;
+      else process.env.NOTIFICATION_CHANNEL = previous;
+    }
+  });
+
+  it('runs the reminder reconciliation through the configured channel', async () => {
+    const previous = process.env.NOTIFICATION_CHANNEL;
+    process.env.NOTIFICATION_CHANNEL = 'WECHAT_MINI_PROGRAM';
+    const runReminderBatch = vi.fn().mockResolvedValue({
+      cancelledTaskCount: 1,
+      createdTaskCount: 2,
+      templateAvailable: true,
+    });
+    const controller = new InternalNotificationController(
+      {} as NotificationDeliveryService,
+      {} as NotificationOutboxService,
+      { runReminderBatch } as unknown as NotificationScheduleService,
+      {} as WechatMiniProgramNotificationAdapter,
+    );
+    try {
+      await expect(controller.runReminders()).resolves.toMatchObject({
+        cancelledTaskCount: 1,
+        createdTaskCount: 2,
+      });
+      expect(runReminderBatch).toHaveBeenCalledWith('WECHAT_MINI_PROGRAM');
     } finally {
       if (previous === undefined) delete process.env.NOTIFICATION_CHANNEL;
       else process.env.NOTIFICATION_CHANNEL = previous;
