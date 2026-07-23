@@ -40,6 +40,7 @@ const notificationOutboxScheduler = new NotificationOutboxScheduler(
     apiUrl,
     deliveryIntervalMs: Number(process.env.NOTIFICATION_DELIVERY_INTERVAL_MS ?? '1000'),
     intervalMs: Number(process.env.NOTIFICATION_OUTBOX_INTERVAL_MS ?? '2000'),
+    scheduleIntervalMs: Number(process.env.NOTIFICATION_SCHEDULE_INTERVAL_MS ?? '60000'),
     token,
   },
   logger,

@@ -6,6 +6,7 @@ const options = {
   apiUrl: 'http://127.0.0.1:3000',
   deliveryIntervalMs: 1_000,
   intervalMs: 2_000,
+  scheduleIntervalMs: 60_000,
   token: 'x'.repeat(32),
 };
 
@@ -61,5 +62,37 @@ describe('NotificationOutboxScheduler', () => {
       expect.objectContaining({ headers: { 'x-worker-token': options.token }, method: 'POST' }),
     );
     expect(logger.log).toHaveBeenCalledWith('通知已投递 4 项：成功 2，待重试 1，失败 1');
+  });
+
+  it('reconciles reminders and daily summaries without logging notification content', async () => {
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ cancelledTaskCount: 2, createdTaskCount: 4 }), {
+          headers: { 'Content-Type': 'application/json' },
+          status: 200,
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ createdTaskCount: 3, eligible: true }), {
+          headers: { 'Content-Type': 'application/json' },
+          status: 200,
+        }),
+      );
+    const logger = { error: vi.fn(), log: vi.fn(), warn: vi.fn() };
+    const scheduler = new NotificationOutboxScheduler(options, logger, fetcher);
+
+    expect(await scheduler.runScheduleOnce()).toBe(true);
+    expect(fetcher).toHaveBeenNthCalledWith(
+      1,
+      'http://127.0.0.1:3000/internal/jobs/notification-reminders',
+      expect.objectContaining({ headers: { 'x-worker-token': options.token }, method: 'POST' }),
+    );
+    expect(fetcher).toHaveBeenNthCalledWith(
+      2,
+      'http://127.0.0.1:3000/internal/jobs/notification-daily-summaries',
+      expect.objectContaining({ headers: { 'x-worker-token': options.token }, method: 'POST' }),
+    );
+    expect(logger.log).toHaveBeenCalledWith('通知计划已更新：提醒新增 4，提醒取消 2，汇总新增 3');
   });
 });
