@@ -1,4 +1,4 @@
-import type { SchedulerLogger } from './fixed-generation.scheduler';
+import type { SchedulerLogger } from './booking-maintenance.scheduler';
 
 export interface NotificationOutboxSchedulerOptions {
   readonly apiUrl: string;

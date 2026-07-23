@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { Logger } from '@nestjs/common';
 
 import { ExportScheduler } from './export.scheduler';
-import { FixedGenerationScheduler } from './fixed-generation.scheduler';
+import { BookingMaintenanceScheduler } from './booking-maintenance.scheduler';
 import { NotificationOutboxScheduler } from './notification-outbox.scheduler';
 
 function loadEnvironment(): void {
@@ -18,10 +18,10 @@ loadEnvironment();
 const apiUrl = process.env.INTERNAL_API_URL ?? 'http://127.0.0.1:3000';
 const token = process.env.INTERNAL_WORKER_TOKEN ?? '';
 const logger = new Logger('BackgroundWorker');
-const scheduler = new FixedGenerationScheduler(
+const scheduler = new BookingMaintenanceScheduler(
   {
     apiUrl,
-    intervalMs: Number(process.env.FIXED_GENERATION_INTERVAL_MS ?? '60000'),
+    intervalMs: Number(process.env.BOOKING_MAINTENANCE_INTERVAL_MS ?? '60000'),
     token,
   },
   logger,

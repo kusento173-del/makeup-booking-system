@@ -5,6 +5,7 @@ import { AuditModule } from '../audit/audit.module';
 import { AuthModule } from '../auth/auth.module';
 import { DatabaseModule } from '../database/database.module';
 import { MasterDataModule } from '../master-data/master-data.module';
+import { AppointmentCompletionService } from './appointment-completion.service';
 import { BookingCreateService } from './booking-create.service';
 import { BookingRescheduleService } from './booking-reschedule.service';
 import { BookingCancelService } from './booking-cancel.service';
@@ -19,14 +20,15 @@ import { FixedRequestQueryService } from './fixed-request-query.service';
 import { FixedRequestReviewService } from './fixed-request-review.service';
 import { FixedRequestWithdrawService } from './fixed-request-withdraw.service';
 import { FixedStateService } from './fixed-state.service';
-import { InternalFixedGenerationController } from './internal-fixed-generation.controller';
+import { InternalBookingJobsController } from './internal-booking-jobs.controller';
 import { InternalWorkerGuard } from './internal-worker.guard';
 
 @Module({
-  controllers: [BookingController, FixedAppointmentController, InternalFixedGenerationController],
+  controllers: [BookingController, FixedAppointmentController, InternalBookingJobsController],
   imports: [AuditModule, AuthModule, AvailabilityModule, DatabaseModule, MasterDataModule],
   providers: [
     AppointmentQueryService,
+    AppointmentCompletionService,
     BookingCancelService,
     BookingCreateService,
     BookingRescheduleService,
@@ -42,6 +44,7 @@ import { InternalWorkerGuard } from './internal-worker.guard';
   ],
   exports: [
     AppointmentQueryService,
+    AppointmentCompletionService,
     BookingCancelService,
     BookingCreateService,
     BookingRescheduleService,

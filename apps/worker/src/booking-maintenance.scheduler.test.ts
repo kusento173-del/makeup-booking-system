@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { FixedGenerationScheduler } from './fixed-generation.scheduler';
+import { BookingMaintenanceScheduler } from './booking-maintenance.scheduler';
 
 const options = {
   apiUrl: 'http://127.0.0.1:3000',
@@ -12,7 +12,7 @@ function logger() {
   return { error: vi.fn(), log: vi.fn(), warn: vi.fn() };
 }
 
-describe('FixedGenerationScheduler', () => {
+describe('BookingMaintenanceScheduler', () => {
   it('calls the private generation endpoint without exposing its token in logs', async () => {
     const logs = logger();
     const fetcher = vi.fn().mockResolvedValue({
@@ -20,9 +20,9 @@ describe('FixedGenerationScheduler', () => {
       ok: true,
       status: 200,
     });
-    const scheduler = new FixedGenerationScheduler(options, logs, fetcher as typeof fetch);
+    const scheduler = new BookingMaintenanceScheduler(options, logs, fetcher as typeof fetch);
 
-    await expect(scheduler.runOnce()).resolves.toBe(true);
+    await expect(scheduler.runGenerationOnce()).resolves.toBe(true);
 
     expect(fetcher.mock.calls[0]?.[0]).toBe('http://127.0.0.1:3000/internal/jobs/fixed-generation');
     expect(fetcher.mock.calls[0]?.[1]).toMatchObject({
@@ -42,23 +42,41 @@ describe('FixedGenerationScheduler', () => {
       )
       .mockRejectedValueOnce(new Error('network down'));
     const logs = logger();
-    const scheduler = new FixedGenerationScheduler(options, logs, fetcher as typeof fetch);
+    const scheduler = new BookingMaintenanceScheduler(options, logs, fetcher as typeof fetch);
 
-    const first = scheduler.runOnce();
-    await expect(scheduler.runOnce()).resolves.toBe(false);
+    const first = scheduler.runGenerationOnce();
+    await expect(scheduler.runGenerationOnce()).resolves.toBe(false);
     resolveRequest({ json: vi.fn().mockResolvedValue({ generated: 0 }), ok: true, status: 200 });
     await expect(first).resolves.toBe(true);
-    await expect(scheduler.runOnce()).resolves.toBe(false);
+    await expect(scheduler.runGenerationOnce()).resolves.toBe(false);
 
     expect(logs.warn).toHaveBeenCalledOnce();
     expect(logs.error).toHaveBeenCalledWith('固定预约生成失败：network down');
   });
 
-  it('rejects unsafe configuration', () => {
-    expect(() => new FixedGenerationScheduler({ ...options, intervalMs: 1000 }, logger())).toThrow(
-      'FIXED_GENERATION_INTERVAL_MS',
+  it('completes due appointments without logging appointment content', async () => {
+    const logs = logger();
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ completed: 6 }), {
+        headers: { 'Content-Type': 'application/json' },
+        status: 200,
+      }),
     );
-    expect(() => new FixedGenerationScheduler({ ...options, token: 'short' }, logger())).toThrow(
+    const scheduler = new BookingMaintenanceScheduler(options, logs, fetcher);
+
+    await expect(scheduler.runCompletionOnce()).resolves.toBe(true);
+    expect(fetcher).toHaveBeenCalledWith(
+      'http://127.0.0.1:3000/internal/jobs/appointment-completion',
+      expect.objectContaining({ headers: { 'x-worker-token': options.token }, method: 'POST' }),
+    );
+    expect(logs.log).toHaveBeenCalledWith('预约自动完成 6 条');
+  });
+
+  it('rejects unsafe configuration', () => {
+    expect(
+      () => new BookingMaintenanceScheduler({ ...options, intervalMs: 1000 }, logger()),
+    ).toThrow('BOOKING_MAINTENANCE_INTERVAL_MS');
+    expect(() => new BookingMaintenanceScheduler({ ...options, token: 'short' }, logger())).toThrow(
       'INTERNAL_WORKER_TOKEN',
     );
   });
