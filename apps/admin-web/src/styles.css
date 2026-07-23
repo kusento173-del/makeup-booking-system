@@ -1194,6 +1194,74 @@ tbody tr:hover {
   max-width: 1500px;
 }
 
+.notification-task-main {
+  max-width: 1500px;
+}
+
+.notification-task-filters {
+  display: grid;
+  grid-template-columns: 170px 150px 150px minmax(180px, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 16px;
+  border: 1px solid #d7dee4;
+  border-radius: 9px;
+  background: #fff;
+}
+
+.notification-task-filters label {
+  display: grid;
+  gap: 6px;
+  color: #425563;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.notification-task-filters input,
+.notification-task-filters select {
+  width: 100%;
+  min-height: 42px;
+}
+
+.notification-task-result {
+  max-width: 320px;
+  color: #566774;
+}
+
+.notification-task-main td small {
+  display: block;
+  margin-top: 4px;
+  color: #667783;
+}
+
+.task-status {
+  display: inline-block;
+  padding: 4px 9px;
+  border-radius: 12px;
+  background: #edf1f3;
+  color: #425563;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.task-status.succeeded {
+  background: #e5f3ed;
+  color: #27644f;
+}
+
+.task-status.failed {
+  background: #fae8e5;
+  color: #9a2f24;
+}
+
+.task-status.processing,
+.task-status.retry_wait {
+  background: #e7f0f5;
+  color: #285e78;
+}
+
 .template-readiness,
 .template-create-card,
 .template-preview {
@@ -1346,6 +1414,10 @@ tbody tr:hover {
 
   .management-layout {
     display: block;
+  }
+
+  .notification-task-filters {
+    grid-template-columns: 1fr;
   }
 
   .sidebar {
