@@ -6,7 +6,8 @@ import {
   activateNotificationTemplate,
   createNotificationTemplate,
   listNotificationTemplates,
-  NOTIFICATION_RECIPIENT_ROLES,
+  NOTIFICATION_TEMPLATE_CODES,
+  NOTIFICATION_TEMPLATE_RECIPIENT_ROLES,
   type NotificationTemplate,
   type NotificationTemplateCode,
   type NotificationTemplatePreview,
@@ -22,7 +23,9 @@ interface NotificationTemplatePageProps {
 }
 
 const CODE_LABELS: Record<NotificationTemplateCode, string> = {
-  APPOINTMENT_NOTICE: '预约通知',
+  APPOINTMENT_NOTICE: '预约变更即时通知',
+  APPOINTMENT_REMINDER: '预约开始前一小时提醒',
+  DAILY_SCHEDULE_SUMMARY: '每日锁定排班汇总',
 };
 
 const ROLE_LABELS: Record<NotificationRecipientRole, string> = {
@@ -61,7 +64,7 @@ export function NotificationTemplatePage({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reloadVersion, setReloadVersion] = useState(0);
-  const templateCode: NotificationTemplateCode = 'APPOINTMENT_NOTICE';
+  const [templateCode, setTemplateCode] = useState<NotificationTemplateCode>('APPOINTMENT_NOTICE');
   const [recipientRoleCode, setRecipientRoleCode] = useState<NotificationRecipientRole>('HOST');
   const [providerTemplateKey, setProviderTemplateKey] = useState('');
   const [subscriptionType, setSubscriptionType] =
@@ -146,6 +149,12 @@ export function NotificationTemplatePage({
     }
   }
 
+  function handleTemplateCodeChange(value: NotificationTemplateCode): void {
+    const roles = NOTIFICATION_TEMPLATE_RECIPIENT_ROLES[value];
+    setTemplateCode(value);
+    setRecipientRoleCode(roles[0] as NotificationRecipientRole);
+  }
+
   async function handlePreview(template: NotificationTemplate): Promise<void> {
     setBusyId(template.id);
     setError(null);
@@ -204,21 +213,37 @@ export function NotificationTemplatePage({
 
       <section className="template-readiness" aria-label="通知模板配置状态">
         <strong>当前生效：</strong>
-        {NOTIFICATION_RECIPIENT_ROLES.map((roleCode) => (
-          <span
-            className={activeScopes.has(`APPOINTMENT_NOTICE:${roleCode}`) ? 'ready' : 'missing'}
-            key={roleCode}
-          >
-            {ROLE_LABELS[roleCode]}{' '}
-            {activeScopes.has(`APPOINTMENT_NOTICE:${roleCode}`) ? '已配置' : '未配置'}
-          </span>
-        ))}
+        {NOTIFICATION_TEMPLATE_CODES.flatMap((code) =>
+          NOTIFICATION_TEMPLATE_RECIPIENT_ROLES[code].map((roleCode) => {
+            const active = activeScopes.has(`${code}:${roleCode}`);
+            return (
+              <span className={active ? 'ready' : 'missing'} key={`${code}:${roleCode}`}>
+                {ROLE_LABELS[roleCode]}·{CODE_LABELS[code]} {active ? '已配置' : '未配置'}
+              </span>
+            );
+          }),
+        )}
         <p>AppID 和 AppSecret 只在部署环境配置，本页面不会显示密钥或发送测试消息。</p>
       </section>
 
       {isAdmin ? (
         <section className="template-create-card" aria-label="新建通知模板草稿">
           <div className="template-create-fields">
+            <label className="compact-field">
+              <span>通知用途</span>
+              <select
+                onChange={(event) =>
+                  handleTemplateCodeChange(event.target.value as NotificationTemplateCode)
+                }
+                value={templateCode}
+              >
+                {NOTIFICATION_TEMPLATE_CODES.map((code) => (
+                  <option key={code} value={code}>
+                    {CODE_LABELS[code]}
+                  </option>
+                ))}
+              </select>
+            </label>
             <label className="compact-field">
               <span>接收角色</span>
               <select
@@ -227,7 +252,7 @@ export function NotificationTemplatePage({
                 }
                 value={recipientRoleCode}
               >
-                {NOTIFICATION_RECIPIENT_ROLES.map((roleCode) => (
+                {NOTIFICATION_TEMPLATE_RECIPIENT_ROLES[templateCode].map((roleCode) => (
                   <option key={roleCode} value={roleCode}>
                     {ROLE_LABELS[roleCode]}
                   </option>
@@ -266,7 +291,9 @@ export function NotificationTemplatePage({
           </div>
           <div className="template-create-help">
             <span>
-              可用业务字段：appointmentDate、appointmentDateTime、appointmentStatus、appointmentCount、hostName、hostCode、artistName、siteName、startTime、endTime、timeRange、durationMinutes、noticeText
+              {templateCode === 'DAILY_SCHEDULE_SUMMARY'
+                ? '可用业务字段：appointmentDate、appointmentCount、hostCount、bookedHostCount、unbookedHostCount、siteName、scheduleStatus、noticeText'
+                : '可用业务字段：appointmentDate、appointmentDateTime、appointmentStatus、appointmentCount、hostName、hostCode、artistName、siteName、startTime、endTime、timeRange、durationMinutes、noticeText'}
             </span>
             <button
               className="primary-action"

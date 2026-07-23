@@ -10,17 +10,30 @@ DECLARE
     decision_id UUID;
     consent_request_id UUID := uuidv7();
     suffix TEXT := txid_current()::text;
+    test_version SMALLINT;
 BEGIN
     SELECT "id" INTO site_id FROM "sites" ORDER BY "sort_order", "id" LIMIT 1;
     INSERT INTO "app_users" ("display_name")
     VALUES ('通知约束-' || suffix) RETURNING "id" INTO user_id;
+
+    UPDATE "notification_template_versions"
+    SET "status" = 'RETIRED',
+        "retired_at" = CURRENT_TIMESTAMP,
+        "row_version" = "row_version" + 1
+    WHERE "template_code" = 'APPOINTMENT_NOTICE'
+      AND "status" = 'ACTIVE';
+
+    SELECT (COALESCE(MAX("version"), 0) + 1)::SMALLINT
+    INTO test_version
+    FROM "notification_template_versions"
+    WHERE "template_code" = 'APPOINTMENT_NOTICE';
 
     BEGIN
         INSERT INTO "notification_template_versions" (
             "template_code", "recipient_role_code", "version", "channel", "status",
             "activated_at", "variable_keys"
         ) VALUES (
-            'APPOINTMENT_NOTICE', 'HOST', 1, 'WECHAT_MINI_PROGRAM', 'ACTIVE', CURRENT_TIMESTAMP,
+            'APPOINTMENT_NOTICE', 'HOST', test_version, 'WECHAT_MINI_PROGRAM', 'ACTIVE', CURRENT_TIMESTAMP,
             ARRAY['thing1=hostName']
         );
         RAISE EXCEPTION 'Active template without provider key was accepted';
@@ -30,7 +43,7 @@ BEGIN
     INSERT INTO "notification_template_versions" (
         "template_code", "recipient_role_code", "version", "channel", "variable_keys"
     ) VALUES (
-        'APPOINTMENT_NOTICE', 'HOST', 1, 'WECHAT_MINI_PROGRAM',
+        'APPOINTMENT_NOTICE', 'HOST', test_version, 'WECHAT_MINI_PROGRAM',
         ARRAY['thing1=hostName', 'time2=startAt']
     ) RETURNING "id" INTO template_id;
 
@@ -67,7 +80,7 @@ BEGIN
             "template_code", "recipient_role_code", "version", "channel", "provider_template_key",
             "variable_keys", "status", "activated_at"
         ) VALUES (
-            'APPOINTMENT_NOTICE', 'HOST', 2, 'WECHAT_MINI_PROGRAM', 'provider-template-2',
+            'APPOINTMENT_NOTICE', 'HOST', test_version + 1, 'WECHAT_MINI_PROGRAM', 'provider-template-2',
             ARRAY['thing1=hostName'], 'ACTIVE', CURRENT_TIMESTAMP
         );
         RAISE EXCEPTION 'Two active versions for one template and channel were accepted';
@@ -78,7 +91,7 @@ BEGIN
         "template_code", "recipient_role_code", "version", "channel", "provider_template_key",
         "variable_keys", "status", "activated_at"
     ) VALUES (
-        'APPOINTMENT_NOTICE', 'ARTIST', 1, 'WECHAT_MINI_PROGRAM', 'provider-template-artist',
+        'APPOINTMENT_NOTICE', 'ARTIST', test_version, 'WECHAT_MINI_PROGRAM', 'provider-template-artist',
         ARRAY['thing1=hostName'], 'ACTIVE', CURRENT_TIMESTAMP
     );
 
@@ -90,6 +103,17 @@ BEGIN
             ARRAY['thing1=hostName']
         );
         RAISE EXCEPTION 'Invalid template recipient role was accepted';
+    EXCEPTION WHEN check_violation THEN NULL;
+    END;
+
+    BEGIN
+        INSERT INTO "notification_template_versions" (
+            "template_code", "recipient_role_code", "version", "channel", "variable_keys"
+        ) VALUES (
+            'APPOINTMENT_REMINDER', 'OPERATOR', 1, 'WECHAT_MINI_PROGRAM',
+            ARRAY['time1=appointmentDateTime']
+        );
+        RAISE EXCEPTION 'Unsupported template purpose and role combination was accepted';
     EXCEPTION WHEN check_violation THEN NULL;
     END;
 

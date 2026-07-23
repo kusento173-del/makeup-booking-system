@@ -2,6 +2,7 @@ import { NotificationTemplateRequestInvalidError } from './notification-template
 import {
   NOTIFICATION_RECIPIENT_ROLES,
   NOTIFICATION_TEMPLATE_CODES,
+  supportsNotificationRecipient,
   type CreateNotificationTemplateCommand,
   type NotificationTemplateCode,
   type NotificationRecipientRole,
@@ -72,11 +73,16 @@ export function parseCreateNotificationTemplateRequest(
   ) {
     throw new NotificationTemplateRequestInvalidError();
   }
+  const templateCode = value.templateCode as NotificationTemplateCode;
+  const recipientRoleCode = value.recipientRoleCode as NotificationRecipientRole;
+  if (!supportsNotificationRecipient(templateCode, recipientRoleCode)) {
+    throw new NotificationTemplateRequestInvalidError();
+  }
   return {
     providerTemplateKey: text(value.providerTemplateKey, 128),
-    recipientRoleCode: value.recipientRoleCode as NotificationRecipientRole,
+    recipientRoleCode,
     subscriptionType: value.subscriptionType as NotificationSubscriptionType,
-    templateCode: value.templateCode as NotificationTemplateCode,
+    templateCode,
     variableMappings: value.variableMappings.map((mapping) => text(mapping, 64)),
   };
 }

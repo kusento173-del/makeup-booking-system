@@ -43,6 +43,27 @@ describe('notification template request parser', () => {
         variableMappings: ['thing1=hostName'],
       }),
     ).toThrow(NotificationTemplateRequestInvalidError);
+    expect(() =>
+      parseCreateNotificationTemplateRequest({
+        providerTemplateKey: 'template-1',
+        recipientRoleCode: 'OPERATOR',
+        subscriptionType: 'ONE_TIME',
+        templateCode: 'APPOINTMENT_REMINDER',
+        variableMappings: ['time1=appointmentDateTime'],
+      }),
+    ).toThrow(NotificationTemplateRequestInvalidError);
+    expect(
+      parseCreateNotificationTemplateRequest({
+        providerTemplateKey: 'template-2',
+        recipientRoleCode: 'ARTIST',
+        subscriptionType: 'ONE_TIME',
+        templateCode: 'DAILY_SCHEDULE_SUMMARY',
+        variableMappings: ['date1=appointmentDate', 'number2=appointmentCount'],
+      }),
+    ).toMatchObject({
+      recipientRoleCode: 'ARTIST',
+      templateCode: 'DAILY_SCHEDULE_SUMMARY',
+    });
   });
 
   it('parses activate and retire row-version commands without coercion', () => {

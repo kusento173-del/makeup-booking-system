@@ -1,12 +1,24 @@
 import { apiRequest } from './api-client';
 
-export const NOTIFICATION_TEMPLATE_CODES = ['APPOINTMENT_NOTICE'] as const;
+export const NOTIFICATION_TEMPLATE_CODES = [
+  'APPOINTMENT_NOTICE',
+  'APPOINTMENT_REMINDER',
+  'DAILY_SCHEDULE_SUMMARY',
+] as const;
 export const NOTIFICATION_RECIPIENT_ROLES = ['HOST', 'ARTIST', 'OPERATOR'] as const;
 
 export type NotificationTemplateCode = (typeof NOTIFICATION_TEMPLATE_CODES)[number];
 export type NotificationRecipientRole = (typeof NOTIFICATION_RECIPIENT_ROLES)[number];
 export type NotificationTemplateStatus = 'ACTIVE' | 'DRAFT' | 'RETIRED';
 export type NotificationSubscriptionType = 'ONE_TIME' | 'PERMANENT';
+
+export const NOTIFICATION_TEMPLATE_RECIPIENT_ROLES: Readonly<
+  Record<NotificationTemplateCode, readonly NotificationRecipientRole[]>
+> = {
+  APPOINTMENT_NOTICE: ['HOST', 'ARTIST', 'OPERATOR'],
+  APPOINTMENT_REMINDER: ['HOST'],
+  DAILY_SCHEDULE_SUMMARY: ['ARTIST', 'OPERATOR'],
+};
 
 export interface NotificationTemplate {
   readonly activatedAt: string | null;

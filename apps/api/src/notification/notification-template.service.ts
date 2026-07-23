@@ -16,13 +16,14 @@ import {
   NotificationTemplateRequestInvalidError,
   NotificationTemplateStateConflictError,
 } from './notification-template.errors';
-import type {
-  CreateNotificationTemplateCommand,
-  NotificationTemplateCode,
-  NotificationTemplateCommandContext,
-  NotificationTemplatePreview,
-  NotificationTemplateSummary,
-  TransitionNotificationTemplateCommand,
+import {
+  supportsNotificationRecipient,
+  type CreateNotificationTemplateCommand,
+  type NotificationTemplateCode,
+  type NotificationTemplateCommandContext,
+  type NotificationTemplatePreview,
+  type NotificationTemplateSummary,
+  type TransitionNotificationTemplateCommand,
 } from './notification-template.types';
 
 const TEMPLATE_SELECT = {
@@ -90,6 +91,9 @@ export class NotificationTemplateService {
     command: CreateNotificationTemplateCommand,
   ): Promise<NotificationTemplateSummary> {
     this.authorization.assertRole(context, ['ADMIN']);
+    if (!supportsNotificationRecipient(command.templateCode, command.recipientRoleCode)) {
+      throw new NotificationTemplateRequestInvalidError();
+    }
     const providerTemplateKey = command.providerTemplateKey.normalize('NFKC').trim();
     const variableMappings = command.variableMappings.map((mapping) =>
       mapping.normalize('NFKC').trim(),

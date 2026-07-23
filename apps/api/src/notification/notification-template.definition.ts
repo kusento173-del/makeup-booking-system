@@ -18,10 +18,23 @@ const APPOINTMENT_SAMPLES = {
   timeRange: '09:30~10:00',
 } as const;
 
+const DAILY_SCHEDULE_SAMPLES = {
+  appointmentCount: '8',
+  appointmentDate: '2026-07-23',
+  bookedHostCount: '8',
+  hostCount: '12',
+  noticeText: '请进入小程序查看完整排班',
+  scheduleStatus: '今日排班已锁定',
+  siteName: '松江场地',
+  unbookedHostCount: '4',
+} as const;
+
 export const NOTIFICATION_TEMPLATE_SAMPLE_FIELDS: Readonly<
   Record<NotificationTemplateCode, Readonly<Record<string, string>>>
 > = {
   APPOINTMENT_NOTICE: APPOINTMENT_SAMPLES,
+  APPOINTMENT_REMINDER: APPOINTMENT_SAMPLES,
+  DAILY_SCHEDULE_SUMMARY: DAILY_SCHEDULE_SAMPLES,
 };
 
 export const WECHAT_VARIABLE_MAPPING =

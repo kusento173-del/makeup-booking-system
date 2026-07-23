@@ -135,6 +135,16 @@ describe('NotificationTemplateService', () => {
       }),
     ).toThrow(NotificationTemplateRequestInvalidError);
     expect(transaction.notificationTemplateVersion.create).not.toHaveBeenCalled();
+
+    expect(() =>
+      service.createDraft(admin, {
+        providerTemplateKey: 'template-4',
+        recipientRoleCode: 'ARTIST',
+        subscriptionType: 'ONE_TIME',
+        templateCode: 'APPOINTMENT_REMINDER',
+        variableMappings: ['time1=appointmentDateTime'],
+      }),
+    ).toThrow(NotificationTemplateRequestInvalidError);
   });
 
   it('allows customer service to read but never modify templates', async () => {

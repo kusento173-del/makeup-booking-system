@@ -4,7 +4,9 @@ export class NotificationSubscriptionTemplateDto {
   @ApiProperty()
   providerTemplateKey!: string;
 
-  @ApiProperty({ enum: ['APPOINTMENT_NOTICE'] })
+  @ApiProperty({
+    enum: ['APPOINTMENT_NOTICE', 'APPOINTMENT_REMINDER', 'DAILY_SCHEDULE_SUMMARY'],
+  })
   templateCode!: string;
 
   @ApiProperty({ format: 'uuid' })

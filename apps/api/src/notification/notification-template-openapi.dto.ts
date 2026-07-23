@@ -10,7 +10,9 @@ export class CreateNotificationTemplateRequestDto {
   @ApiProperty({ enum: ['ONE_TIME', 'PERMANENT'] })
   subscriptionType!: string;
 
-  @ApiProperty({ enum: ['APPOINTMENT_NOTICE'] })
+  @ApiProperty({
+    enum: ['APPOINTMENT_NOTICE', 'APPOINTMENT_REMINDER', 'DAILY_SCHEDULE_SUMMARY'],
+  })
   templateCode!: string;
 
   @ApiProperty({
@@ -63,7 +65,9 @@ export class NotificationTemplateSummaryDto {
   @ApiProperty({ enum: ['ONE_TIME', 'PERMANENT'] })
   subscriptionType!: string;
 
-  @ApiProperty({ enum: ['APPOINTMENT_NOTICE'] })
+  @ApiProperty({
+    enum: ['APPOINTMENT_NOTICE', 'APPOINTMENT_REMINDER', 'DAILY_SCHEDULE_SUMMARY'],
+  })
   templateCode!: string;
 
   @ApiProperty({ isArray: true, type: String })
