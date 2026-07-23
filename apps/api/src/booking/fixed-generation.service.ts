@@ -231,20 +231,6 @@ export class FixedGenerationService {
             siteId: rule.siteId,
           },
         );
-        await transaction.outboxEvent.create({
-          data: {
-            aggregateId: appointment.id,
-            aggregateType: 'APPOINTMENT',
-            eventType: 'FIXED_APPOINTMENT_GENERATED',
-            payload: {
-              appointmentId: appointment.id,
-              artistId: rule.artistId,
-              hostId: rule.hostId,
-              operatorId: operator?.operator.id ?? null,
-              siteId: rule.siteId,
-            },
-          },
-        });
         return null;
       })
       .catch((error: unknown) => {

@@ -80,7 +80,6 @@ function createService(options?: {
       updateMany: vi.fn().mockResolvedValue({ count: options?.updateCount ?? 1 }),
     },
     hostOperatorRelation: { findFirst: vi.fn().mockResolvedValue({ id: 'relation-1' }) },
-    outboxEvent: { create: vi.fn().mockResolvedValue({ id: 'event-1' }) },
   };
   const createFresh = vi
     .fn()
@@ -135,7 +134,6 @@ describe('BookingRescheduleService', () => {
     const creationOptions = creator.createFresh.mock.calls[0]?.[3] as BookingCreationOptions;
     expect(creationOptions).toMatchObject({
       auditAction: 'APPOINTMENT_CREATED_BY_RESCHEDULE',
-      eventType: 'APPOINTMENT_RESCHEDULED_TO',
       rescheduledFromAppointmentId: 'appointment-1',
     });
     expect(transaction.appointment.updateMany.mock.calls[0]?.[0]).toMatchObject({
@@ -151,9 +149,6 @@ describe('BookingRescheduleService', () => {
       context,
       expect.objectContaining({ action: 'APPOINTMENT_RESCHEDULE_SOURCE_CANCELLED' }),
     );
-    expect(transaction.outboxEvent.create.mock.calls[0]?.[0]).toMatchObject({
-      data: { eventType: 'APPOINTMENT_RESCHEDULED_FROM' },
-    });
     expect(creator.completeIdempotency).toHaveBeenCalledOnce();
   });
 
@@ -178,7 +173,6 @@ describe('BookingRescheduleService', () => {
       BookingSlotConflictError,
     );
     expect(transaction.appointment.updateMany).toHaveBeenCalledOnce();
-    expect(transaction.outboxEvent.create).not.toHaveBeenCalled();
     expect(audit.append).not.toHaveBeenCalled();
     expect(creator.completeIdempotency).not.toHaveBeenCalled();
   });

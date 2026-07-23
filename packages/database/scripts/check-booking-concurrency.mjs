@@ -297,16 +297,6 @@ async function runChecks() {
         [data.site.id, objectId, action, data.userId],
       );
     }
-    for (const [aggregateId, eventType] of [
-      [reusedId, 'APPOINTMENT_RESCHEDULED_FROM'],
-      [replacementId, 'APPOINTMENT_RESCHEDULED_TO'],
-    ]) {
-      await atomic.query(
-        `INSERT INTO outbox_events (event_type, aggregate_type, aggregate_id, payload)
-         VALUES ($1, 'APPOINTMENT', $2, $3::jsonb)`,
-        [eventType, aggregateId, JSON.stringify({ appointmentId: aggregateId })],
-      );
-    }
     await atomic.query(
       `INSERT INTO idempotency_records (
          user_id, scope, idempotency_key, request_hash, response_status,
@@ -335,8 +325,6 @@ async function runChecks() {
        replacement.rescheduled_from_appointment_id AS linked_source,
        (SELECT count(*)::integer FROM operation_logs
          WHERE object_id IN ($1, $2) AND action LIKE 'APPOINTMENT_%RESCHEDULE%') AS audit_count,
-       (SELECT count(*)::integer FROM outbox_events
-         WHERE aggregate_id IN ($1, $2) AND event_type LIKE 'APPOINTMENT_RESCHEDULED_%') AS outbox_count,
        (SELECT count(*)::integer FROM idempotency_records
          WHERE resource_id = $2 AND response_status = 201) AS idempotency_count
      FROM appointments source
@@ -350,7 +338,6 @@ async function runChecks() {
     committed.linked_replacement !== replacementId ||
     committed.linked_source !== reusedId ||
     committed.audit_count !== 2 ||
-    committed.outbox_count !== 2 ||
     committed.idempotency_count !== 1
   ) {
     throw new Error('Successful reschedule transaction was not committed as one complete unit');

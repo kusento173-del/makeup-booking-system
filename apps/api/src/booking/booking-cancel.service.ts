@@ -102,19 +102,6 @@ export class BookingCancelService {
         ...(reason ? { reason } : {}),
         siteId: appointment.siteId,
       });
-      await transaction.outboxEvent.create({
-        data: {
-          aggregateId: appointment.id,
-          aggregateType: 'APPOINTMENT',
-          eventType: 'APPOINTMENT_CANCELLED',
-          payload: {
-            appointmentId: appointment.id,
-            artistId: appointment.artistId,
-            hostId: appointment.hostId,
-            siteId: appointment.siteId,
-          },
-        },
-      });
       return result;
     });
   }

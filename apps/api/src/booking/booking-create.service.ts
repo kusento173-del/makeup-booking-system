@@ -99,7 +99,6 @@ type HostRecord = Prisma.HostProfileGetPayload<{ select: typeof HOST_SELECT }>;
 export interface BookingCreationOptions {
   readonly appointmentId?: string;
   readonly auditAction?: string;
-  readonly eventType?: string;
   readonly excludeFixedRuleId?: string;
   readonly reason?: string;
   readonly rescheduledFromAppointmentId?: string;
@@ -471,20 +470,6 @@ export class BookingCreateService {
       objectType: 'APPOINTMENT',
       ...(options.reason ? { reason: options.reason } : {}),
       siteId: appointment.siteId,
-    });
-    await transaction.outboxEvent.create({
-      data: {
-        aggregateId: appointment.id,
-        aggregateType: 'APPOINTMENT',
-        eventType: options.eventType ?? 'APPOINTMENT_CREATED',
-        payload: {
-          appointmentId: appointment.id,
-          artistId: appointment.artistId,
-          hostId: appointment.hostId,
-          operatorId: appointment.operatorId,
-          siteId: appointment.siteId,
-        },
-      },
     });
   }
 

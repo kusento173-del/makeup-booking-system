@@ -132,7 +132,6 @@ export class BookingRescheduleService {
           {
             appointmentId: replacementId,
             auditAction: 'APPOINTMENT_CREATED_BY_RESCHEDULE',
-            eventType: 'APPOINTMENT_RESCHEDULED_TO',
             ...(original.fixedRuleId ? { excludeFixedRuleId: original.fixedRuleId } : {}),
             ...(reason ? { reason } : {}),
             rescheduledFromAppointmentId: original.id,
@@ -152,20 +151,6 @@ export class BookingRescheduleService {
           objectType: 'APPOINTMENT',
           ...(reason ? { reason } : {}),
           siteId: original.siteId,
-        });
-        await transaction.outboxEvent.create({
-          data: {
-            aggregateId: original.id,
-            aggregateType: 'APPOINTMENT',
-            eventType: 'APPOINTMENT_RESCHEDULED_FROM',
-            payload: {
-              appointmentId: original.id,
-              artistId: original.artistId,
-              hostId: original.hostId,
-              replacementAppointmentId: appointment.id,
-              siteId: original.siteId,
-            },
-          },
         });
         await this.creator.completeIdempotency(
           transaction,

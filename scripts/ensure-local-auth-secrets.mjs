@@ -8,12 +8,6 @@ const SECRET_KEYS = [
   'INTERNAL_WORKER_TOKEN',
 ];
 const TEMPLATE_MARKERS = ['change-me', 'example', 'replace-with'];
-const DEFAULT_SETTINGS = {
-  NOTIFICATION_CHANNEL: 'WECHAT_MINI_PROGRAM',
-  NOTIFICATION_OUTBOX_INTERVAL_MS: '2000',
-  NOTIFICATION_DELIVERY_INTERVAL_MS: '1000',
-  WECHAT_MINI_PROGRAM_STATE: 'formal',
-};
 const envPath = resolve('.env');
 
 function secretIsUsable(rawValue) {
@@ -39,15 +33,6 @@ function upsertSecret(lines, key) {
   return true;
 }
 
-function upsertDefault(lines, key, value) {
-  const index = lines.findIndex((line) => line.startsWith(`${key}=`));
-  if (index >= 0 && lines[index].slice(key.length + 1).trim()) return false;
-  const line = `${key}=${value}`;
-  if (index >= 0) lines[index] = line;
-  else lines.push(line);
-  return true;
-}
-
 let source;
 try {
   source = await readFile(envPath, 'utf8');
@@ -58,14 +43,9 @@ try {
 const lineEnding = source.includes('\r\n') ? '\r\n' : '\n';
 const lines = source.replace(/\r\n/g, '\n').replace(/\n$/, '').split('\n');
 const generated = SECRET_KEYS.filter((key) => upsertSecret(lines, key));
-const defaulted = Object.entries(DEFAULT_SETTINGS)
-  .filter(([key, value]) => upsertDefault(lines, key, value))
-  .map(([key]) => key);
-
-if (generated.length > 0 || defaulted.length > 0) {
+if (generated.length > 0) {
   await writeFile(envPath, `${lines.join(lineEnding)}${lineEnding}`, 'utf8');
-  const changed = [...generated, ...defaulted];
-  console.log(`已补齐本地安全配置：${changed.join('、')}`);
+  console.log(`已补齐本地安全配置：${generated.join('、')}`);
 } else {
   console.log('本地认证配置已存在，无需修改');
 }

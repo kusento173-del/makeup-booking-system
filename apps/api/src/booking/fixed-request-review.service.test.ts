@@ -66,7 +66,6 @@ function createService(options?: {
       findMany: vi.fn().mockResolvedValue(appointments),
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
-    outboxEvent: { create: vi.fn().mockResolvedValue({}) },
   };
   const database = {
     transaction: vi.fn((operation: (value: Prisma.TransactionClient) => unknown) =>
@@ -140,7 +139,6 @@ describe('FixedRequestReviewService', () => {
       transaction.fixedAppointmentRule.create.mock.invocationCallOrder[0]!,
     );
     expect(audit.append).toHaveBeenCalledOnce();
-    expect(transaction.outboxEvent.create).toHaveBeenCalledOnce();
   });
 
   it('rejects with a required comment and releases the hold without creating a rule', async () => {
@@ -267,7 +265,6 @@ describe('FixedRequestReviewService', () => {
       },
     });
     expect(audit.append).toHaveBeenCalledTimes(2);
-    expect(transaction.outboxEvent.create).toHaveBeenCalledTimes(2);
   });
 
   it('ends the old rule without creating a replacement on cancellation', async () => {

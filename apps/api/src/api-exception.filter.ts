@@ -72,20 +72,6 @@ import {
   ExportSiteUnavailableError,
   ExportStateConflictError,
 } from './export/export.errors';
-import {
-  NotificationTemplateNotFoundError,
-  NotificationTemplateRequestInvalidError,
-  NotificationTemplateStateConflictError,
-} from './notification/notification-template.errors';
-import {
-  NotificationSubscriptionRequestInvalidError,
-  NotificationSubscriptionStateConflictError,
-} from './notification/notification-subscription.errors';
-import {
-  NotificationTaskNotFoundError,
-  NotificationTaskRequestInvalidError,
-  NotificationTaskRetryConflictError,
-} from './notification/notification-task.errors';
 import { MasterDataRequestInvalidError } from './master-data/master-data-request.parser';
 import {
   BackofficeAccountConflictError,
@@ -201,10 +187,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
       exception instanceof ScheduleSiteRequiredError ||
       exception instanceof ExportDateOutOfRangeError ||
       exception instanceof ExportIdempotencyKeyInvalidError ||
-      exception instanceof ExportRequestInvalidError ||
-      exception instanceof NotificationTemplateRequestInvalidError ||
-      exception instanceof NotificationSubscriptionRequestInvalidError ||
-      exception instanceof NotificationTaskRequestInvalidError
+      exception instanceof ExportRequestInvalidError
     ) {
       return this.response(HttpStatus.BAD_REQUEST, exception.code, '请求内容不正确');
     }
@@ -225,9 +208,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
       exception instanceof OvertimeNotFoundError ||
       exception instanceof ShiftArtistNotFoundError ||
       exception instanceof ShiftChangeNotFoundError ||
-      exception instanceof ExportNotFoundError ||
-      exception instanceof NotificationTemplateNotFoundError ||
-      exception instanceof NotificationTaskNotFoundError
+      exception instanceof ExportNotFoundError
     ) {
       return this.response(HttpStatus.NOT_FOUND, exception.code, '目标数据不存在');
     }
@@ -295,10 +276,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
       exception instanceof ExportIdempotencyConflictError ||
       exception instanceof ExportSiteUnavailableError ||
       exception instanceof ExportStateConflictError ||
-      exception instanceof ExportFileUnavailableError ||
-      exception instanceof NotificationTemplateStateConflictError ||
-      exception instanceof NotificationSubscriptionStateConflictError ||
-      exception instanceof NotificationTaskRetryConflictError
+      exception instanceof ExportFileUnavailableError
     ) {
       return this.response(HttpStatus.CONFLICT, exception.code, '数据状态冲突，请刷新后重试');
     }

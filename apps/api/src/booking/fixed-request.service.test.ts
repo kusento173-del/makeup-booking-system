@@ -88,7 +88,6 @@ function createService(options?: { record?: object; replay?: boolean; unavailabl
         siteId: 'site-1',
       }),
     },
-    outboxEvent: { create: vi.fn().mockResolvedValue({}) },
   };
   const database = {
     transaction: vi.fn((operation: (value: Prisma.TransactionClient) => unknown) =>
@@ -126,7 +125,7 @@ function createService(options?: { record?: object; replay?: boolean; unavailabl
 }
 
 describe('FixedRequestService', () => {
-  it('creates a normalized pending request with audit, outbox and completed idempotency', async () => {
+  it('creates a normalized pending request with audit and completed idempotency', async () => {
     const { audit, availability, service, transaction } = createService();
 
     const result = await service.create(context, command, now);
@@ -157,7 +156,6 @@ describe('FixedRequestService', () => {
       data: { reason: '长期固定直播安排', targetWeekdays: [1, 3] },
     });
     expect(audit.append).toHaveBeenCalledOnce();
-    expect(transaction.outboxEvent.create).toHaveBeenCalledOnce();
     expect(transaction.idempotencyRecord.updateMany.mock.calls[0]?.[0]).toMatchObject({
       data: { resourceId: 'request-1', resourceType: 'FIXED_REQUEST' },
     });

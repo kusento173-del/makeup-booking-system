@@ -146,7 +146,6 @@ function createService(options?: {
       findUnique: vi.fn().mockResolvedValue(options?.idempotency ?? null),
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
-    outboxEvent: { create: vi.fn().mockResolvedValue({ id: 'event-1' }) },
   };
   const audit = { append: vi.fn().mockResolvedValue('audit-1') };
   const artistAvailability = {
@@ -167,7 +166,7 @@ function createService(options?: {
 }
 
 describe('BookingCreateService', () => {
-  it('creates the first booking and its audit, outbox and idempotent response atomically', async () => {
+  it('creates the first booking with audit and idempotent response atomically', async () => {
     const { audit, service, transaction } = createService();
 
     const result = await service.create(hostContext, command, now);
@@ -192,9 +191,6 @@ describe('BookingCreateService', () => {
       hostContext,
       expect.objectContaining({ action: 'APPOINTMENT_CREATED' }),
     );
-    expect(transaction.outboxEvent.create.mock.calls[0]?.[0]).toMatchObject({
-      data: { eventType: 'APPOINTMENT_CREATED' },
-    });
     expect(transaction.idempotencyRecord.updateMany.mock.calls[0]?.[0]).toMatchObject({
       data: { responseStatus: 201 },
     });
@@ -379,7 +375,6 @@ describe('BookingCreateService', () => {
     });
     expect(transaction.hostProfile.findUnique).not.toHaveBeenCalled();
     expect(transaction.appointment.create).not.toHaveBeenCalled();
-    expect(transaction.outboxEvent.create).not.toHaveBeenCalled();
     expect(audit.append).not.toHaveBeenCalled();
   });
 

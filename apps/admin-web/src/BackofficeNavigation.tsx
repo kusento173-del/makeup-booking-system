@@ -1,8 +1,7 @@
 import type { BackofficeRoleCode } from './auth-session';
 import type { ManagementView } from './master-data-api';
 
-export type BackofficeView =
-  'exports' | 'notificationTasks' | 'notificationTemplates' | 'schedule' | ManagementView;
+export type BackofficeView = 'exports' | 'schedule' | ManagementView;
 
 const NAV_ITEMS: readonly {
   readonly adminOnly?: boolean;
@@ -11,8 +10,6 @@ const NAV_ITEMS: readonly {
 }[] = [
   { id: 'schedule', label: '排班看板' },
   { id: 'exports', label: '排班导出' },
-  { id: 'notificationTasks', label: '通知任务' },
-  { id: 'notificationTemplates', label: '通知模板' },
   { id: 'hosts', label: '主播' },
   { id: 'artists', label: '化妆师' },
   { id: 'operators', label: '运营' },

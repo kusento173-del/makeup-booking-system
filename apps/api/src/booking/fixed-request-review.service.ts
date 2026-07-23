@@ -337,20 +337,6 @@ export class FixedRequestReviewService {
       reason: request.reason,
       siteId: appointment.siteId,
     });
-    await transaction.outboxEvent.create({
-      data: {
-        aggregateId: appointment.id,
-        aggregateType: 'APPOINTMENT',
-        eventType: 'FIXED_APPOINTMENT_CANCELLED_BY_RULE_REQUEST',
-        payload: {
-          appointmentId: appointment.id,
-          artistId: appointment.artistId,
-          fixedRequestId: request.id,
-          hostId: appointment.hostId,
-          siteId: appointment.siteId,
-        },
-      },
-    });
   }
 
   private target(request: ReviewRecord) {
@@ -465,22 +451,6 @@ export class FixedRequestReviewService {
       objectType: 'FIXED_APPOINTMENT_REQUEST',
       reason: result.reviewComment ?? undefined,
       siteId: request.siteId,
-    });
-    await transaction.outboxEvent.create({
-      data: {
-        aggregateId: request.id,
-        aggregateType: 'FIXED_REQUEST',
-        eventType,
-        payload: {
-          cancelledAppointmentCount: result.cancelledAppointmentCount,
-          fixedRuleId: result.fixedRuleId,
-          hostId: request.hostId,
-          requestId: request.id,
-          requestType: request.requestType,
-          siteId: request.siteId,
-          submittedByOperatorId: request.submittedByOperatorId,
-        },
-      },
     });
   }
 }

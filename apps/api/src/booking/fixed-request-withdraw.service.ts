@@ -73,18 +73,6 @@ export class FixedRequestWithdrawService {
         reason: '提交运营主动撤回',
         siteId: request.siteId,
       });
-      await transaction.outboxEvent.create({
-        data: {
-          aggregateId: request.id,
-          aggregateType: 'FIXED_REQUEST',
-          eventType: 'FIXED_APPOINTMENT_REQUEST_WITHDRAWN',
-          payload: {
-            hostId: request.hostId,
-            requestId: request.id,
-            siteId: request.siteId,
-          },
-        },
-      });
       return result;
     });
   }

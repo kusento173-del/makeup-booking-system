@@ -54,7 +54,6 @@ function createService(options?: {
           options?.relation === undefined ? { id: 'relation-1' } : options.relation,
         ),
     },
-    outboxEvent: { create: vi.fn().mockResolvedValue({ id: 'event-1' }) },
   };
   const audit = { append: vi.fn().mockResolvedValue('audit-1') };
   const database = {
@@ -75,7 +74,7 @@ function createService(options?: {
 }
 
 describe('BookingCancelService', () => {
-  it('cancels a future own booking and records audit plus notification outbox atomically', async () => {
+  it('cancels a future own booking and records audit atomically', async () => {
     const { audit, service, transaction } = createService();
 
     await expect(service.cancel(context, command, now)).resolves.toEqual({
@@ -98,9 +97,6 @@ describe('BookingCancelService', () => {
       context,
       expect.objectContaining({ action: 'APPOINTMENT_CANCELLED' }),
     );
-    expect(transaction.outboxEvent.create.mock.calls[0]?.[0]).toMatchObject({
-      data: { eventType: 'APPOINTMENT_CANCELLED' },
-    });
   });
 
   it('blocks hosts and operators from the appointment date onward', async () => {
@@ -162,11 +158,10 @@ describe('BookingCancelService', () => {
       { appointment: { ...appointment, status: 'COMPLETED' } },
       { updateCount: 0 },
     ]) {
-      const { audit, service, transaction } = createService(options);
+      const { audit, service } = createService(options);
       await expect(service.cancel(context, command, now)).rejects.toBeInstanceOf(
         BookingStateConflictError,
       );
-      expect(transaction.outboxEvent.create).not.toHaveBeenCalled();
       expect(audit.append).not.toHaveBeenCalled();
     }
   });

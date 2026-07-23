@@ -30,7 +30,6 @@ function createService(requestValue: object | null = request) {
       findUnique: vi.fn().mockResolvedValue(requestValue),
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
-    outboxEvent: { create: vi.fn().mockResolvedValue({}) },
   };
   const database = {
     transaction: vi.fn((operation: (value: Prisma.TransactionClient) => unknown) =>
@@ -67,7 +66,6 @@ describe('FixedRequestWithdrawService', () => {
       },
     });
     expect(audit.append).toHaveBeenCalledOnce();
-    expect(transaction.outboxEvent.create).toHaveBeenCalledOnce();
   });
 
   it('rejects a different submitter or stale row version without releasing the hold', async () => {

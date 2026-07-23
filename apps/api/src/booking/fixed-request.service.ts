@@ -423,22 +423,6 @@ export class FixedRequestService {
       reason: request.reason,
       siteId: request.siteId,
     });
-    await transaction.outboxEvent.create({
-      data: {
-        aggregateId: request.id,
-        aggregateType: 'FIXED_REQUEST',
-        eventType: 'FIXED_APPOINTMENT_REQUEST_SUBMITTED',
-        payload: {
-          artistId: request.targetArtistId,
-          currentRuleId: request.currentRuleId,
-          hostId: request.hostId,
-          requestId: request.id,
-          requestType: request.requestType,
-          siteId: request.siteId,
-          submittedByOperatorId: request.submittedByOperatorId,
-        },
-      },
-    });
   }
 
   private toSummary(request: RequestRecord): FixedRequestSummary {

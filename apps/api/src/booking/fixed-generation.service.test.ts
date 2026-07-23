@@ -51,7 +51,6 @@ function createService(options?: {
       }),
     },
     leaveRecord: { findFirst: vi.fn().mockResolvedValue(null) },
-    outboxEvent: { create: vi.fn().mockResolvedValue({}) },
   };
   const client = {
     fixedAppointmentRule: {
@@ -94,7 +93,7 @@ function createService(options?: {
 }
 
 describe('FixedGenerationService', () => {
-  it('generates matching dates with snapshots, lineage, audit and notifications', async () => {
+  it('generates matching dates with snapshots, lineage and audit', async () => {
     const { audit, service, transaction } = createService();
 
     const result = await service.run(now);
@@ -122,7 +121,6 @@ describe('FixedGenerationService', () => {
       },
     });
     expect(audit.append).toHaveBeenCalledOnce();
-    expect(transaction.outboxEvent.create).toHaveBeenCalledOnce();
   });
 
   it('does not rebuild historical dates and skips artist leave without writing', async () => {

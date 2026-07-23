@@ -9,7 +9,6 @@ import { ExportModule } from './export/export.module';
 import { HealthController } from './health.controller';
 import { LeaveModule } from './leave/leave.module';
 import { MasterDataModule } from './master-data/master-data.module';
-import { NotificationModule } from './notification/notification.module';
 import { OvertimeModule } from './overtime/overtime.module';
 import { RedisModule } from './redis/redis.module';
 import { ScheduleModule } from './schedule/schedule.module';
@@ -25,7 +24,6 @@ import { ShiftModule } from './shift/shift.module';
     ExportModule,
     LeaveModule,
     MasterDataModule,
-    NotificationModule,
     OvertimeModule,
     RedisModule,
     ScheduleModule,
