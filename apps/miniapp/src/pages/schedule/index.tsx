@@ -13,6 +13,7 @@ import {
   appointmentTime,
   canCancelAppointment,
   RANGE_OPTIONS,
+  rescheduleRoute,
   scheduleDateRange,
   STATUS_LABELS,
   type ScheduleRange,
@@ -203,14 +204,24 @@ export default function SchedulePage() {
                 </Text>
               </View>
               {canCancelAppointment(item, roleCode) ? (
-                <Button
-                  className="cancel-button"
-                  disabled={cancellingId !== null}
-                  onClick={() => void cancel(item)}
-                  size="mini"
-                >
-                  {cancellingId === item.id ? '正在取消…' : '取消预约'}
-                </Button>
+                <View className="appointment-actions">
+                  <Button
+                    className="reschedule-button"
+                    disabled={cancellingId !== null}
+                    onClick={() => void Taro.navigateTo({ url: rescheduleRoute(item) })}
+                    size="mini"
+                  >
+                    改期
+                  </Button>
+                  <Button
+                    className="cancel-button"
+                    disabled={cancellingId !== null}
+                    onClick={() => void cancel(item)}
+                    size="mini"
+                  >
+                    {cancellingId === item.id ? '正在取消…' : '取消预约'}
+                  </Button>
+                </View>
               ) : null}
             </View>
           ))

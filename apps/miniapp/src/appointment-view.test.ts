@@ -5,6 +5,8 @@ import {
   appointmentSubject,
   appointmentTime,
   canCancelAppointment,
+  parseRescheduleContext,
+  rescheduleRoute,
   scheduleDateRange,
   STATUS_LABELS,
 } from './appointment-view';
@@ -17,6 +19,7 @@ const appointment: AppointmentListItem = {
   durationMinutes: 30,
   endAt: '2026-07-24T02:00:00.000Z',
   hostCode: 'ZB01842',
+  hostId: 'host-1',
   hostName: '小雨',
   id: 'appointment-1',
   rowVersion: 1,
@@ -71,5 +74,16 @@ describe('appointment view', () => {
         now,
       ),
     ).toBe(false);
+  });
+
+  it('生成并解析完整的改期上下文', () => {
+    const route = rescheduleRoute(appointment);
+    const query = Object.fromEntries(new URLSearchParams(route.split('?')[1]));
+    expect(parseRescheduleContext(query)).toMatchObject({
+      appointmentId: 'appointment-1',
+      hostId: 'host-1',
+      rowVersion: 1,
+    });
+    expect(parseRescheduleContext({ appointmentId: 'appointment-1' })).toBeNull();
   });
 });

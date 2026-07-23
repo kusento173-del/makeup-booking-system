@@ -131,15 +131,33 @@
   line-height: 1.5;
 }
 
+.appointment-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+
 .cancel-button,
-.cancel-button::after {
+.reschedule-button,
+.cancel-button::after,
+.reschedule-button::after {
   border: 0;
 }
 
-.cancel-button {
-  margin: 18px 0 0 auto;
+.cancel-button,
+.reschedule-button {
+  margin: 0;
   padding: 0 18px;
+  font-size: 24px;
+}
+
+.cancel-button {
   color: #8b3a32;
   background: #fff0ed;
-  font-size: 24px;
+}
+
+.reschedule-button {
+  color: #245c6d;
+  background: #e8f2f3;
 }

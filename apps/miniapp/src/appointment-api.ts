@@ -10,6 +10,7 @@ export interface AppointmentListItem {
   readonly durationMinutes: number;
   readonly endAt: string;
   readonly hostCode: string;
+  readonly hostId: string;
   readonly hostName: string;
   readonly id: string;
   readonly rowVersion: number;

@@ -80,3 +80,64 @@ export function canCancelAppointment(
     item.date > dateAtOffset(0, now)
   );
 }
+
+export interface RescheduleContext {
+  readonly appointmentId: string;
+  readonly artistNickname: string;
+  readonly date: string;
+  readonly endAt: string;
+  readonly hostCode: string;
+  readonly hostId: string;
+  readonly hostName: string;
+  readonly rowVersion: number;
+  readonly siteName: string;
+  readonly startAt: string;
+}
+
+export function rescheduleRoute(item: AppointmentListItem): string {
+  const query = new URLSearchParams({
+    appointmentId: item.id,
+    artistNickname: item.artistNickname,
+    date: item.date,
+    endAt: item.endAt,
+    hostCode: item.hostCode,
+    hostId: item.hostId,
+    hostName: item.hostName,
+    rowVersion: String(item.rowVersion),
+    siteName: item.siteName,
+    startAt: item.startAt,
+  });
+  return `/pages/booking/index?${query.toString()}`;
+}
+
+export function parseRescheduleContext(
+  input: Readonly<Record<string, string | undefined>>,
+): RescheduleContext | null {
+  if (!input['appointmentId']) return null;
+  const required = [
+    'artistNickname',
+    'date',
+    'endAt',
+    'hostCode',
+    'hostId',
+    'hostName',
+    'siteName',
+    'startAt',
+  ] as const;
+  const rowVersion = Number(input['rowVersion']);
+  if (required.some((key) => !input[key]) || !Number.isSafeInteger(rowVersion) || rowVersion < 1) {
+    return null;
+  }
+  return {
+    appointmentId: input['appointmentId'],
+    artistNickname: input['artistNickname']!,
+    date: input['date']!,
+    endAt: input['endAt']!,
+    hostCode: input['hostCode']!,
+    hostId: input['hostId']!,
+    hostName: input['hostName']!,
+    rowVersion,
+    siteName: input['siteName']!,
+    startAt: input['startAt']!,
+  };
+}

@@ -1,5 +1,5 @@
 import { Button, Text, View } from '@tarojs/components';
-import Taro from '@tarojs/taro';
+import Taro, { useRouter } from '@tarojs/taro';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { ApiError } from '../../api-client';
@@ -15,6 +15,7 @@ import {
   type HostSummary,
   listAvailableArtists,
   listSites,
+  rescheduleBooking,
   type SiteSummary,
 } from '../../booking-api';
 import {
@@ -26,6 +27,7 @@ import {
   UNAVAILABLE_LABELS,
 } from '../../booking-view';
 import { restoreSession, type RoleCode } from '../../auth-session';
+import { parseRescheduleContext } from '../../appointment-view';
 import { ManagedHostPicker } from '../../components/ManagedHostPicker';
 import { PageState } from '../../components/PageState';
 import './index.css';
@@ -52,6 +54,8 @@ function errorMessage(cause: unknown): string {
 }
 
 export default function BookingPage() {
+  const router = useRouter();
+  const rescheduleContext = useMemo(() => parseRescheduleContext(router.params), [router.params]);
   const dates = useMemo(() => futureBookingDates(), []);
   const [token, setToken] = useState('');
   const [roleCode, setRoleCode] = useState<RoleCode | null>(null);
@@ -91,10 +95,25 @@ export default function BookingPage() {
       }
       const firstDate = dates[0]?.date;
       if (!firstDate) throw new Error('No booking dates');
+      const initialDate =
+        rescheduleContext && dates.some((item) => item.date === rescheduleContext.date)
+          ? rescheduleContext.date
+          : firstDate;
       const [ownHost, artistItems, sites] = await Promise.all([
         session.role.roleCode === 'HOST'
-          ? getOwnHost(session.accessToken, firstDate)
-          : Promise.resolve(null),
+          ? getOwnHost(session.accessToken, initialDate)
+          : Promise.resolve(
+              rescheduleContext
+                ? {
+                    hostCode: rescheduleContext.hostCode,
+                    id: rescheduleContext.hostId,
+                    nickname: rescheduleContext.hostName,
+                    qualificationStatus: 'ACTIVE' as const,
+                    realName: rescheduleContext.hostName,
+                    siteId: session.role.siteId ?? '',
+                  }
+                : null,
+            ),
         listAvailableArtists(session.accessToken),
         listSites(session.accessToken),
       ]);
@@ -106,12 +125,22 @@ export default function BookingPage() {
         setInitialError('当前主播预约资格不可用，请联系所属场地客服。');
         return;
       }
+      if (rescheduleContext && ownHost?.id !== rescheduleContext.hostId) {
+        setInitialError('原预约与当前身份不匹配，请返回排班重新进入。');
+        return;
+      }
       const siteId = ownHost?.siteId ?? session.role.siteId;
+      if (rescheduleContext) {
+        setDate(initialDate);
+        await Taro.setNavigationBarTitle({ title: '改期' });
+      }
       setToken(session.accessToken);
       setRoleCode(session.role.roleCode);
       setHost(ownHost);
       setSites(sites);
-      setSiteName(sites.find((site) => site.id === siteId)?.name ?? '当前场地');
+      setSiteName(
+        rescheduleContext?.siteName ?? sites.find((site) => site.id === siteId)?.name ?? '当前场地',
+      );
       setArtists(
         artistItems.filter(
           (artist) => artist.employmentStatus === 'ACTIVE' && artist.initialShiftConfigured,
@@ -127,7 +156,7 @@ export default function BookingPage() {
   function selectDate(nextDate: string): void {
     setDate(nextDate);
     pendingAttempt.current = null;
-    if (roleCode === 'OPERATOR') {
+    if (roleCode === 'OPERATOR' && !rescheduleContext) {
       setHost(null);
       resetArtistSelection();
     } else if (artistId) {
@@ -177,6 +206,7 @@ export default function BookingPage() {
         artistId: nextArtistId,
         date: nextDate,
         durationMinutes: nextDuration,
+        ...(rescheduleContext ? { excludeAppointmentId: rescheduleContext.appointmentId } : {}),
         hostId: host.id,
       });
       if (requestId === slotRequest.current) setSlots(response);
@@ -197,12 +227,27 @@ export default function BookingPage() {
       confirmText: second ? '确认第二次' : '确认预约',
       content: [
         ...(roleCode === 'OPERATOR' ? ['由运营代预约'] : []),
+        ...(rescheduleContext
+          ? [
+              `原安排：${rescheduleContext.date} ${slotTime({
+                startAt: rescheduleContext.startAt,
+                endAt: rescheduleContext.endAt,
+              })} · ${rescheduleContext.artistNickname}`,
+            ]
+          : []),
+        ...(rescheduleContext ? ['新安排：'] : []),
         `${host.nickname ?? host.realName}（${host.hostCode}）`,
         `${siteName} · ${artist.nickname}`,
         `${date} ${slotTime(slot)} · ${duration}分钟`,
         ...(second ? ['这是当天第二次预约，一天最多两次。'] : []),
       ].join('\n'),
-      title: second ? '确认第二次预约' : '确认预约信息',
+      title: second
+        ? rescheduleContext
+          ? '确认改期及第二次预约'
+          : '确认第二次预约'
+        : rescheduleContext
+          ? '确认改期'
+          : '确认预约信息',
     });
     if (!confirmation.confirm) return;
 
@@ -222,14 +267,21 @@ export default function BookingPage() {
     setSubmitBusy(true);
     setSlotError(null);
     try {
-      const created = await createBooking(
-        token,
-        {
-          ...input,
-          confirmedSecondBooking: second,
-        },
-        attempt.key,
-      );
+      const command = {
+        artistId: input.artistId,
+        confirmedSecondBooking: second,
+        date: input.date,
+        durationMinutes: input.durationMinutes,
+        startMinute: input.startMinute,
+      };
+      const created = rescheduleContext
+        ? await rescheduleBooking(
+            token,
+            rescheduleContext.appointmentId,
+            { ...command, expectedRowVersion: rescheduleContext.rowVersion },
+            attempt.key,
+          )
+        : await createBooking(token, { ...command, hostId: host.id }, attempt.key);
       pendingAttempt.current = null;
       setResult(created);
     } catch (cause) {
@@ -270,7 +322,7 @@ export default function BookingPage() {
     return (
       <View className="booking-page">
         <View className="booking-success">
-          <Text className="success-title">预约成功</Text>
+          <Text className="success-title">{rescheduleContext ? '改期成功' : '预约成功'}</Text>
           <Text className="success-time">
             {appointment.date} {slotTime(appointment)}
           </Text>
@@ -296,7 +348,8 @@ export default function BookingPage() {
   const unavailable = slots?.unavailableReason
     ? (UNAVAILABLE_LABELS[slots.unavailableReason] ?? '该日期暂无可预约时间')
     : null;
-  const durationStep = roleCode === 'OPERATOR' ? 3 : 2;
+  const showHostPicker = roleCode === 'OPERATOR' && !rescheduleContext;
+  const durationStep = showHostPicker ? 3 : 2;
   const artistStep = durationStep + 1;
   const slotStep = artistStep + 1;
 
@@ -304,12 +357,18 @@ export default function BookingPage() {
     <View className="booking-page">
       <View className="booking-summary">
         <Text className="summary-name">
-          {roleCode === 'OPERATOR' ? '运营代预约' : (host?.nickname ?? host?.realName)}
+          {rescheduleContext
+            ? '预约改期'
+            : roleCode === 'OPERATOR'
+              ? '运营代预约'
+              : (host?.nickname ?? host?.realName)}
         </Text>
         <Text className="summary-meta">
-          {roleCode === 'OPERATOR'
-            ? `${siteName} · 按目标日期选择负责主播`
-            : `${host?.hostCode} · ${siteName}`}
+          {rescheduleContext
+            ? `${rescheduleContext.hostName} · ${rescheduleContext.hostCode} · ${siteName}`
+            : roleCode === 'OPERATOR'
+              ? `${siteName} · 按目标日期选择负责主播`
+              : `${host?.hostCode} · ${siteName}`}
         </Text>
       </View>
 
@@ -330,7 +389,7 @@ export default function BookingPage() {
         </View>
       </View>
 
-      {roleCode === 'OPERATOR' ? (
+      {showHostPicker ? (
         <View className="booking-section">
           <Text className="section-title">2. 选择负责主播</Text>
           <Text className="section-note">名单按所选日期的有效负责关系生成。</Text>
