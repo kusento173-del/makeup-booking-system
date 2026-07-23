@@ -10,8 +10,10 @@ export interface AppointmentListItem {
   readonly durationMinutes: number;
   readonly endAt: string;
   readonly hostCode: string;
+  readonly hostId: string;
   readonly hostName: string;
   readonly id: string;
+  readonly rowVersion: number;
   readonly siteName: string;
   readonly startAt: string;
   readonly status: AppointmentStatus;
@@ -31,4 +33,16 @@ export function listAppointments(input: {
 }): Promise<AppointmentPage> {
   const query = `fromDate=${input.fromDate}&toDate=${input.toDate}&page=1&pageSize=100`;
   return apiRequest(`/appointments?${query}`, { token: input.token });
+}
+
+export function cancelAppointment(input: {
+  readonly appointmentId: string;
+  readonly expectedRowVersion: number;
+  readonly token: string;
+}): Promise<{ readonly status: 'CANCELLED' }> {
+  return apiRequest(`/appointments/${input.appointmentId}/cancel`, {
+    body: { expectedRowVersion: input.expectedRowVersion },
+    method: 'POST',
+    token: input.token,
+  });
 }

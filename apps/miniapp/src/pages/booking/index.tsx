@@ -1,11 +1,12 @@
 import { Button, Input, Text, View } from '@tarojs/components';
-import Taro, { useDidShow } from '@tarojs/taro';
+import Taro, { useDidShow, useRouter } from '@tarojs/taro';
 import { useMemo, useState } from 'react';
 
 import {
   createBooking,
   loadBookingPeople,
   loadBookingSlots,
+  rescheduleBooking,
   type ArtistSummary,
   type BookingSlot,
   type BookingSlotResult,
@@ -42,13 +43,24 @@ function timeLabel(value: string): string {
 }
 
 export default function BookingPage() {
+  const router = useRouter();
+  const reschedule =
+    router.params.mode === 'reschedule' &&
+    typeof router.params.appointmentId === 'string' &&
+    typeof router.params.hostId === 'string' &&
+    typeof router.params.expectedRowVersion === 'string';
   const dates = useMemo(() => bookingDateOptions(), []);
   const [session, setSession] = useState<SessionTokenPair | null>(null);
   const [hosts, setHosts] = useState<readonly HostSummary[]>([]);
   const [host, setHost] = useState<HostSummary | null>(null);
   const [hostSearch, setHostSearch] = useState('');
   const [artists, setArtists] = useState<readonly ArtistSummary[]>([]);
-  const [date, setDate] = useState(dates[0]?.date ?? '');
+  const requestedDate =
+    typeof router.params.date === 'string' &&
+    dates.some((option) => option.date === router.params.date)
+      ? router.params.date
+      : null;
+  const [date, setDate] = useState(requestedDate ?? dates[0]?.date ?? '');
   const [durationMinutes, setDurationMinutes] = useState<(typeof DURATIONS)[number]>(30);
   const [artistId, setArtistId] = useState('');
   const [artistSearch, setArtistSearch] = useState('');
@@ -92,8 +104,15 @@ export default function BookingPage() {
       const people = await loadBookingPeople(restored.accessToken, date);
       setSession(restored);
       setHosts(people.hosts);
-      setHost(restored.role.roleCode === 'HOST' ? (people.hosts[0] ?? null) : null);
+      setHost(
+        restored.role.roleCode === 'HOST'
+          ? (people.hosts[0] ?? null)
+          : reschedule
+            ? (people.hosts.find((item) => item.id === router.params.hostId) ?? null)
+            : null,
+      );
       setArtists(people.artists);
+      if (reschedule) await Taro.setNavigationBarTitle({ title: '改期' });
     } catch (cause) {
       setError(errorMessage(cause));
     } finally {
@@ -115,6 +134,9 @@ export default function BookingPage() {
           artistId: nextArtistId,
           date,
           durationMinutes,
+          ...(reschedule && router.params.appointmentId
+            ? { excludeAppointmentId: router.params.appointmentId }
+            : {}),
           hostId: host.id,
           token: session.accessToken,
         }),
@@ -134,7 +156,13 @@ export default function BookingPage() {
     try {
       const people = await loadBookingPeople(session.accessToken, nextDate);
       setHosts(people.hosts);
-      setHost(session.role.roleCode === 'HOST' ? (people.hosts[0] ?? null) : null);
+      setHost(
+        session.role.roleCode === 'HOST'
+          ? (people.hosts[0] ?? null)
+          : reschedule
+            ? (people.hosts.find((item) => item.id === router.params.hostId) ?? null)
+            : null,
+      );
       setArtists(people.artists);
     } catch (cause) {
       setError(errorMessage(cause));
@@ -180,20 +208,34 @@ export default function BookingPage() {
     setBusy(true);
     setError(null);
     try {
-      await createBooking({
-        artistId,
-        confirmedSecondBooking,
-        date,
-        durationMinutes,
-        hostId: host.id,
-        idempotencyKey,
-        startMinute: slot.startMinute,
-        token: session.accessToken,
-      });
+      if (reschedule && router.params.appointmentId && router.params.expectedRowVersion) {
+        await rescheduleBooking({
+          appointmentId: router.params.appointmentId,
+          artistId,
+          confirmedSecondBooking,
+          date,
+          durationMinutes,
+          expectedRowVersion: Number(router.params.expectedRowVersion),
+          idempotencyKey,
+          startMinute: slot.startMinute,
+          token: session.accessToken,
+        });
+      } else {
+        await createBooking({
+          artistId,
+          confirmedSecondBooking,
+          date,
+          durationMinutes,
+          hostId: host.id,
+          idempotencyKey,
+          startMinute: slot.startMinute,
+          token: session.accessToken,
+        });
+      }
       await Taro.showModal({
-        content: `${date} ${timeLabel(slot.startAt)} 已预约成功`,
+        content: `${date} ${timeLabel(slot.startAt)} ${reschedule ? '已改期成功' : '已预约成功'}`,
         showCancel: false,
-        title: '预约成功',
+        title: reschedule ? '改期成功' : '预约成功',
       });
       await Taro.navigateBack();
     } catch (cause) {
@@ -223,32 +265,45 @@ export default function BookingPage() {
 
       {session?.role.roleCode === 'OPERATOR' ? (
         <View className="booking-section">
-          <Text className="booking-title">选择主播</Text>
-          <Text className="booking-note">名单按所选日期的负责关系生成，编号用于区分重名。</Text>
-          {hosts.length > 8 ? (
-            <Input
-              className="person-search"
-              maxlength={50}
-              onInput={(event) => setHostSearch(event.detail.value)}
-              placeholder="搜索主播姓名或编号"
-              value={hostSearch}
-            />
-          ) : null}
-          {!busy && hosts.length === 0 ? (
-            <Text className="booking-note">该日期没有由你负责的可预约主播。</Text>
-          ) : null}
-          <View className="host-list">
-            {visibleHosts.map((item) => (
-              <Button
-                className={host?.id === item.id ? 'host-option active' : 'host-option'}
-                key={item.id}
-                onClick={() => selectHost(item)}
-              >
-                <Text>{item.nickname ?? item.realName}</Text>
-                <Text className="host-code">{item.hostCode}</Text>
-              </Button>
-            ))}
-          </View>
+          <Text className="booking-title">{reschedule ? '改期主播' : '选择主播'}</Text>
+          {reschedule ? (
+            host ? (
+              <View className="selected-host">
+                <Text>{host.nickname ?? host.realName}</Text>
+                <Text className="host-code">{host.hostCode}</Text>
+              </View>
+            ) : (
+              <Text className="booking-note">所选日期你已不再负责该主播，不能代为改期。</Text>
+            )
+          ) : (
+            <>
+              <Text className="booking-note">名单按所选日期的负责关系生成，编号用于区分重名。</Text>
+              {hosts.length > 8 ? (
+                <Input
+                  className="person-search"
+                  maxlength={50}
+                  onInput={(event) => setHostSearch(event.detail.value)}
+                  placeholder="搜索主播姓名或编号"
+                  value={hostSearch}
+                />
+              ) : null}
+              {!busy && hosts.length === 0 ? (
+                <Text className="booking-note">该日期没有由你负责的可预约主播。</Text>
+              ) : null}
+              <View className="host-list">
+                {visibleHosts.map((item) => (
+                  <Button
+                    className={host?.id === item.id ? 'host-option active' : 'host-option'}
+                    key={item.id}
+                    onClick={() => selectHost(item)}
+                  >
+                    <Text>{item.nickname ?? item.realName}</Text>
+                    <Text className="host-code">{item.hostCode}</Text>
+                  </Button>
+                ))}
+              </View>
+            </>
+          )}
         </View>
       ) : null}
 
@@ -333,7 +388,7 @@ export default function BookingPage() {
         </View>
       ) : null}
       <Button className="submit-booking" disabled={busy || !slot} onClick={() => void submit()}>
-        {busy ? '处理中…' : '确认预约'}
+        {busy ? '处理中…' : reschedule ? '确认改期' : '确认预约'}
       </Button>
     </View>
   );

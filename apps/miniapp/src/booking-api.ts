@@ -68,6 +68,7 @@ export function loadBookingSlots(input: {
   readonly artistId: string;
   readonly date: string;
   readonly durationMinutes: number;
+  readonly excludeAppointmentId?: string;
   readonly hostId: string;
   readonly token: string;
 }): Promise<BookingSlotResult> {
@@ -76,8 +77,35 @@ export function loadBookingSlots(input: {
     `date=${input.date}`,
     `durationMinutes=${input.durationMinutes}`,
     `hostId=${input.hostId}`,
+    ...(input.excludeAppointmentId ? [`excludeAppointmentId=${input.excludeAppointmentId}`] : []),
   ].join('&');
   return apiRequest(`/booking-slots?${query}`, { token: input.token });
+}
+
+export function rescheduleBooking(input: {
+  readonly appointmentId: string;
+  readonly artistId: string;
+  readonly confirmedSecondBooking: boolean;
+  readonly date: string;
+  readonly durationMinutes: number;
+  readonly expectedRowVersion: number;
+  readonly idempotencyKey: string;
+  readonly startMinute: number;
+  readonly token: string;
+}): Promise<{ readonly appointment: AppointmentListItem; readonly replayed: boolean }> {
+  return apiRequest(`/appointments/${input.appointmentId}/reschedule`, {
+    body: {
+      artistId: input.artistId,
+      confirmedSecondBooking: input.confirmedSecondBooking,
+      date: input.date,
+      durationMinutes: input.durationMinutes,
+      expectedRowVersion: input.expectedRowVersion,
+      startMinute: input.startMinute,
+    },
+    headers: { 'Idempotency-Key': input.idempotencyKey },
+    method: 'POST',
+    token: input.token,
+  });
 }
 
 export function createBooking(input: {

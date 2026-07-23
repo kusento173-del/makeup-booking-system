@@ -2,10 +2,15 @@ import { Button, Text, View } from '@tarojs/components';
 import Taro, { useDidShow } from '@tarojs/taro';
 import { useState } from 'react';
 
-import { listAppointments, type AppointmentListItem } from '../../appointment-api';
+import {
+  cancelAppointment,
+  listAppointments,
+  type AppointmentListItem,
+} from '../../appointment-api';
 import {
   appointmentSubject,
   appointmentTime,
+  canChangeAppointment,
   scheduleDateRange,
   type ScheduleRange,
 } from '../../appointment-view';
@@ -32,6 +37,7 @@ export default function AppointmentPage() {
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [roleCode, setRoleCode] = useState<RoleCode>('HOST');
+  const [token, setToken] = useState('');
 
   useDidShow(() => {
     void load(range);
@@ -44,6 +50,7 @@ export default function AppointmentPage() {
       return;
     }
     setRoleCode(session.role.roleCode);
+    setToken(session.accessToken);
     setBusy(true);
     setError(null);
     try {
@@ -61,6 +68,40 @@ export default function AppointmentPage() {
   function selectRange(nextRange: ScheduleRange): void {
     setRange(nextRange);
     void load(nextRange);
+  }
+
+  async function cancel(item: AppointmentListItem): Promise<void> {
+    const confirmation = await Taro.showModal({
+      cancelText: '保留预约',
+      confirmText: '确认取消',
+      content: `${item.date} ${appointmentTime(item)}，取消后档期会立即释放。`,
+      title: '取消预约',
+    });
+    if (!confirmation.confirm) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await cancelAppointment({
+        appointmentId: item.id,
+        expectedRowVersion: item.rowVersion,
+        token,
+      });
+      await load(range);
+    } catch (cause) {
+      setError(errorMessage(cause));
+      setBusy(false);
+    }
+  }
+
+  function reschedule(item: AppointmentListItem): void {
+    const query = [
+      'mode=reschedule',
+      `appointmentId=${item.id}`,
+      `expectedRowVersion=${item.rowVersion}`,
+      `hostId=${item.hostId}`,
+      `date=${item.date}`,
+    ].join('&');
+    void Taro.navigateTo({ url: `/pages/booking/index?${query}` });
   }
 
   return (
@@ -105,6 +146,24 @@ export default function AppointmentPage() {
                 <Text>{TYPE_LABELS[item.appointmentType]}</Text>
                 <Text>{STATUS_LABELS[item.status]}</Text>
               </View>
+              {canChangeAppointment(item) ? (
+                <View className="appointment-actions">
+                  <Button
+                    className="appointment-action"
+                    onClick={() => reschedule(item)}
+                    size="mini"
+                  >
+                    改期
+                  </Button>
+                  <Button
+                    className="appointment-action danger"
+                    onClick={() => void cancel(item)}
+                    size="mini"
+                  >
+                    取消
+                  </Button>
+                </View>
+              ) : null}
             </View>
           ))
         : null}

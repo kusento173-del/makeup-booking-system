@@ -42,3 +42,7 @@ export function appointmentSubject(item: AppointmentListItem, roleCode: RoleCode
       ? `${item.hostName} · ${item.artistNickname}`
       : item.artistNickname;
 }
+
+export function canChangeAppointment(item: AppointmentListItem, now = new Date()): boolean {
+  return item.status === 'BOOKED' && item.date > dateAtOffset(0, now);
+}

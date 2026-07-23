@@ -73,6 +73,19 @@
   font-weight: 400;
 }
 
+.selected-host {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 18px;
+  padding: 18px 20px;
+  border-radius: 9px;
+  color: #102b3a;
+  background: #edf1f3;
+  font-size: 28px;
+  font-weight: 700;
+}
+
 .date-grid,
 .artist-grid,
 .slot-grid,

@@ -63,6 +63,32 @@
   align-items: center;
 }
 
+.appointment-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid #e3e8ea;
+}
+
+.appointment-action,
+.appointment-action::after {
+  border: 0;
+}
+
+.appointment-action {
+  margin: 0;
+  color: #245c6d;
+  background: #e8f2f3;
+  font-size: 26px;
+}
+
+.appointment-action.danger {
+  color: #9b342d;
+  background: #fbecea;
+}
+
 .appointment-date {
   justify-content: space-between;
   gap: 16px;
