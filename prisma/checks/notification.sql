@@ -7,6 +7,7 @@ DECLARE
     template_id UUID;
     task_id UUID;
     failed_task_id UUID;
+    retry_task_id UUID := uuidv7();
     decision_id UUID;
     consent_request_id UUID := uuidv7();
     suffix TEXT := txid_current()::text;
@@ -285,6 +286,41 @@ BEGIN
     ) THEN
         RAISE EXCEPTION 'Valid unbound recipient failure was rejected';
     END IF;
+
+    BEGIN
+        INSERT INTO "notification_tasks" (
+            "id", "template_version_id", "recipient_user_id", "recipient_role_code",
+            "recipient_profile_id", "recipient_name_snapshot", "site_id", "business_key",
+            "payload", "scheduled_at", "retry_of_task_id"
+        ) VALUES (
+            retry_task_id, template_id, user_id, 'HOST', uuidv7(), '小雨', site_id,
+            'notification:self-retry:' || suffix, '{}'::jsonb, CURRENT_TIMESTAMP, retry_task_id
+        );
+        RAISE EXCEPTION 'Notification task was allowed to retry itself';
+    EXCEPTION WHEN check_violation THEN NULL;
+    END;
+
+    INSERT INTO "notification_tasks" (
+        "template_version_id", "recipient_user_id", "recipient_role_code",
+        "recipient_profile_id", "recipient_name_snapshot", "site_id", "business_key",
+        "payload", "scheduled_at", "retry_of_task_id"
+    ) VALUES (
+        template_id, user_id, 'HOST', uuidv7(), '小雨', site_id,
+        'notification:manual-retry:' || suffix, '{}'::jsonb, CURRENT_TIMESTAMP, failed_task_id
+    );
+
+    BEGIN
+        INSERT INTO "notification_tasks" (
+            "template_version_id", "recipient_user_id", "recipient_role_code",
+            "recipient_profile_id", "recipient_name_snapshot", "site_id", "business_key",
+            "payload", "scheduled_at", "retry_of_task_id"
+        ) VALUES (
+            template_id, user_id, 'HOST', uuidv7(), '小雨', site_id,
+            'notification:duplicate-retry:' || suffix, '{}'::jsonb, CURRENT_TIMESTAMP, failed_task_id
+        );
+        RAISE EXCEPTION 'Two direct retries of one notification task were accepted';
+    EXCEPTION WHEN unique_violation THEN NULL;
+    END;
 
     UPDATE "notification_template_versions" SET
         "status" = 'RETIRED',

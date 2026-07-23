@@ -13,12 +13,15 @@ import { NotificationSubscriptionController } from './notification-subscription.
 import { NotificationSubscriptionService } from './notification-subscription.service';
 import { NotificationTemplateController } from './notification-template.controller';
 import { NotificationTemplateService } from './notification-template.service';
+import { NotificationTaskController } from './notification-task.controller';
+import { NotificationTaskService } from './notification-task.service';
 import { WechatMiniProgramNotificationAdapter } from './wechat-mini-program-notification.adapter';
 
 @Module({
   controllers: [
     InternalNotificationController,
     NotificationSubscriptionController,
+    NotificationTaskController,
     NotificationTemplateController,
   ],
   exports: [NotificationDeliveryService, NotificationOutboxService, NotificationScheduleService],
@@ -28,6 +31,7 @@ import { WechatMiniProgramNotificationAdapter } from './wechat-mini-program-noti
     NotificationOutboxService,
     NotificationScheduleService,
     NotificationSubscriptionService,
+    NotificationTaskService,
     NotificationTemplateService,
     WechatMiniProgramNotificationAdapter,
   ],

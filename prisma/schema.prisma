@@ -661,6 +661,7 @@ model NotificationTask {
   templateVersionId     String    @map("template_version_id") @db.Uuid
   sourceOutboxEventId   String?   @map("source_outbox_event_id") @db.Uuid
   appointmentId         String?   @map("appointment_id") @db.Uuid
+  retryOfTaskId         String?   @unique(map: "notification_tasks_retry_of_uq") @map("retry_of_task_id") @db.Uuid
   recipientUserId       String?   @map("recipient_user_id") @db.Uuid
   recipientRoleCode     String    @map("recipient_role_code") @db.VarChar(32)
   recipientProfileId    String    @map("recipient_profile_id") @db.Uuid
@@ -687,6 +688,8 @@ model NotificationTask {
   templateVersion   NotificationTemplateVersion   @relation(fields: [templateVersionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   sourceOutboxEvent OutboxEvent?                  @relation(fields: [sourceOutboxEventId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   appointment       Appointment?                  @relation(fields: [appointmentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  retryOfTask       NotificationTask?             @relation("NotificationTaskRetry", fields: [retryOfTaskId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  retriedByTask     NotificationTask?             @relation("NotificationTaskRetry")
   recipientUser     AppUser?                      @relation("NotificationRecipient", fields: [recipientUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   site              Site                          @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   attempts          NotificationDeliveryAttempt[]
