@@ -28,10 +28,11 @@ export async function apiRequest<T>(
     readonly token?: string;
   } = {},
 ): Promise<T> {
+  const hasBody = options.body !== undefined;
   const response = await Taro.request<T | ApiErrorBody>({
-    data: options.body,
+    ...(hasBody ? { data: options.body } : {}),
     header: {
-      'Content-Type': 'application/json',
+      ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
       ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
       ...options.headers,
     },
