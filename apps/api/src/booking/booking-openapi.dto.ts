@@ -454,6 +454,51 @@ export class FixedHostStateDto {
   siteId!: string;
 }
 
+export class ManagedHostSummaryDto {
+  @ApiProperty({ nullable: true, type: ActiveFixedRuleSummaryDto })
+  activeRule!: ActiveFixedRuleSummaryDto | null;
+
+  @ApiProperty({
+    enum: ['AVAILABLE', 'ON_LEAVE', 'QUALIFICATION_BLOCKED', 'SITE_INACTIVE'],
+  })
+  bookingAvailability!: string;
+
+  @ApiProperty()
+  hostCode!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  hostId!: string;
+
+  @ApiProperty()
+  hostName!: string;
+
+  @ApiProperty({ nullable: true, type: PendingFixedRequestSummaryDto })
+  pendingRequest!: PendingFixedRequestSummaryDto | null;
+
+  @ApiProperty({ enum: ['ACTIVE', 'CANCELLED', 'SUSPENDED'] })
+  qualificationStatus!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  siteId!: string;
+
+  @ApiProperty()
+  siteName!: string;
+}
+
+export class ManagedHostPageDto {
+  @ApiProperty({ isArray: true, type: ManagedHostSummaryDto })
+  items!: ManagedHostSummaryDto[];
+
+  @ApiProperty({ minimum: 1 })
+  page!: number;
+
+  @ApiProperty({ maximum: 100, minimum: 1 })
+  pageSize!: number;
+
+  @ApiProperty({ minimum: 0 })
+  total!: number;
+}
+
 export class WithdrawFixedRequestDto {
   @ApiProperty({ minimum: 1 })
   expectedRowVersion!: number;

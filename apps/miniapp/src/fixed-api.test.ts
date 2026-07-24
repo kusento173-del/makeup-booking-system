@@ -6,6 +6,8 @@ import { apiRequest } from './api-client';
 import {
   changeFixedRequest,
   getFixedAvailability,
+  getManagedHostWorkspace,
+  listManagedHostWorkspace,
   listFixedRequests,
   withdrawFixedRequest,
 } from './fixed-api';
@@ -37,6 +39,27 @@ describe('fixed appointment api', () => {
     expect(request).toHaveBeenCalledWith('/fixed-appointments/requests?page=1&pageSize=100', {
       token: 'token-1',
     });
+  });
+
+  it('按目标日期、关键字和主播读取负责主播工作台', async () => {
+    request.mockResolvedValue({ items: [], page: 2, pageSize: 20, total: 0 });
+    await listManagedHostWorkspace('token-1', {
+      asOf: '2026-07-27',
+      hostId: 'host-1',
+      page: 2,
+      search: '000001',
+    });
+    expect(request).toHaveBeenCalledWith(
+      '/fixed-appointments/managed-hosts?asOf=2026-07-27&page=2&pageSize=20&hostId=host-1&search=000001',
+      { token: 'token-1' },
+    );
+  });
+
+  it('按运营关系读取单个主播上下文', async () => {
+    request.mockResolvedValue({ items: [{ hostId: 'host-1' }], page: 1, pageSize: 1, total: 1 });
+    await expect(getManagedHostWorkspace('token-1', '2026-07-27', 'host-1')).resolves.toMatchObject(
+      { hostId: 'host-1' },
+    );
   });
 
   it('使用幂等键提交固定变更', async () => {

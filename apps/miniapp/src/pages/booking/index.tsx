@@ -1,5 +1,5 @@
 import { Button, Text, View } from '@tarojs/components';
-import Taro, { useRouter } from '@tarojs/taro';
+import Taro from '@tarojs/taro';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { ApiError } from '../../api-client';
@@ -30,6 +30,8 @@ import { restoreSession, type RoleCode } from '../../auth-session';
 import { parseRescheduleContext } from '../../appointment-view';
 import { ManagedHostPicker } from '../../components/ManagedHostPicker';
 import { PageState } from '../../components/PageState';
+import { getManagedHostWorkspace } from '../../fixed-api';
+import { toBookingHost } from '../../managed-host-view';
 import './index.css';
 
 interface PendingAttempt {
@@ -54,8 +56,8 @@ function errorMessage(cause: unknown): string {
 }
 
 export default function BookingPage() {
-  const router = useRouter();
-  const rescheduleContext = useMemo(() => parseRescheduleContext(router.params), [router.params]);
+  const routeParams = Taro.getCurrentInstance().router?.params ?? {};
+  const rescheduleContext = parseRescheduleContext(routeParams);
   const dates = useMemo(() => futureBookingDates(), []);
   const [token, setToken] = useState('');
   const [roleCode, setRoleCode] = useState<RoleCode | null>(null);
@@ -95,30 +97,41 @@ export default function BookingPage() {
       }
       const firstDate = dates[0]?.date;
       if (!firstDate) throw new Error('No booking dates');
+      const requestedDate =
+        typeof routeParams.date === 'string' && dates.some((item) => item.date === routeParams.date)
+          ? routeParams.date
+          : firstDate;
+      const requestedHostId = typeof routeParams.hostId === 'string' ? routeParams.hostId : null;
       const initialDate =
         rescheduleContext && dates.some((item) => item.date === rescheduleContext.date)
           ? rescheduleContext.date
-          : firstDate;
+          : requestedDate;
       const [ownHost, artistItems, sites] = await Promise.all([
         session.role.roleCode === 'HOST'
           ? getOwnHost(session.accessToken, initialDate)
-          : Promise.resolve(
-              rescheduleContext
-                ? {
-                    hostCode: rescheduleContext.hostCode,
-                    id: rescheduleContext.hostId,
-                    nickname: rescheduleContext.hostName,
-                    qualificationStatus: 'ACTIVE' as const,
-                    realName: rescheduleContext.hostName,
-                    siteId: session.role.siteId ?? '',
-                  }
-                : null,
-            ),
+          : rescheduleContext
+            ? Promise.resolve({
+                hostCode: rescheduleContext.hostCode,
+                id: rescheduleContext.hostId,
+                nickname: rescheduleContext.hostName,
+                qualificationStatus: 'ACTIVE' as const,
+                realName: rescheduleContext.hostName,
+                siteId: session.role.siteId ?? '',
+              })
+            : requestedHostId
+              ? getManagedHostWorkspace(session.accessToken, initialDate, requestedHostId).then(
+                  (item) => (item ? toBookingHost(item) : null),
+                )
+              : Promise.resolve(null),
         listAvailableArtists(session.accessToken),
         listSites(session.accessToken),
       ]);
       if (session.role.roleCode === 'HOST' && !ownHost) {
         setInitialError('当前账号没有可用的主播档案。');
+        return;
+      }
+      if (session.role.roleCode === 'OPERATOR' && requestedHostId && !ownHost) {
+        setInitialError('该主播不在目标日期的负责范围内，请返回负责主播列表重新选择。');
         return;
       }
       if (ownHost && ownHost.qualificationStatus !== 'ACTIVE') {
@@ -130,8 +143,8 @@ export default function BookingPage() {
         return;
       }
       const siteId = ownHost?.siteId ?? session.role.siteId;
+      setDate(initialDate);
       if (rescheduleContext) {
-        setDate(initialDate);
         await Taro.setNavigationBarTitle({ title: '改期' });
       }
       setToken(session.accessToken);

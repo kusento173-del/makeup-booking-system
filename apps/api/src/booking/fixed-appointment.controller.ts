@@ -37,6 +37,7 @@ import {
   FixedAvailabilityResultDto,
   FixedHostStateDto,
   FixedRulePageDto,
+  ManagedHostPageDto,
   FixedRequestCreateResultDto,
   FixedRequestPageDto,
   FixedRequestReviewResultDto,
@@ -51,6 +52,7 @@ import {
   parseFixedAvailabilityRequest,
   parseFixedHostStateRequest,
   parseFixedRuleList,
+  parseManagedHostList,
   parseFixedRequestList,
   parseReviewFixedRequest,
   parseWithdrawFixedRequest,
@@ -69,6 +71,7 @@ import type {
 } from './fixed-request.types';
 import { FixedStateService } from './fixed-state.service';
 import type { FixedHostState } from './fixed-state.types';
+import type { ManagedHostPage } from './fixed-state.types';
 
 @ApiTags('固定化妆预约')
 @ApiBearerAuth('access-token')
@@ -115,6 +118,21 @@ export class FixedAppointmentController {
     @CurrentAuth() authorization: AccessTokenClaims,
   ): Promise<FixedHostState> {
     return this.states.get(authorization, parseFixedHostStateRequest(hostId));
+  }
+
+  @Get('managed-hosts')
+  @ApiOperation({ summary: '按目标日期分页查询当前运营负责的主播及固定状态' })
+  @ApiQuery({ format: 'date', name: 'asOf', type: String })
+  @ApiQuery({ format: 'uuid', name: 'hostId', required: false, type: String })
+  @ApiQuery({ minimum: 1, name: 'page', required: false, type: Number })
+  @ApiQuery({ maximum: 100, minimum: 1, name: 'pageSize', required: false, type: Number })
+  @ApiQuery({ maxLength: 64, name: 'search', required: false, type: String })
+  @ApiOkResponse({ type: ManagedHostPageDto })
+  listManagedHosts(
+    @Query() query: unknown,
+    @CurrentAuth() authorization: AccessTokenClaims,
+  ): Promise<ManagedHostPage> {
+    return this.states.listManagedHosts(authorization, parseManagedHostList(query));
   }
 
   @Get('rules')

@@ -13,6 +13,7 @@ import {
   parseFixedHostStateRequest,
   parseFixedRuleList,
   parseFixedRequestList,
+  parseManagedHostList,
   parseRescheduleBookingRequest,
   parseReviewFixedRequest,
   parseWithdrawFixedRequest,
@@ -176,6 +177,28 @@ describe('booking request parser', () => {
     expect(() => parseFixedRuleList({ pageSize: '101' })).toThrow(BookingRequestInvalidError);
     expect(() => parseFixedRuleList({ search: ' ' })).toThrow(BookingRequestInvalidError);
     expect(() => parseFixedRuleList({ requestType: 'CREATE' })).toThrow(BookingRequestInvalidError);
+  });
+
+  it('parses managed-host list date, identity and search filters', () => {
+    expect(
+      parseManagedHostList({
+        asOf: '2026-07-27',
+        hostId,
+        page: '2',
+        pageSize: '50',
+        search: ' 阿伟 ',
+      }),
+    ).toEqual({
+      asOf: new Date('2026-07-27T00:00:00.000Z'),
+      hostId,
+      page: 2,
+      pageSize: 50,
+      search: '阿伟',
+    });
+    expect(() => parseManagedHostList({ asOf: '2026-02-30' })).toThrow(BookingRequestInvalidError);
+    expect(() => parseManagedHostList({ asOf: '2026-07-27', siteId: artistId })).toThrow(
+      BookingRequestInvalidError,
+    );
   });
 
   it('parses strict fixed change and cancellation requests', () => {

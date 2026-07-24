@@ -1,5 +1,5 @@
 import { Text, View } from '@tarojs/components';
-import Taro, { useDidShow, useRouter } from '@tarojs/taro';
+import Taro, { useDidShow } from '@tarojs/taro';
 import { useState } from 'react';
 
 import { restoreSession } from '../../auth-session';
@@ -14,7 +14,7 @@ interface FeaturePageState {
 }
 
 export default function FeaturePage() {
-  const router = useRouter();
+  const routeParams = Taro.getCurrentInstance().router?.params ?? {};
   const [state, setState] = useState<FeaturePageState>({
     feature: null,
     kind: 'LOADING',
@@ -32,7 +32,7 @@ export default function FeaturePage() {
         await Taro.reLaunch({ url: '/pages/index/index' });
         return;
       }
-      const feature = getAllowedFeature(session.role.roleCode, router.params.feature);
+      const feature = getAllowedFeature(session.role.roleCode, routeParams.feature);
       if (!feature) {
         setState({ feature: null, kind: 'UNAUTHORIZED' });
         return;

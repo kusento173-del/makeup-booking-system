@@ -163,6 +163,40 @@ describe('FixedAppointmentController', () => {
     });
   });
 
+  it('lists managed hosts using verified operator identity and target date', async () => {
+    const listManagedHosts = vi
+      .fn()
+      .mockResolvedValue({ items: [], page: 1, pageSize: 50, total: 0 });
+    const controller = new FixedAppointmentController(
+      {} as FixedAvailabilityService,
+      {} as MasterDataCommandContextService,
+      {} as FixedRequestQueryService,
+      {} as FixedRequestReviewService,
+      {} as FixedRequestService,
+      { listManagedHosts } as unknown as FixedStateService,
+      {} as FixedRequestWithdrawService,
+    );
+
+    await controller.listManagedHosts(
+      {
+        asOf: '2026-07-27',
+        hostId,
+        page: '1',
+        pageSize: '50',
+        search: '阿伟',
+      },
+      authorization,
+    );
+
+    expect(listManagedHosts).toHaveBeenCalledWith(authorization, {
+      asOf: new Date('2026-07-27T00:00:00.000Z'),
+      hostId,
+      page: 1,
+      pageSize: 50,
+      search: '阿伟',
+    });
+  });
+
   it('submits fixed changes and cancellations through the operator context', async () => {
     const commandContext = { actorName: '运营小周', ...authorization };
     const resolve = vi.fn().mockResolvedValue(commandContext);

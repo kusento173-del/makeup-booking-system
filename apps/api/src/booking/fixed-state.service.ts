@@ -13,6 +13,10 @@ import { FixedRequestStateConflictError } from './fixed-request.errors';
 import type {
   ActiveFixedRuleSummary,
   FixedHostState,
+  ManagedHostBookingAvailability,
+  ManagedHostListInput,
+  ManagedHostPage,
+  ManagedHostSummary,
   PendingFixedRequestSummary,
 } from './fixed-state.types';
 
@@ -57,6 +61,21 @@ const HOST_STATE_SELECT = {
 
 type HostStateRecord = Prisma.HostProfileGetPayload<{ select: typeof HOST_STATE_SELECT }>;
 
+const MANAGED_HOST_SELECT = {
+  fixedRequests: HOST_STATE_SELECT.fixedRequests,
+  fixedRules: HOST_STATE_SELECT.fixedRules,
+  hostCode: true,
+  id: true,
+  leaveRecords: { select: { id: true }, take: 1 },
+  nickname: true,
+  qualificationStatus: true,
+  realName: true,
+  site: { select: { name: true, status: true } },
+  siteId: true,
+} satisfies Prisma.HostProfileSelect;
+
+type ManagedHostRecord = Prisma.HostProfileGetPayload<{ select: typeof MANAGED_HOST_SELECT }>;
+
 @Injectable()
 export class FixedStateService {
   constructor(
@@ -92,6 +111,69 @@ export class FixedStateService {
         hostId: host.id,
         pendingRequest: host.fixedRequests[0] ? this.request(host.fixedRequests[0]) : null,
         siteId: host.siteId,
+      };
+    });
+  }
+
+  listManagedHosts(
+    context: VerifiedAuthorizationContext,
+    input: ManagedHostListInput,
+  ): Promise<ManagedHostPage> {
+    this.authorization.assertRole(context, ['OPERATOR']);
+    if (!context.siteId) throw new AuthorizationDeniedError();
+    const filters: Prisma.HostProfileWhereInput[] = [
+      { siteId: context.siteId },
+      {
+        operatorRelations: {
+          some: {
+            operator: {
+              employmentStatus: 'ACTIVE',
+              siteId: context.siteId,
+              userId: context.userId,
+            },
+            validFrom: { lte: input.asOf },
+            OR: [{ validUntil: null }, { validUntil: { gt: input.asOf } }],
+          },
+        },
+      },
+    ];
+    if (input.hostId) filters.push({ id: input.hostId });
+    if (input.search) {
+      filters.push({
+        OR: [
+          { hostCode: { contains: input.search, mode: 'insensitive' } },
+          { nickname: { contains: input.search, mode: 'insensitive' } },
+          { realName: { contains: input.search, mode: 'insensitive' } },
+        ],
+      });
+    }
+    const where: Prisma.HostProfileWhereInput = { AND: filters };
+    return this.database.read(async (client) => {
+      const [records, total] = await Promise.all([
+        client.hostProfile.findMany({
+          orderBy: [{ siteId: 'asc' }, { hostCode: 'asc' }],
+          select: {
+            ...MANAGED_HOST_SELECT,
+            leaveRecords: {
+              ...MANAGED_HOST_SELECT.leaveRecords,
+              where: {
+                endDate: { gte: input.asOf },
+                startDate: { lte: input.asOf },
+                status: 'ACTIVE',
+              },
+            },
+          },
+          skip: (input.page - 1) * input.pageSize,
+          take: input.pageSize,
+          where,
+        }),
+        client.hostProfile.count({ where }),
+      ]);
+      return {
+        items: records.map((record) => this.managedHost(record)),
+        page: input.page,
+        pageSize: input.pageSize,
+        total,
       };
     });
   }
@@ -138,5 +220,28 @@ export class FixedStateService {
       targetStartMinute: request.targetStartMinute,
       targetWeekdays: request.targetWeekdays,
     };
+  }
+
+  private managedHost(host: ManagedHostRecord): ManagedHostSummary {
+    if (!['ACTIVE', 'CANCELLED', 'SUSPENDED'].includes(host.qualificationStatus)) {
+      throw new FixedRequestStateConflictError();
+    }
+    return {
+      activeRule: host.fixedRules[0] ? this.rule(host.fixedRules[0]) : null,
+      bookingAvailability: this.bookingAvailability(host),
+      hostCode: host.hostCode,
+      hostId: host.id,
+      hostName: host.nickname ?? host.realName,
+      pendingRequest: host.fixedRequests[0] ? this.request(host.fixedRequests[0]) : null,
+      qualificationStatus: host.qualificationStatus as ManagedHostSummary['qualificationStatus'],
+      siteId: host.siteId,
+      siteName: host.site.name,
+    };
+  }
+
+  private bookingAvailability(host: ManagedHostRecord): ManagedHostBookingAvailability {
+    if (host.qualificationStatus !== 'ACTIVE') return 'QUALIFICATION_BLOCKED';
+    if (host.site.status !== 'ACTIVE') return 'SITE_INACTIVE';
+    return host.leaveRecords.length > 0 ? 'ON_LEAVE' : 'AVAILABLE';
   }
 }

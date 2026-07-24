@@ -26,3 +26,33 @@ export interface FixedHostState {
   readonly pendingRequest: PendingFixedRequestSummary | null;
   readonly siteId: string;
 }
+
+export type ManagedHostBookingAvailability =
+  'AVAILABLE' | 'ON_LEAVE' | 'QUALIFICATION_BLOCKED' | 'SITE_INACTIVE';
+
+export interface ManagedHostListInput {
+  readonly asOf: Date;
+  readonly hostId?: string;
+  readonly page: number;
+  readonly pageSize: number;
+  readonly search?: string;
+}
+
+export interface ManagedHostSummary {
+  readonly activeRule: ActiveFixedRuleSummary | null;
+  readonly bookingAvailability: ManagedHostBookingAvailability;
+  readonly hostCode: string;
+  readonly hostId: string;
+  readonly hostName: string;
+  readonly pendingRequest: PendingFixedRequestSummary | null;
+  readonly qualificationStatus: 'ACTIVE' | 'CANCELLED' | 'SUSPENDED';
+  readonly siteId: string;
+  readonly siteName: string;
+}
+
+export interface ManagedHostPage {
+  readonly items: readonly ManagedHostSummary[];
+  readonly page: number;
+  readonly pageSize: number;
+  readonly total: number;
+}

@@ -33,6 +33,21 @@ export interface FixedHostState {
   readonly siteId: string;
 }
 
+export type ManagedHostBookingAvailability =
+  'AVAILABLE' | 'ON_LEAVE' | 'QUALIFICATION_BLOCKED' | 'SITE_INACTIVE';
+
+export interface ManagedHostSummary {
+  readonly activeRule: ActiveFixedRule | null;
+  readonly bookingAvailability: ManagedHostBookingAvailability;
+  readonly hostCode: string;
+  readonly hostId: string;
+  readonly hostName: string;
+  readonly pendingRequest: PendingFixedRequest | null;
+  readonly qualificationStatus: 'ACTIVE' | 'CANCELLED' | 'SUSPENDED';
+  readonly siteId: string;
+  readonly siteName: string;
+}
+
 export interface FixedAvailabilitySlot {
   readonly available: boolean;
   readonly earliestStartDate: string | null;
@@ -101,6 +116,35 @@ interface FixedScheduleInput {
 
 export function getFixedHostState(token: string, hostId: string): Promise<FixedHostState> {
   return apiRequest(`/fixed-appointments/hosts/${hostId}/state`, { token });
+}
+
+export function listManagedHostWorkspace(
+  token: string,
+  input: {
+    readonly asOf: string;
+    readonly hostId?: string;
+    readonly page: number;
+    readonly pageSize?: number;
+    readonly search?: string;
+  },
+): Promise<Page<ManagedHostSummary>> {
+  const query = new URLSearchParams({
+    asOf: input.asOf,
+    page: String(input.page),
+    pageSize: String(input.pageSize ?? 20),
+  });
+  if (input.hostId) query.set('hostId', input.hostId);
+  if (input.search) query.set('search', input.search);
+  return apiRequest(`/fixed-appointments/managed-hosts?${query.toString()}`, { token });
+}
+
+export async function getManagedHostWorkspace(
+  token: string,
+  asOf: string,
+  hostId: string,
+): Promise<ManagedHostSummary | null> {
+  const result = await listManagedHostWorkspace(token, { asOf, hostId, page: 1, pageSize: 1 });
+  return result.items[0] ?? null;
 }
 
 export function getFixedAvailability(

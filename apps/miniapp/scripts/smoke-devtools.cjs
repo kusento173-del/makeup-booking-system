@@ -10,11 +10,14 @@ const automationPort = Number(process.env.WECHAT_AUTOMATION_PORT ?? 9420);
 const routes = [
   '/pages/index/index',
   '/pages/schedule/index',
+  '/pages/booking/index',
   '/pages/shift/index',
   '/pages/leave/index',
   '/pages/overtime/index',
   '/pages/unavailability/index',
   '/pages/fixed/index',
+  '/pages/managed-hosts/index',
+  '/pages/feature/index',
 ];
 
 function quoteCommandArgument(value) {

@@ -8,6 +8,7 @@ export default defineAppConfig({
     'pages/overtime/index',
     'pages/unavailability/index',
     'pages/fixed/index',
+    'pages/managed-hosts/index',
     'pages/feature/index',
   ],
   window: {

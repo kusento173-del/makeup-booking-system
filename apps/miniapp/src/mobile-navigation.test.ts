@@ -16,6 +16,7 @@ describe('mobile navigation', () => {
     expect(getAllowedFeature('HOST', 'fixed')).toBeNull();
     expect(getAllowedFeature('OPERATOR', 'fixed')?.title).toBe('固定申请');
     expect(featureRoute('fixed', 'OPERATOR')).toBe('/pages/fixed/index');
+    expect(featureRoute('managed-hosts', 'OPERATOR')).toBe('/pages/managed-hosts/index');
     expect(getAllowedFeature('ARTIST', 'overtime')?.title).toBe('加班');
     expect(getAllowedFeature('ARTIST', 'unavailability')?.title).toBe('临时不可排班');
   });

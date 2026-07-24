@@ -14,6 +14,7 @@ import type {
   ReviewFixedRequestCommand,
   WithdrawFixedRequestCommand,
 } from './fixed-request.types';
+import type { ManagedHostListInput } from './fixed-state.types';
 import type {
   FixedRuleListInput,
   FixedRuleStatus,
@@ -243,6 +244,31 @@ export function parseFixedRuleList(query: unknown): FixedRuleListInput {
     ...(search ? { search } : {}),
     ...(input.siteId !== undefined ? { siteId: uuid(input.siteId) } : {}),
     ...(input.status ? { status: input.status as FixedRuleStatus } : {}),
+  };
+}
+
+export function parseManagedHostList(query: unknown): ManagedHostListInput {
+  const input = record(query);
+  exactKeys(input, ['asOf', 'hostId', 'page', 'pageSize', 'search']);
+  const page = input.page === undefined ? 1 : integer(input.page, true);
+  const pageSize = input.pageSize === undefined ? 50 : integer(input.pageSize, true);
+  const search =
+    typeof input.search === 'string' ? input.search.normalize('NFKC').trim() : undefined;
+  if (
+    page < 1 ||
+    pageSize < 1 ||
+    pageSize > 100 ||
+    (input.search !== undefined &&
+      (search === undefined || search.length < 1 || search.length > 64))
+  ) {
+    throw new BookingRequestInvalidError();
+  }
+  return {
+    asOf: dateOnly(input.asOf),
+    ...(input.hostId !== undefined ? { hostId: uuid(input.hostId) } : {}),
+    page,
+    pageSize,
+    ...(search ? { search } : {}),
   };
 }
 

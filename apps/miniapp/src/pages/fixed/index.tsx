@@ -24,6 +24,7 @@ import {
   type FixedRequestItem,
   getFixedAvailability,
   getFixedHostState,
+  getManagedHostWorkspace,
   listFixedRequests,
   withdrawFixedRequest,
 } from '../../fixed-api';
@@ -38,6 +39,7 @@ import {
   requestTypeLabel,
   weekdayLabel,
 } from '../../fixed-view';
+import { toBookingHost } from '../../managed-host-view';
 import './index.css';
 
 type RequestMode = 'CANCEL' | 'CHANGE' | 'CREATE';
@@ -61,6 +63,7 @@ function errorMessage(cause: unknown): string {
 }
 
 export default function FixedPage() {
+  const routeParams = Taro.getCurrentInstance().router?.params ?? {};
   const [token, setToken] = useState('');
   const [sites, setSites] = useState<readonly SiteSummary[]>([]);
   const [artists, setArtists] = useState<readonly ArtistSummary[]>([]);
@@ -103,12 +106,21 @@ export default function FixedPage() {
         setError('只有运营可以提交固定申请。');
         return;
       }
-      const [artistItems, siteItems, requestPage] = await Promise.all([
+      const requestedHostId = typeof routeParams.hostId === 'string' ? routeParams.hostId : null;
+      const requestedDate =
+        typeof routeParams.date === 'string' && /^\d{4}-\d{2}-\d{2}$/u.test(routeParams.date)
+          ? routeParams.date
+          : effectiveFrom;
+      const [artistItems, siteItems, requestPage, managedHost] = await Promise.all([
         listAvailableArtists(session.accessToken),
         listSites(session.accessToken),
         listFixedRequests(session.accessToken),
+        requestedHostId
+          ? getManagedHostWorkspace(session.accessToken, requestedDate, requestedHostId)
+          : Promise.resolve(null),
       ]);
       setToken(session.accessToken);
+      setEffectiveFrom(requestedDate);
       setArtists(
         artistItems.filter(
           (artist) => artist.employmentStatus === 'ACTIVE' && artist.initialShiftConfigured,
@@ -116,6 +128,18 @@ export default function FixedPage() {
       );
       setSites(siteItems);
       setRequests(requestPage.items);
+      if (requestedHostId && !managedHost) {
+        setError('该主播不在目标日期的负责范围内，请返回负责主播列表重新选择。');
+        return;
+      }
+      if (managedHost) {
+        applyHostState(toBookingHost(managedHost), {
+          activeRule: managedHost.activeRule,
+          hostId: managedHost.hostId,
+          pendingRequest: managedHost.pendingRequest,
+          siteId: managedHost.siteId,
+        });
+      }
     } catch (cause) {
       setError(errorMessage(cause));
     } finally {
@@ -124,29 +148,35 @@ export default function FixedPage() {
   }
 
   async function selectHost(nextHost: HostSummary): Promise<void> {
-    setHost(nextHost);
     setHostState(null);
     setStateBusy(true);
     setError(null);
     resetPreview();
     try {
       const state = await getFixedHostState(token, nextHost.id);
-      setHostState(state);
-      if (state.activeRule) {
-        setMode('CHANGE');
-        setArtistId(state.activeRule.artistId);
-        setDuration(normalizeDuration(state.activeRule.durationMinutes));
-        setWeekdays(state.activeRule.weekdays);
-      } else {
-        setMode('CREATE');
-        setArtistId('');
-        setDuration(30);
-        setWeekdays([1, 2, 3, 4, 5]);
-      }
+      applyHostState(nextHost, state);
     } catch (cause) {
       setError(errorMessage(cause));
     } finally {
       setStateBusy(false);
+    }
+  }
+
+  function applyHostState(nextHost: HostSummary, state: FixedHostState): void {
+    setHost(nextHost);
+    setHostState(state);
+    setReason('');
+    resetPreview();
+    if (state.activeRule) {
+      setMode('CHANGE');
+      setArtistId(state.activeRule.artistId);
+      setDuration(normalizeDuration(state.activeRule.durationMinutes));
+      setWeekdays(state.activeRule.weekdays);
+    } else {
+      setMode('CREATE');
+      setArtistId('');
+      setDuration(30);
+      setWeekdays([1, 2, 3, 4, 5]);
     }
   }
 
@@ -406,6 +436,7 @@ export default function FixedPage() {
           token={token}
         />
       </View>
+      {error && !host ? <View className="fixed-error">{error}</View> : null}
 
       {host ? (
         <View className="fixed-section">
