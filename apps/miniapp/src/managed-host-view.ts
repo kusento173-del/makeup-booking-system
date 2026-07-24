@@ -28,10 +28,11 @@ export function managedHostBookingLabel(availability: ManagedHostBookingAvailabi
   }[availability];
 }
 
-export function managedHostFixedLabel(host: ManagedHostSummary): string {
+export function managedHostFixedLabel(host: ManagedHostSummary, now = new Date()): string {
   const rule = host.activeRule;
-  if (!rule) return '当前无固定关系';
-  return `固定：${rule.artistNickname} · ${weekdayLabel(rule.weekdays)} · ${fixedTimeLabel(
+  if (!rule) return '暂无当前或即将生效的固定关系';
+  const label = rule.validFrom > currentBusinessDate(now) ? `固定（${rule.validFrom} 起）` : '固定';
+  return `${label}：${rule.artistNickname} · ${weekdayLabel(rule.weekdays)} · ${fixedTimeLabel(
     rule.startMinute,
     rule.startMinute + rule.durationMinutes,
   )}`;

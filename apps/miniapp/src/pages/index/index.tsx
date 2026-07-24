@@ -19,6 +19,7 @@ import {
 } from '../../auth-session';
 import { listMyFixedRelations, type MyFixedRelation } from '../../fixed-api';
 import { fixedTimeLabel, weekdayLabel } from '../../fixed-view';
+import { currentBusinessDate } from '../../managed-host-view';
 import { featureRoute, getMobileHome } from '../../mobile-navigation';
 import { getOwnArtist } from '../../shift-api';
 import './index.css';
@@ -56,6 +57,7 @@ export default function IndexPage() {
   const [fixedRelations, setFixedRelations] = useState<readonly MyFixedRelation[] | null>(null);
   const [fixedRelationsError, setFixedRelationsError] = useState(false);
   const roleHome = session ? getMobileHome(session.role.roleCode) : null;
+  const today = currentBusinessDate();
 
   useEffect(() => {
     void initialize();
@@ -312,8 +314,8 @@ export default function IndexPage() {
               {!fixedRelationsError && fixedRelations?.length === 0 ? (
                 <Text className="fixed-summary-note">
                   {session.role.roleCode === 'ARTIST'
-                    ? '当前没有固定主播。'
-                    : '当前没有固定化妆师。'}
+                    ? '暂无当前或即将生效的固定主播。'
+                    : '暂无当前或即将生效的固定化妆师。'}
                 </Text>
               ) : null}
               {fixedRelations?.map((relation) => (
@@ -331,8 +333,12 @@ export default function IndexPage() {
                     )}
                   </Text>
                   <Text className="fixed-summary-note">
-                    {relation.siteName} · {relation.validFrom} 起 ·{' '}
-                    {relation.validUntil ? `${relation.validUntil} 前有效` : '长期有效'}
+                    {relation.siteName} ·{' '}
+                    {relation.validFrom > today
+                      ? `${relation.validFrom} 起生效`
+                      : relation.validUntil
+                        ? `当前生效，${relation.validUntil} 起结束`
+                        : `当前生效，${relation.validFrom} 起长期有效`}
                   </Text>
                 </View>
               ))}

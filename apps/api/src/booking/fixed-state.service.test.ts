@@ -71,7 +71,7 @@ const fixedRelation = {
   site: { name: '松江' },
   siteId: 'site-1',
   startMinute: 540,
-  validFrom: new Date('2026-07-01T00:00:00.000Z'),
+  validFrom: new Date('2026-07-26T00:00:00.000Z'),
   validUntil: null,
   weekdays: [{ isoWeekday: 1 }, { isoWeekday: 3 }],
 };
@@ -208,9 +208,15 @@ describe('FixedStateService', () => {
     expect(client.hostProfile.findMany.mock.calls[0]?.[0]).toMatchObject({
       select: {
         fixedRules: {
+          orderBy: { validFrom: 'desc' },
           where: {
-            OR: [{ validUntil: null }, { validUntil: { gt: asOf } }],
-            validFrom: { lte: asOf },
+            OR: [
+              { status: 'ACTIVE' },
+              {
+                OR: [{ validUntil: null }, { validUntil: { gt: asOf } }],
+                validFrom: { lte: asOf },
+              },
+            ],
           },
         },
         leaveRecords: {
@@ -277,7 +283,7 @@ describe('FixedStateService', () => {
     ).toThrow(AuthorizationDeniedError);
   });
 
-  it('lists only currently effective fixed relations for the signed-in host or artist', async () => {
+  it('lists current and approved upcoming fixed relations for the signed-in host or artist', async () => {
     const { client, service } = createService();
 
     await expect(
@@ -297,7 +303,7 @@ describe('FixedStateService', () => {
         siteId: 'site-1',
         siteName: '松江',
         startMinute: 540,
-        validFrom: '2026-07-01',
+        validFrom: '2026-07-26',
         validUntil: null,
         weekdays: [1, 3],
       },
@@ -305,8 +311,13 @@ describe('FixedStateService', () => {
     expect(client.fixedAppointmentRule.findMany.mock.calls[0]?.[0]).toMatchObject({
       where: {
         host: { userId: 'host-user-1' },
-        OR: [{ validUntil: null }, { validUntil: { gt: new Date('2026-07-22') } }],
-        validFrom: { lte: new Date('2026-07-22') },
+        OR: [
+          { status: 'ACTIVE' },
+          {
+            OR: [{ validUntil: null }, { validUntil: { gt: new Date('2026-07-22') } }],
+            validFrom: { lte: new Date('2026-07-22') },
+          },
+        ],
       },
     });
 

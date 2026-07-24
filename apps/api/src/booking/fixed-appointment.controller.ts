@@ -137,7 +137,7 @@ export class FixedAppointmentController {
   }
 
   @Get('my-relations')
-  @ApiOperation({ summary: '查询当前主播或化妆师本人正在生效的固定关系' })
+  @ApiOperation({ summary: '查询主播或化妆师本人当前及即将生效的已确认固定关系' })
   @ApiOkResponse({ isArray: true, type: MyFixedRelationSummaryDto })
   listMyFixedRelations(
     @CurrentAuth() authorization: AccessTokenClaims,

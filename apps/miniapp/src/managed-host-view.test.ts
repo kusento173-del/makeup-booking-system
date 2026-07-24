@@ -35,7 +35,9 @@ const host: ManagedHostSummary = {
 describe('managed host view', () => {
   it('形成清晰的预约和固定状态文案', () => {
     expect(managedHostBookingLabel('ON_LEAVE')).toBe('当日请假');
-    expect(managedHostFixedLabel(host)).toBe('固定：柔柔 · 周一、周三 · 09:00–09:30');
+    expect(managedHostFixedLabel(host, new Date('2026-07-24T04:00:00.000Z'))).toBe(
+      '固定（2026-07-26 起）：柔柔 · 周一、周三 · 09:00–09:30',
+    );
     expect(
       managedHostPendingLabel({
         effectiveFrom: '2026-07-28',

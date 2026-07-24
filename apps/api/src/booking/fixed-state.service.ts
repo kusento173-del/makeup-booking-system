@@ -174,7 +174,7 @@ export class FixedStateService {
           orderBy: [{ siteId: 'asc' }, { hostCode: 'asc' }],
           select: {
             ...MANAGED_HOST_SELECT,
-            fixedRules: this.currentFixedRules(input.asOf),
+            fixedRules: this.displayFixedRules(input.asOf),
             leaveRecords: {
               ...MANAGED_HOST_SELECT.leaveRecords,
               where: {
@@ -214,12 +214,12 @@ export class FixedStateService {
       const records = await client.fixedAppointmentRule.findMany({
         orderBy:
           context.roleCode === 'HOST'
-            ? [{ artistId: 'asc' }, { startMinute: 'asc' }]
-            : [{ host: { hostCode: 'asc' } }, { startMinute: 'asc' }],
+            ? [{ validFrom: 'asc' }, { startMinute: 'asc' }]
+            : [{ host: { hostCode: 'asc' } }, { validFrom: 'asc' }, { startMinute: 'asc' }],
         select: MY_FIXED_RELATION_SELECT,
         where: {
           ...profileScope,
-          ...this.currentRuleScope(today),
+          OR: [{ status: 'ACTIVE' }, this.currentRuleScope(today)],
         },
       });
       return records.map((record) => this.myFixedRelation(record));
@@ -293,10 +293,13 @@ export class FixedStateService {
     return host.leaveRecords.length > 0 ? 'ON_LEAVE' : 'AVAILABLE';
   }
 
-  private currentFixedRules(asOf: Date) {
+  private displayFixedRules(asOf: Date) {
     return {
       ...HOST_STATE_SELECT.fixedRules,
-      where: this.currentRuleScope(asOf),
+      orderBy: { validFrom: 'desc' as const },
+      where: {
+        OR: [{ status: 'ACTIVE' }, this.currentRuleScope(asOf)],
+      },
     };
   }
 
