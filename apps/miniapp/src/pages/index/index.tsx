@@ -3,6 +3,7 @@ import Taro from '@tarojs/taro';
 import { useEffect, useRef, useState } from 'react';
 
 import { ApiError } from '../../api-client';
+import { submitBindingWithRefresh } from '../../binding-flow';
 import {
   bindWechatAccount,
   type BindableRoleCode,
@@ -105,11 +106,10 @@ export default function IndexPage() {
             ? { nickname: targetName.trim(), roleCode: bindingRole }
             : { realName: targetName.trim(), roleCode: bindingRole, siteCode };
       handleAuthFlow(
-        await bindWechatAccount({
-          bindingChallenge: binding.bindingChallenge,
-          bindingCode: bindingCode.trim(),
-          target,
-        }),
+        await submitBindingWithRefresh(
+          { binding, bindingCode: bindingCode.trim(), target },
+          { bind: bindWechatAccount, login: loginWithWechat },
+        ),
       );
     } catch (cause) {
       setError(message(cause));
