@@ -1,6 +1,6 @@
 import { Button, Input, Text, View } from '@tarojs/components';
 import Taro, { useDidShow } from '@tarojs/taro';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { ApiError } from '../../api-client';
 import { submitBindingWithRefresh } from '../../binding-flow';
@@ -35,7 +35,6 @@ function message(cause: unknown): string {
 }
 
 export default function IndexPage() {
-  const initialized = useRef(false);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [session, setSession] = useState<SessionTokenPair | null>(null);
@@ -55,8 +54,6 @@ export default function IndexPage() {
   const roleHome = session ? getMobileHome(session.role.roleCode) : null;
 
   useEffect(() => {
-    if (initialized.current) return;
-    initialized.current = true;
     void initialize();
   }, []);
 
