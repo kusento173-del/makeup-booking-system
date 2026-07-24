@@ -58,16 +58,37 @@ const NAV_GROUPS: readonly {
 ];
 
 interface BackofficeNavigationProps {
+  readonly collapsed: boolean;
   readonly onSelect: (view: BackofficeView) => void;
+  readonly onToggle: () => void;
   readonly roleCode: BackofficeRoleCode;
   readonly view: BackofficeView;
 }
 
-export function BackofficeNavigation({ onSelect, roleCode, view }: BackofficeNavigationProps) {
+export function BackofficeNavigation({
+  collapsed,
+  onSelect,
+  onToggle,
+  roleCode,
+  view,
+}: BackofficeNavigationProps) {
   return (
-    <aside className="sidebar" aria-label="管理菜单">
-      <div className="sidebar-brand">妆序</div>
-      <nav>
+    <aside className={`sidebar${collapsed ? ' collapsed' : ''}`} aria-label="管理菜单">
+      <div className="sidebar-header">
+        {collapsed ? null : <div className="sidebar-brand">妆序</div>}
+        <button
+          aria-controls="backoffice-navigation"
+          aria-expanded={!collapsed}
+          aria-label={collapsed ? '展开菜单' : '收起菜单'}
+          className="sidebar-toggle"
+          onClick={onToggle}
+          title={collapsed ? '展开菜单' : '收起菜单'}
+          type="button"
+        >
+          {collapsed ? '展开' : '收起'}
+        </button>
+      </div>
+      <nav hidden={collapsed} id="backoffice-navigation">
         {NAV_GROUPS.map((group) => {
           const items = group.items.filter((item) => !item.adminOnly || roleCode === 'ADMIN');
           if (items.length === 0) return null;

@@ -222,6 +222,11 @@ button:disabled {
   display: grid;
   grid-template-columns: 220px minmax(0, 1fr);
   margin: 0 auto;
+  transition: grid-template-columns 160ms ease;
+}
+
+.management-layout.sidebar-is-collapsed {
+  grid-template-columns: 72px minmax(0, 1fr);
 }
 
 .sidebar {
@@ -230,16 +235,58 @@ button:disabled {
   background: #fff;
 }
 
+.sidebar.collapsed {
+  padding-inline: 10px;
+}
+
+.sidebar-header {
+  min-height: 31px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.sidebar.collapsed .sidebar-header {
+  justify-content: center;
+}
+
 .sidebar-brand {
-  padding: 0 12px 20px;
+  padding-left: 12px;
   color: #244f64;
   font-size: 18px;
   font-weight: 800;
 }
 
+.sidebar-toggle {
+  min-height: 31px;
+  padding: 0 8px;
+  border: 1px solid #cbd5dd;
+  border-radius: 5px;
+  background: #fff;
+  color: #40515e;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.sidebar-toggle:hover {
+  border-color: #91a5b2;
+  color: #173f52;
+}
+
+.sidebar.collapsed .sidebar-toggle {
+  width: 100%;
+}
+
 .sidebar nav {
   display: grid;
   gap: 18px;
+}
+
+.sidebar nav[hidden] {
+  display: none;
 }
 
 .nav-group {
@@ -249,27 +296,26 @@ button:disabled {
 
 .nav-group-label {
   margin: 0;
-  padding: 0 12px 6px;
-  color: #7a8792;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  padding: 0 12px 7px;
+  color: #263744;
+  font-size: 16px;
+  font-weight: 800;
 }
 
-.sidebar button {
+.nav-group > button {
   width: 100%;
-  padding: 11px 12px;
+  padding: 9px 12px 9px 24px;
   border: 0;
   border-radius: 6px;
   background: transparent;
   color: #344452;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 15px;
   text-align: left;
 }
 
-.sidebar button:hover,
-.sidebar button[aria-current='page'] {
+.nav-group > button:hover,
+.nav-group > button[aria-current='page'] {
   background: #eaf1f4;
   color: #173f52;
   font-weight: 700;
@@ -1354,6 +1400,19 @@ tbody tr:hover {
     display: none;
   }
 
+  .sidebar-header {
+    min-height: 0;
+    margin: 0 0 8px;
+  }
+
+  .sidebar.collapsed .sidebar-header {
+    margin: 0;
+  }
+
+  .sidebar-toggle {
+    min-height: 34px;
+  }
+
   .sidebar nav {
     display: flex;
     gap: 18px;
@@ -1373,9 +1432,10 @@ tbody tr:hover {
     white-space: nowrap;
   }
 
-  .sidebar button {
+  .nav-group > button {
     width: auto;
     flex: 0 0 auto;
+    padding-inline: 12px;
   }
 
   .management-main {
