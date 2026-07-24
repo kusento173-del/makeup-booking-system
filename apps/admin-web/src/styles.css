@@ -626,6 +626,70 @@ tbody tr:hover {
   padding: 0 16px;
 }
 
+.artist-unavailability-action {
+  align-self: flex-start;
+  margin-top: 6px;
+}
+
+.unavailability-dialog {
+  max-height: min(860px, calc(100vh - 48px));
+  overflow-y: auto;
+}
+
+.unavailability-existing {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #dfe5e8;
+}
+
+.unavailability-existing h3 {
+  margin: 0 0 14px;
+  color: #102b3a;
+  font-size: 16px;
+}
+
+.unavailability-existing > label {
+  display: block;
+  margin: 12px 0 6px;
+  color: #334c59;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.unavailability-existing > input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.unavailability-period-list {
+  margin-top: 12px;
+  border-top: 1px solid #e4e9ec;
+}
+
+.unavailability-period {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 14px 0;
+  border-bottom: 1px solid #e4e9ec;
+}
+
+.unavailability-period strong,
+.unavailability-period span {
+  display: block;
+}
+
+.unavailability-period span {
+  margin-top: 4px;
+  color: #62717b;
+  font-size: 13px;
+}
+
+.danger-text {
+  color: #9b342d;
+}
+
 .date-strip {
   display: grid;
   grid-template-columns: repeat(8, minmax(86px, 1fr));

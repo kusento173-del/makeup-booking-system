@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import { ApiError } from './api-client';
+import { ArtistUnavailabilityDialog } from './ArtistUnavailabilityDialog';
 import type { SessionTokenPair } from './auth-session';
 import { addBusinessDays, businessDateLabel, currentBusinessDate } from './business-date';
 import { CancelBookingDialog } from './CancelBookingDialog';
@@ -79,6 +80,7 @@ export function SchedulePage({ onUnauthorized, session }: SchedulePageProps) {
     readonly type: 'CANCEL' | 'RESCHEDULE';
   } | null>(null);
   const [createBookingOpen, setCreateBookingOpen] = useState(false);
+  const [unavailabilityArtist, setUnavailabilityArtist] = useState<ScheduleArtist | null>(null);
 
   const visibleArtists = useMemo(
     () =>
@@ -328,6 +330,13 @@ export function SchedulePage({ onUnauthorized, session }: SchedulePageProps) {
                   <strong>{artist.artistNickname}</strong>
                   <span>{artist.appointments.length} 个预约</span>
                   {artist.availabilitySource === 'APPROVED_OVERTIME' ? <em>加班</em> : null}
+                  <button
+                    className="text-button artist-unavailability-action"
+                    onClick={() => setUnavailabilityArtist(artist)}
+                    type="button"
+                  >
+                    设置不可排
+                  </button>
                 </div>
                 <div className="artist-availability">
                   {artist.available ? (
@@ -452,6 +461,18 @@ export function SchedulePage({ onUnauthorized, session }: SchedulePageProps) {
           onUnauthorized={onUnauthorized}
           siteId={board.siteId}
           siteName={board.siteName}
+          token={session.accessToken}
+        />
+      ) : null}
+      {unavailabilityArtist ? (
+        <ArtistUnavailabilityDialog
+          artist={unavailabilityArtist}
+          initialDate={date < today ? today : date}
+          maxDate={addBusinessDays(today, 7)}
+          minDate={today}
+          onClose={() => setUnavailabilityArtist(null)}
+          onSuccess={() => setReloadVersion((value) => value + 1)}
+          onUnauthorized={onUnauthorized}
           token={session.accessToken}
         />
       ) : null}
