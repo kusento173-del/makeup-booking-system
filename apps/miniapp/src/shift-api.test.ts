@@ -5,6 +5,7 @@ vi.mock('./api-client', () => ({ apiRequest: vi.fn() }));
 import { apiRequest } from './api-client';
 import {
   getCurrentShift,
+  getLatestShiftChange,
   getOwnArtist,
   getPendingShiftChange,
   setInitialShift,
@@ -56,6 +57,17 @@ describe('shift api', () => {
     request.mockResolvedValue({ items: [{ id: 'change-1' }] });
     await expect(getPendingShiftChange('token-1')).resolves.toEqual({ id: 'change-1' });
     expect(request).toHaveBeenCalledWith('/shift-changes?page=1&pageSize=1&status=PENDING', {
+      token: 'token-1',
+    });
+  });
+
+  it('读取本人最近一次班次修改及审批结果', async () => {
+    request.mockResolvedValue({ items: [{ id: 'change-2', status: 'APPROVED' }] });
+    await expect(getLatestShiftChange('token-1')).resolves.toEqual({
+      id: 'change-2',
+      status: 'APPROVED',
+    });
+    expect(request).toHaveBeenCalledWith('/shift-changes?page=1&pageSize=1', {
       token: 'token-1',
     });
   });

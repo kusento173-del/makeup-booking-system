@@ -135,6 +135,12 @@ export default function SchedulePage() {
 
   return (
     <View className="schedule-page">
+      <View className="schedule-summary">
+        <Text className="schedule-summary-title">{scheduleRangeTitle(range)}</Text>
+        <Text className="schedule-summary-note">
+          {busy ? '正在同步最新排班…' : `当前范围共 ${total} 条预约`}
+        </Text>
+      </View>
       <View className="range-tabs">
         {RANGE_OPTIONS.map((option) => (
           <Button
@@ -177,7 +183,15 @@ export default function SchedulePage() {
         />
       ) : null}
       {!busy && !error && items.length === 0 ? (
-        <PageState message="所选日期范围内暂无排班。" kind="EMPTY" />
+        <PageState
+          message={
+            roleCode === 'ARTIST'
+              ? '当前日期范围内没有化妆预约，你仍可按有效班次接受新预约。'
+              : '当前日期范围内没有化妆预约。'
+          }
+          kind="EMPTY"
+          title="暂无预约"
+        />
       ) : null}
 
       {!error && roleCode
@@ -241,4 +255,8 @@ export default function SchedulePage() {
       ) : null}
     </View>
   );
+}
+
+function scheduleRangeTitle(range: ScheduleRange): string {
+  return RANGE_OPTIONS.find((option) => option.id === range)?.label ?? '我的排班';
 }

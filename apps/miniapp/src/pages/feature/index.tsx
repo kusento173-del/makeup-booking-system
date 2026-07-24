@@ -60,14 +60,16 @@ export default function FeaturePage() {
         actionLabel={state.kind === 'UNAUTHORIZED' ? '返回首页' : undefined}
         kind={state.kind}
         message={
-          state.kind === 'EMPTY' ? '入口已经建立，业务数据将在对应功能闭环中接入。' : state.message
+          state.kind === 'EMPTY'
+            ? '该功能尚未完成业务接入，不是数据加载失败。完成开发后这里会显示可操作内容。'
+            : state.message
         }
         onAction={
           state.kind === 'UNAUTHORIZED'
             ? () => void Taro.reLaunch({ url: '/pages/index/index' })
             : undefined
         }
-        title={state.kind === 'EMPTY' ? '功能准备中' : undefined}
+        title={state.kind === 'EMPTY' ? '功能尚未开放' : undefined}
       />
     </View>
   );

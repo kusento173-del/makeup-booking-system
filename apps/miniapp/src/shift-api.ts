@@ -26,9 +26,12 @@ export interface ArtistShift extends ShiftDefinition {
 }
 
 export interface ShiftChange extends ShiftDefinition {
+  readonly artistNickname?: string;
   readonly effectiveFrom: string;
   readonly id: string;
   readonly reason: string;
+  readonly reviewComment?: string | null;
+  readonly reviewedAt?: string | null;
   readonly rowVersion: number;
   readonly status: 'APPROVED' | 'PENDING' | 'REJECTED' | 'WITHDRAWN';
   readonly submittedAt: string;
@@ -68,6 +71,11 @@ export async function getPendingShiftChange(token: string): Promise<ShiftChange 
     '/shift-changes?page=1&pageSize=1&status=PENDING',
     { token },
   );
+  return page.items[0] ?? null;
+}
+
+export async function getLatestShiftChange(token: string): Promise<ShiftChange | null> {
+  const page = await apiRequest<ShiftChangePage>('/shift-changes?page=1&pageSize=1', { token });
   return page.items[0] ?? null;
 }
 

@@ -1,6 +1,6 @@
 import { Button, Picker, Text, Textarea, View } from '@tarojs/components';
-import Taro from '@tarojs/taro';
-import { useEffect, useState } from 'react';
+import Taro, { useDidShow } from '@tarojs/taro';
+import { useState } from 'react';
 
 import { ApiError } from '../../api-client';
 import { restoreSession } from '../../auth-session';
@@ -8,8 +8,8 @@ import { PageState } from '../../components/PageState';
 import {
   type ArtistShift,
   getCurrentShift,
+  getLatestShiftChange,
   getOwnArtist,
-  getPendingShiftChange,
   setInitialShift,
   type ShiftChange,
   type ShiftDefinition,
@@ -52,7 +52,7 @@ export default function ShiftPage() {
   const [artistId, setArtistId] = useState('');
   const [token, setToken] = useState('');
   const [current, setCurrent] = useState<ArtistShift | null>(null);
-  const [pending, setPending] = useState<ShiftChange | null>(null);
+  const [latestChange, setLatestChange] = useState<ShiftChange | null>(null);
   const [definition, setDefinition] = useState<ShiftDefinition>(DEFAULT_SHIFT);
   const [hasBreak, setHasBreak] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -62,9 +62,9 @@ export default function ShiftPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  useDidShow(() => {
     void load();
-  }, []);
+  });
 
   async function load(): Promise<void> {
     setLoading(true);
@@ -87,12 +87,12 @@ export default function ShiftPage() {
       setArtistId(artist.id);
       setArtistName(artist.nickname);
       setToken(session.accessToken);
-      const [currentShift, pendingChange] = await Promise.all([
+      const [currentShift, recentChange] = await Promise.all([
         getCurrentShift(session.accessToken, artist.id),
-        getPendingShiftChange(session.accessToken),
+        getLatestShiftChange(session.accessToken),
       ]);
       setCurrent(currentShift);
-      setPending(pendingChange);
+      setLatestChange(recentChange);
     } catch (cause) {
       setError(errorMessage(cause));
     } finally {
@@ -164,7 +164,7 @@ export default function ShiftPage() {
           effectiveFrom,
           reason: reason.trim(),
         });
-        setPending(change);
+        setLatestChange(change);
         setEditing(false);
         await Taro.showToast({ icon: 'success', title: '已提交审核' });
       } else {
@@ -180,7 +180,7 @@ export default function ShiftPage() {
   }
 
   async function withdraw(): Promise<void> {
-    if (!pending || !token) return;
+    if (!latestChange || latestChange.status !== 'PENDING' || !token) return;
     const confirmed = await Taro.showModal({
       cancelText: '保留申请',
       confirmText: '确认撤回',
@@ -191,8 +191,8 @@ export default function ShiftPage() {
     setSaving(true);
     setError(null);
     try {
-      await withdrawShiftChange(token, pending.id, pending.rowVersion);
-      setPending(null);
+      await withdrawShiftChange(token, latestChange.id, latestChange.rowVersion);
+      setLatestChange({ ...latestChange, status: 'WITHDRAWN' });
       await Taro.showToast({ icon: 'success', title: '申请已撤回' });
     } catch (cause) {
       setError(errorMessage(cause));
@@ -220,17 +220,30 @@ export default function ShiftPage() {
             当前为第 {current.versionNo} 版。首次设置已完成，后续修改需要提交客服审核。
           </Text>
         </View>
-        {pending ? (
+        {latestChange ? (
           <View className="shift-warning">
-            <Text className="warning-title">班次修改待审核</Text>
-            <Text className="shift-row">计划生效：{pending.effectiveFrom}</Text>
-            <Text className="shift-row">工作日：{workdayLabel(pending.workdays)}</Text>
-            <Text className="shift-row">工作时间：{shiftTimeLabel(pending)}</Text>
-            <Text className="shift-row">修改原因：{pending.reason}</Text>
-            <Text className="shift-note">审核通过前仍按当前班次开放预约。</Text>
-            <Button className="secondary-button" disabled={saving} onClick={() => void withdraw()}>
-              {saving ? '正在撤回…' : '撤回申请'}
-            </Button>
+            <Text className="warning-title">{changeStatusTitle(latestChange.status)}</Text>
+            <Text className="shift-row">计划生效：{latestChange.effectiveFrom}</Text>
+            <Text className="shift-row">工作日：{workdayLabel(latestChange.workdays)}</Text>
+            <Text className="shift-row">工作时间：{shiftTimeLabel(latestChange)}</Text>
+            <Text className="shift-row">修改原因：{latestChange.reason}</Text>
+            {latestChange.reviewComment ? (
+              <Text className="shift-row">审核意见：{latestChange.reviewComment}</Text>
+            ) : null}
+            <Text className="shift-note">{changeStatusNote(latestChange.status)}</Text>
+            {latestChange.status === 'PENDING' ? (
+              <Button
+                className="secondary-button"
+                disabled={saving}
+                onClick={() => void withdraw()}
+              >
+                {saving ? '正在撤回…' : '撤回申请'}
+              </Button>
+            ) : (
+              <Button className="secondary-button" onClick={beginEdit}>
+                再次申请修改
+              </Button>
+            )}
           </View>
         ) : (
           <Button className="save-button" onClick={beginEdit}>
@@ -361,6 +374,20 @@ export default function ShiftPage() {
       ) : null}
     </View>
   );
+}
+
+function changeStatusTitle(status: ShiftChange['status']): string {
+  if (status === 'PENDING') return '班次修改待审核';
+  if (status === 'APPROVED') return '班次修改已通过';
+  if (status === 'REJECTED') return '班次修改未通过';
+  return '班次修改已撤回';
+}
+
+function changeStatusNote(status: ShiftChange['status']): string {
+  if (status === 'PENDING') return '审核通过前仍按当前班次开放预约。';
+  if (status === 'APPROVED') return '新班次将在计划生效日期开始使用。';
+  if (status === 'REJECTED') return '当前班次保持不变，可以调整后重新申请。';
+  return '当前班次保持不变，可以重新提交申请。';
 }
 
 function TimePicker(props: {
