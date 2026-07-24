@@ -3,6 +3,7 @@ import { useState } from 'react';
 import type { SessionTokenPair } from './auth-session';
 import { BackofficeNavigation, type BackofficeView } from './BackofficeNavigation';
 import { ExportPage } from './ExportPage';
+import { FixedRulePage } from './FixedRulePage';
 import { FixedRequestApprovalPage } from './FixedRequestApprovalPage';
 import { ManagementPage } from './ManagementPage';
 import { OvertimeApprovalPage } from './OvertimeApprovalPage';
@@ -47,6 +48,8 @@ export function DashboardShell({ busy, onLogout, onUnauthorized, session }: Dash
           <OvertimeApprovalPage onUnauthorized={onUnauthorized} session={session} />
         ) : view === 'fixed-approvals' ? (
           <FixedRequestApprovalPage onUnauthorized={onUnauthorized} session={session} />
+        ) : view === 'fixed-rules' ? (
+          <FixedRulePage onUnauthorized={onUnauthorized} session={session} />
         ) : (
           <ManagementPage
             key={view}

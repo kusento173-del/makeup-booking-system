@@ -15,6 +15,8 @@ import type {
   WithdrawFixedRequestCommand,
 } from './fixed-request.types';
 import type {
+  FixedRuleListInput,
+  FixedRuleStatus,
   FixedRequestListInput,
   FixedRequestStatus,
   FixedRequestType,
@@ -214,6 +216,33 @@ export function parseFixedRequestList(query: unknown): FixedRequestListInput {
     pageSize,
     ...(input.requestType ? { requestType: input.requestType as FixedRequestType } : {}),
     ...(input.status ? { status: input.status as FixedRequestStatus } : {}),
+  };
+}
+
+export function parseFixedRuleList(query: unknown): FixedRuleListInput {
+  const input = record(query);
+  exactKeys(input, ['page', 'pageSize', 'search', 'siteId', 'status']);
+  const page = input.page === undefined ? 1 : integer(input.page, true);
+  const pageSize = input.pageSize === undefined ? 50 : integer(input.pageSize, true);
+  const statuses: readonly FixedRuleStatus[] = ['ACTIVE', 'ENDED'];
+  const search =
+    typeof input.search === 'string' ? input.search.normalize('NFKC').trim() : undefined;
+  if (
+    page < 1 ||
+    pageSize < 1 ||
+    pageSize > 100 ||
+    (input.search !== undefined &&
+      (search === undefined || search.length < 1 || search.length > 100)) ||
+    (input.status !== undefined && !statuses.includes(input.status as FixedRuleStatus))
+  ) {
+    throw new BookingRequestInvalidError();
+  }
+  return {
+    page,
+    pageSize,
+    ...(search ? { search } : {}),
+    ...(input.siteId !== undefined ? { siteId: uuid(input.siteId) } : {}),
+    ...(input.status ? { status: input.status as FixedRuleStatus } : {}),
   };
 }
 

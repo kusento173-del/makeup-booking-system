@@ -36,6 +36,7 @@ import {
   CreateFixedRequestDto,
   FixedAvailabilityResultDto,
   FixedHostStateDto,
+  FixedRulePageDto,
   FixedRequestCreateResultDto,
   FixedRequestPageDto,
   FixedRequestReviewResultDto,
@@ -49,6 +50,7 @@ import {
   parseCreateFixedRequest,
   parseFixedAvailabilityRequest,
   parseFixedHostStateRequest,
+  parseFixedRuleList,
   parseFixedRequestList,
   parseReviewFixedRequest,
   parseWithdrawFixedRequest,
@@ -56,7 +58,7 @@ import {
 import { FixedAvailabilityService } from './fixed-availability.service';
 import type { FixedAvailabilityResult } from './fixed-availability.types';
 import { FixedRequestQueryService } from './fixed-request-query.service';
-import type { FixedRequestPage } from './fixed-request-query.types';
+import type { FixedRequestPage, FixedRulePage } from './fixed-request-query.types';
 import { FixedRequestReviewService } from './fixed-request-review.service';
 import { FixedRequestWithdrawService } from './fixed-request-withdraw.service';
 import { FixedRequestService } from './fixed-request.service';
@@ -113,6 +115,21 @@ export class FixedAppointmentController {
     @CurrentAuth() authorization: AccessTokenClaims,
   ): Promise<FixedHostState> {
     return this.states.get(authorization, parseFixedHostStateRequest(hostId));
+  }
+
+  @Get('rules')
+  @ApiOperation({ summary: '查询客服或管理员权限范围内的固定主播名单' })
+  @ApiQuery({ minimum: 1, name: 'page', required: false, type: Number })
+  @ApiQuery({ maximum: 100, minimum: 1, name: 'pageSize', required: false, type: Number })
+  @ApiQuery({ maxLength: 100, name: 'search', required: false, type: String })
+  @ApiQuery({ format: 'uuid', name: 'siteId', required: false, type: String })
+  @ApiQuery({ enum: ['ACTIVE', 'ENDED'], name: 'status', required: false })
+  @ApiOkResponse({ type: FixedRulePageDto })
+  listRules(
+    @Query() query: unknown,
+    @CurrentAuth() authorization: AccessTokenClaims,
+  ): Promise<FixedRulePage> {
+    return this.requestQueries.listRules(authorization, parseFixedRuleList(query));
   }
 
   @Get('requests')

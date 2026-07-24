@@ -39,9 +39,28 @@ const record = {
   targetStartMinute: 540,
   targetWeekdays: [1, 3],
 };
+const ruleRecord = {
+  artist: { nickname: '柔柔', realName: '王四' },
+  artistId: 'artist-1',
+  durationMinutes: 30,
+  host: { hostCode: 'ZB01001', nickname: '小雨', realName: '张三' },
+  hostId: 'host-1',
+  id: 'rule-1',
+  site: { name: '松江场地' },
+  siteId: 'site-1',
+  startMinute: 540,
+  status: 'ACTIVE',
+  validFrom: new Date('2026-07-27T00:00:00.000Z'),
+  validUntil: null,
+  weekdays: [{ isoWeekday: 1 }, { isoWeekday: 3 }],
+};
 
 function createService(records: readonly object[] = [record]) {
   const client = {
+    fixedAppointmentRule: {
+      count: vi.fn().mockResolvedValue(1),
+      findMany: vi.fn().mockResolvedValue([ruleRecord]),
+    },
     fixedAppointmentRequest: {
       count: vi.fn().mockResolvedValue(records.length),
       findMany: vi.fn().mockResolvedValue(records),
@@ -140,6 +159,79 @@ describe('FixedRequestQueryService', () => {
     const { service } = createService();
     expect(() =>
       service.list({ ...context, roleCode: 'HOST' }, { page: 1, pageSize: 20 }, now),
+    ).toThrow(AuthorizationDeniedError);
+  });
+
+  it('lists fixed rules with site, search and schedule details', async () => {
+    const { client, service } = createService();
+
+    const result = await service.listRules(
+      { ...context, roleCode: 'ADMIN', siteId: null },
+      {
+        page: 1,
+        pageSize: 50,
+        search: '小雨',
+        siteId: 'site-1',
+        status: 'ACTIVE',
+      },
+    );
+
+    expect(result).toEqual({
+      items: [
+        {
+          artistId: 'artist-1',
+          artistNickname: '柔柔',
+          durationMinutes: 30,
+          hostCode: 'ZB01001',
+          hostId: 'host-1',
+          hostName: '小雨',
+          id: 'rule-1',
+          siteId: 'site-1',
+          siteName: '松江场地',
+          startMinute: 540,
+          status: 'ACTIVE',
+          validFrom: '2026-07-27',
+          validUntil: null,
+          weekdays: [1, 3],
+        },
+      ],
+      page: 1,
+      pageSize: 50,
+      total: 1,
+    });
+    expect(client.fixedAppointmentRule.findMany.mock.calls[0]?.[0]).toMatchObject({
+      skip: 0,
+      take: 50,
+      where: {
+        AND: [
+          { siteId: 'site-1' },
+          { status: 'ACTIVE' },
+          {
+            OR: [
+              { artist: { nickname: { contains: '小雨', mode: 'insensitive' } } },
+              { artist: { realName: { contains: '小雨', mode: 'insensitive' } } },
+              { host: { hostCode: { contains: '小雨', mode: 'insensitive' } } },
+              { host: { nickname: { contains: '小雨', mode: 'insensitive' } } },
+              { host: { realName: { contains: '小雨', mode: 'insensitive' } } },
+            ],
+          },
+        ],
+      },
+    });
+  });
+
+  it('scopes customer-service fixed rules to its assigned site', async () => {
+    const { client, service } = createService();
+    await service.listRules(
+      { ...context, roleCode: 'CUSTOMER_SERVICE' },
+      { page: 1, pageSize: 20, siteId: 'another-site' },
+    );
+
+    expect(client.fixedAppointmentRule.findMany.mock.calls[0]?.[0]).toMatchObject({
+      where: { siteId: 'site-1' },
+    });
+    expect(() =>
+      service.listRules({ ...context, roleCode: 'OPERATOR' }, { page: 1, pageSize: 20 }),
     ).toThrow(AuthorizationDeniedError);
   });
 });

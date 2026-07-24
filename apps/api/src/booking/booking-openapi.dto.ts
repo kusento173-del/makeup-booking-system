@@ -296,6 +296,64 @@ export class FixedRequestPageDto {
   total!: number;
 }
 
+export class FixedRuleListItemDto {
+  @ApiProperty({ format: 'uuid' })
+  artistId!: string;
+
+  @ApiProperty()
+  artistNickname!: string;
+
+  @ApiProperty({ enum: [15, 30, 45, 60] })
+  durationMinutes!: number;
+
+  @ApiProperty()
+  hostCode!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  hostId!: string;
+
+  @ApiProperty()
+  hostName!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  siteId!: string;
+
+  @ApiProperty()
+  siteName!: string;
+
+  @ApiProperty({ maximum: 1425, minimum: 0, multipleOf: 15 })
+  startMinute!: number;
+
+  @ApiProperty({ enum: ['ACTIVE', 'ENDED'] })
+  status!: string;
+
+  @ApiProperty({ format: 'date' })
+  validFrom!: string;
+
+  @ApiProperty({ format: 'date', nullable: true })
+  validUntil!: string | null;
+
+  @ApiProperty({ isArray: true, maximum: 7, minimum: 1, type: Number })
+  weekdays!: number[];
+}
+
+export class FixedRulePageDto {
+  @ApiProperty({ isArray: true, type: FixedRuleListItemDto })
+  items!: FixedRuleListItemDto[];
+
+  @ApiProperty({ minimum: 1 })
+  page!: number;
+
+  @ApiProperty({ maximum: 100, minimum: 1 })
+  pageSize!: number;
+
+  @ApiProperty({ minimum: 0 })
+  total!: number;
+}
+
 export class ReviewFixedRequestDto {
   @ApiPropertyOptional({ maxLength: 500 })
   comment?: string;

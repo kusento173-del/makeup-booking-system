@@ -131,6 +131,38 @@ describe('FixedAppointmentController', () => {
     });
   });
 
+  it('lists fixed rules with strict filters and verified identity', async () => {
+    const listRules = vi.fn().mockResolvedValue({ items: [], page: 1, pageSize: 50, total: 0 });
+    const controller = new FixedAppointmentController(
+      {} as FixedAvailabilityService,
+      {} as MasterDataCommandContextService,
+      { listRules } as unknown as FixedRequestQueryService,
+      {} as FixedRequestReviewService,
+      {} as FixedRequestService,
+      {} as FixedStateService,
+      {} as FixedRequestWithdrawService,
+    );
+
+    await controller.listRules(
+      {
+        page: '1',
+        pageSize: '50',
+        search: '阿伟',
+        siteId: artistId,
+        status: 'ACTIVE',
+      },
+      authorization,
+    );
+
+    expect(listRules).toHaveBeenCalledWith(authorization, {
+      page: 1,
+      pageSize: 50,
+      search: '阿伟',
+      siteId: artistId,
+      status: 'ACTIVE',
+    });
+  });
+
   it('submits fixed changes and cancellations through the operator context', async () => {
     const commandContext = { actorName: '运营小周', ...authorization };
     const resolve = vi.fn().mockResolvedValue(commandContext);

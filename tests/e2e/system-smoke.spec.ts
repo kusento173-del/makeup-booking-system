@@ -135,6 +135,34 @@ test('已登录管理员可查看排班详情并进入主播维护', async ({ pa
       });
       return;
     }
+    if (path === '/api/fixed-appointments/rules') {
+      await route.fulfill({
+        json: {
+          items: [
+            {
+              artistId: 'artist-1',
+              artistNickname: '柔柔',
+              durationMinutes: 30,
+              hostCode: 'ZB0001',
+              hostId: 'host-1',
+              hostName: '小雨',
+              id: 'rule-1',
+              siteId: 'site-1',
+              siteName: '松江',
+              startMinute: 570,
+              status: 'ACTIVE',
+              validFrom: '2026-07-27',
+              validUntil: null,
+              weekdays: [1, 3, 5],
+            },
+          ],
+          page: 1,
+          pageSize: 50,
+          total: 1,
+        },
+      });
+      return;
+    }
     await route.fulfill({
       json: {
         items: [
@@ -159,6 +187,10 @@ test('已登录管理员可查看排班详情并进入主播维护', async ({ pa
   await page.goto('/');
 
   await expect(page.getByRole('heading', { name: '排班看板' })).toBeVisible();
+  await expect(page.getByRole('region', { name: '排班管理' })).toBeVisible();
+  await expect(page.getByRole('region', { name: '审批管理' })).toBeVisible();
+  await expect(page.getByRole('region', { name: '人员管理' })).toBeVisible();
+  await expect(page.getByRole('region', { name: '系统设置' })).toBeVisible();
   await expect(page.getByRole('article').getByText('柔柔', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: '设置不可排' })).toBeVisible();
   await expect(page.getByText('临时不可排 14:00–15:00')).toBeVisible();
@@ -181,6 +213,13 @@ test('已登录管理员可查看排班详情并进入主播维护', async ({ pa
   await expect(page.getByRole('heading', { name: '维护主播' })).toBeVisible();
   await expect(page.getByLabel('修改原因')).toBeVisible();
   await page.getByRole('button', { name: '关闭' }).click();
+
+  await page.getByRole('button', { name: '固定主播名单' }).click();
+  await expect(page.getByRole('heading', { name: '固定主播名单' })).toBeVisible();
+  await expect(page.getByText('共 1 位固定主播')).toBeVisible();
+  await expect(page.getByText('ZB0001')).toBeVisible();
+  await expect(page.getByText('周一、周三、周五')).toBeVisible();
+  await expect(page.getByText('09:30–10:00')).toBeVisible();
 
   await page.getByRole('button', { name: '固定申请审批' }).click();
   await expect(page.getByRole('heading', { name: '固定申请' })).toBeVisible();

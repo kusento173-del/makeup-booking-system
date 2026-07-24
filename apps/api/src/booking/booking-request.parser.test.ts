@@ -11,6 +11,7 @@ import {
   parseCreateFixedRequest,
   parseFixedAvailabilityRequest,
   parseFixedHostStateRequest,
+  parseFixedRuleList,
   parseFixedRequestList,
   parseRescheduleBookingRequest,
   parseReviewFixedRequest,
@@ -154,6 +155,27 @@ describe('booking request parser', () => {
     ).toEqual({ page: 2, pageSize: 100, requestType: 'CHANGE', status: 'APPROVED' });
     expect(() => parseFixedRequestList({ pageSize: '101' })).toThrow(BookingRequestInvalidError);
     expect(() => parseFixedRequestList({ siteId: 'forged' })).toThrow(BookingRequestInvalidError);
+  });
+
+  it('parses fixed-rule list filters without accepting unknown fields', () => {
+    expect(
+      parseFixedRuleList({
+        page: '2',
+        pageSize: '100',
+        search: ' 阿伟 ',
+        siteId: artistId,
+        status: 'ACTIVE',
+      }),
+    ).toEqual({
+      page: 2,
+      pageSize: 100,
+      search: '阿伟',
+      siteId: artistId,
+      status: 'ACTIVE',
+    });
+    expect(() => parseFixedRuleList({ pageSize: '101' })).toThrow(BookingRequestInvalidError);
+    expect(() => parseFixedRuleList({ search: ' ' })).toThrow(BookingRequestInvalidError);
+    expect(() => parseFixedRuleList({ requestType: 'CREATE' })).toThrow(BookingRequestInvalidError);
   });
 
   it('parses strict fixed change and cancellation requests', () => {

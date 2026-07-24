@@ -7,6 +7,10 @@ import { DatabaseService } from '../database/database.service';
 import { formatDateOnly, toBusinessDate } from '../shift/business-date';
 import { FixedRequestStateConflictError } from './fixed-request.errors';
 import type {
+  FixedRuleListInput,
+  FixedRuleListItem,
+  FixedRulePage,
+  FixedRuleStatus,
   FixedRequestListInput,
   FixedRequestListItem,
   FixedRequestPage,
@@ -40,6 +44,24 @@ const REQUEST_SELECT = {
 
 type RequestRecord = Prisma.FixedAppointmentRequestGetPayload<{ select: typeof REQUEST_SELECT }>;
 
+const RULE_SELECT = {
+  artist: { select: { nickname: true, realName: true } },
+  artistId: true,
+  durationMinutes: true,
+  host: { select: { hostCode: true, nickname: true, realName: true } },
+  hostId: true,
+  id: true,
+  site: { select: { name: true } },
+  siteId: true,
+  startMinute: true,
+  status: true,
+  validFrom: true,
+  validUntil: true,
+  weekdays: { orderBy: { isoWeekday: 'asc' as const }, select: { isoWeekday: true } },
+} satisfies Prisma.FixedAppointmentRuleSelect;
+
+type RuleRecord = Prisma.FixedAppointmentRuleGetPayload<{ select: typeof RULE_SELECT }>;
+
 @Injectable()
 export class FixedRequestQueryService {
   constructor(
@@ -67,6 +89,38 @@ export class FixedRequestQueryService {
       ]);
       return {
         items: records.map((record) => this.toItem(record)),
+        page: input.page,
+        pageSize: input.pageSize,
+        total,
+      };
+    });
+  }
+
+  listRules(
+    context: VerifiedAuthorizationContext,
+    input: FixedRuleListInput,
+  ): Promise<FixedRulePage> {
+    this.authorization.assertRole(context, ['CUSTOMER_SERVICE', 'ADMIN']);
+    const where = this.ruleScope(context, input);
+    return this.database.read(async (client) => {
+      const [records, total] = await Promise.all([
+        client.fixedAppointmentRule.findMany({
+          orderBy: [
+            { status: 'asc' },
+            { siteId: 'asc' },
+            { artistId: 'asc' },
+            { startMinute: 'asc' },
+            { hostId: 'asc' },
+          ],
+          select: RULE_SELECT,
+          skip: (input.page - 1) * input.pageSize,
+          take: input.pageSize,
+          where,
+        }),
+        client.fixedAppointmentRule.count({ where }),
+      ]);
+      return {
+        items: records.map((record) => this.toRuleItem(record)),
         page: input.page,
         pageSize: input.pageSize,
         total,
@@ -139,11 +193,57 @@ export class FixedRequestQueryService {
     };
   }
 
+  private ruleScope(
+    context: VerifiedAuthorizationContext,
+    input: FixedRuleListInput,
+  ): Prisma.FixedAppointmentRuleWhereInput {
+    const filters: Prisma.FixedAppointmentRuleWhereInput[] = [];
+    const siteId = context.roleCode === 'CUSTOMER_SERVICE' ? context.siteId : input.siteId;
+    if (siteId) filters.push({ siteId });
+    if (input.status) filters.push({ status: input.status });
+    if (input.search) {
+      filters.push({
+        OR: [
+          { artist: { nickname: { contains: input.search, mode: 'insensitive' } } },
+          { artist: { realName: { contains: input.search, mode: 'insensitive' } } },
+          { host: { hostCode: { contains: input.search, mode: 'insensitive' } } },
+          { host: { nickname: { contains: input.search, mode: 'insensitive' } } },
+          { host: { realName: { contains: input.search, mode: 'insensitive' } } },
+        ],
+      });
+    }
+    return filters.length > 1 ? { AND: filters } : (filters[0] ?? {});
+  }
+
+  private toRuleItem(record: RuleRecord): FixedRuleListItem {
+    if (!this.ruleStatus(record.status)) throw new FixedRequestStateConflictError();
+    return {
+      artistId: record.artistId,
+      artistNickname: record.artist.nickname || record.artist.realName,
+      durationMinutes: record.durationMinutes,
+      hostCode: record.host.hostCode,
+      hostId: record.hostId,
+      hostName: record.host.nickname ?? record.host.realName,
+      id: record.id,
+      siteId: record.siteId,
+      siteName: record.site.name,
+      startMinute: record.startMinute,
+      status: record.status,
+      validFrom: formatDateOnly(record.validFrom),
+      validUntil: record.validUntil ? formatDateOnly(record.validUntil) : null,
+      weekdays: record.weekdays.map(({ isoWeekday }) => isoWeekday),
+    };
+  }
+
   private requestType(value: string): value is FixedRequestType {
     return ['CANCEL', 'CHANGE', 'CREATE'].includes(value);
   }
 
   private status(value: string): value is FixedRequestStatus {
     return ['APPROVED', 'PENDING', 'REJECTED', 'WITHDRAWN'].includes(value);
+  }
+
+  private ruleStatus(value: string): value is FixedRuleStatus {
+    return value === 'ACTIVE' || value === 'ENDED';
   }
 }
