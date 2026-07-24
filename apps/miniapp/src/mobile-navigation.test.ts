@@ -16,6 +16,7 @@ describe('mobile navigation', () => {
     expect(getAllowedFeature('HOST', 'fixed')).toBeNull();
     expect(getAllowedFeature('OPERATOR', 'fixed')?.title).toBe('固定申请');
     expect(getAllowedFeature('ARTIST', 'overtime')?.title).toBe('加班');
+    expect(getAllowedFeature('ARTIST', 'unavailability')?.title).toBe('临时不可排班');
   });
 
   it('生成稳定的小程序业务入口地址', () => {
@@ -26,5 +27,6 @@ describe('mobile navigation', () => {
     expect(featureRoute('leave', 'ARTIST')).toBe('/pages/leave/index');
     expect(featureRoute('leave', 'HOST')).toBe('/pages/leave/index');
     expect(featureRoute('overtime', 'ARTIST')).toBe('/pages/overtime/index');
+    expect(featureRoute('unavailability', 'ARTIST')).toBe('/pages/unavailability/index');
   });
 });

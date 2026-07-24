@@ -13,6 +13,7 @@ const routes = [
   '/pages/shift/index',
   '/pages/leave/index',
   '/pages/overtime/index',
+  '/pages/unavailability/index',
 ];
 
 function quoteCommandArgument(value) {

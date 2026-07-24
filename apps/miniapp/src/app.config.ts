@@ -6,6 +6,7 @@ export default defineAppConfig({
     'pages/shift/index',
     'pages/leave/index',
     'pages/overtime/index',
+    'pages/unavailability/index',
     'pages/feature/index',
   ],
   window: {

@@ -1,0 +1,123 @@
+.unavailability-page {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 24px 24px 64px;
+}
+
+.unavailability-section {
+  margin-bottom: 18px;
+  padding: 24px;
+  border: 1px solid #d9e1e5;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.unavailability-title,
+.unavailability-note,
+.unavailability-range,
+.unavailability-card-note,
+.unavailability-empty,
+.impact-title,
+.unavailability-impact text {
+  display: block;
+}
+
+.unavailability-title,
+.impact-title {
+  color: #102b3a;
+  font-size: 30px;
+  font-weight: 700;
+}
+
+.unavailability-note,
+.unavailability-card-note,
+.unavailability-empty {
+  margin-top: 8px;
+  color: #62717b;
+  font-size: 24px;
+  line-height: 1.5;
+}
+
+.unavailability-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 82px;
+  border-bottom: 1px solid #e3e9ec;
+  color: #334c59;
+  font-size: 26px;
+}
+
+.unavailability-value {
+  min-width: 220px;
+  padding: 14px 18px;
+  border-radius: 8px;
+  color: #102b3a;
+  background: #edf1f3;
+  font-weight: 700;
+  text-align: center;
+}
+
+.unavailability-reason {
+  width: 100%;
+  min-height: 130px;
+  box-sizing: border-box;
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid #d9e1e5;
+  border-radius: 10px;
+  background: #f8fafb;
+  font-size: 26px;
+}
+
+.unavailability-impact,
+.unavailability-error {
+  margin-top: 18px;
+  padding: 18px;
+  border-radius: 10px;
+  font-size: 24px;
+  line-height: 1.55;
+}
+
+.unavailability-impact {
+  color: #334c59;
+  background: #fff7ea;
+}
+
+.unavailability-error {
+  color: #8b3a32;
+  background: #fff0ed;
+}
+
+.unavailability-primary,
+.unavailability-secondary,
+.unavailability-primary::after,
+.unavailability-secondary::after {
+  border: 0;
+}
+
+.unavailability-primary {
+  margin-top: 20px;
+  color: #fff;
+  background: #245c6d;
+  font-size: 28px;
+}
+
+.unavailability-card {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e3e9ec;
+}
+
+.unavailability-range {
+  color: #102b3a;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.unavailability-secondary {
+  margin: 14px 0 0;
+  color: #8b3a32;
+  background: #fff0ed;
+  font-size: 24px;
+}

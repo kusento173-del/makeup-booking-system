@@ -2,7 +2,14 @@ import type { RoleCode } from './auth-session';
 
 export type MobileRoleCode = Extract<RoleCode, 'ARTIST' | 'HOST' | 'OPERATOR'>;
 export type MobileFeatureId =
-  'booking' | 'fixed' | 'leave' | 'managed-hosts' | 'overtime' | 'schedule' | 'shift';
+  | 'booking'
+  | 'fixed'
+  | 'leave'
+  | 'managed-hosts'
+  | 'overtime'
+  | 'schedule'
+  | 'shift'
+  | 'unavailability';
 
 export interface MobileFeature {
   readonly description: string;
@@ -44,6 +51,11 @@ const HOME_BY_ROLE: Readonly<Record<MobileRoleCode, MobileHome>> = {
       { description: '今日、明日、未来七日和历史记录', id: 'schedule', title: '我的排班' },
       { description: '设置、查看和申请修改固定班次', id: 'shift', title: '班次' },
       { description: '申请未来七日内请假', id: 'leave', title: '请假' },
+      {
+        description: '设置上课、开会等局部不可预约时间',
+        id: 'unavailability',
+        title: '临时不可排班',
+      },
       { description: '为常规非工作日提交加班申请', id: 'overtime', title: '加班' },
     ],
     roleLabel: '化妆师',
@@ -72,6 +84,9 @@ export function featureRoute(featureId: MobileFeatureId, roleCode?: RoleCode): s
     return '/pages/leave/index';
   }
   if (featureId === 'overtime' && roleCode === 'ARTIST') return '/pages/overtime/index';
+  if (featureId === 'unavailability' && roleCode === 'ARTIST') {
+    return '/pages/unavailability/index';
+  }
   if (featureId === 'booking' && (roleCode === 'HOST' || roleCode === 'OPERATOR')) {
     return '/pages/booking/index';
   }
