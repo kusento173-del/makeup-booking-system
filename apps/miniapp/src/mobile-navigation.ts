@@ -68,6 +68,9 @@ export function getAllowedFeature(
 export function featureRoute(featureId: MobileFeatureId, roleCode?: RoleCode): string {
   if (featureId === 'schedule') return '/pages/schedule/index';
   if (featureId === 'shift' && roleCode === 'ARTIST') return '/pages/shift/index';
+  if (featureId === 'leave' && (roleCode === 'HOST' || roleCode === 'ARTIST')) {
+    return '/pages/leave/index';
+  }
   if (featureId === 'booking' && (roleCode === 'HOST' || roleCode === 'OPERATOR')) {
     return '/pages/booking/index';
   }

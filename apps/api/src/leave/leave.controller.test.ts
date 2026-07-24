@@ -18,6 +18,20 @@ const authorization: AccessTokenClaims = {
 const context: LeaveCommandContext = { actorName: '小雨', ...authorization };
 
 describe('LeaveController', () => {
+  it('lists current leave through the signed-in subject scope', async () => {
+    const resolve = vi.fn().mockResolvedValue(context);
+    const listSelf = vi.fn().mockResolvedValue([{ id: leaveId }]);
+    const controller = new LeaveController(
+      { resolve } as unknown as MasterDataCommandContextService,
+      { listSelf } as unknown as LeaveService,
+    );
+
+    await expect(controller.listSelf(authorization, '127.0.0.1')).resolves.toEqual([
+      { id: leaveId },
+    ]);
+    expect(listSelf).toHaveBeenCalledWith(context);
+  });
+
   it('previews strictly parsed dates through a trusted self context', async () => {
     const resolve = vi.fn().mockResolvedValue(context);
     const preview = vi.fn().mockResolvedValue({ affectedAppointmentCount: 0 });

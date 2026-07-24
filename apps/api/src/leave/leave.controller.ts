@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   Headers,
   HttpCode,
   HttpStatus,
@@ -72,6 +73,17 @@ export class LeaveController {
     return this.context(authorization, ipAddress).then((context) =>
       this.leaves.preview(context, command),
     );
+  }
+
+  @Get()
+  @ApiOperation({ summary: '查询本人当前和未来有效请假' })
+  @ApiOkResponse({ type: [LeaveSummaryDto] })
+  async listSelf(
+    @CurrentAuth() authorization: AccessTokenClaims,
+    @Ip() ipAddress: string,
+  ): Promise<readonly LeaveSummary[]> {
+    const context = await this.context(authorization, ipAddress);
+    return this.leaves.listSelf(context);
   }
 
   @Post()

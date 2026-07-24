@@ -52,13 +52,14 @@ function createService(client: object) {
 }
 
 describe('LeaveService', () => {
-  it('previews the bound host future seven-day leave with zero placeholder impact', async () => {
+  it('previews the bound host future seven-day leave with current appointment impact', async () => {
     const { service } = createService({
+      appointment: { count: vi.fn().mockResolvedValue(2) },
       hostProfile: { findUnique: vi.fn().mockResolvedValue(host) },
     });
 
     await expect(service.preview(context, range, now)).resolves.toEqual({
-      affectedAppointmentCount: 0,
+      affectedAppointmentCount: 2,
       endDate: '2026-07-29',
       startDate: '2026-07-23',
       subjectId: 'host-1',
@@ -66,7 +67,7 @@ describe('LeaveService', () => {
     });
   });
 
-  it('rejects today, dates beyond D+7 and unconfirmed changed impact before persistence', () => {
+  it('rejects today and dates beyond D+7 before persistence', () => {
     const { database, service } = createService({});
 
     expect(() =>
@@ -75,9 +76,6 @@ describe('LeaveService', () => {
     expect(() =>
       service.preview(context, { ...range, endDate: new Date('2026-07-30T00:00:00Z') }, now),
     ).toThrow(LeaveDateRangeInvalidError);
-    expect(() =>
-      service.create(context, { ...range, confirmedAffectedAppointmentCount: 1 }, now),
-    ).toThrow(LeaveImpactChangedError);
     expect(database.transaction).not.toHaveBeenCalled();
   });
 
@@ -95,6 +93,11 @@ describe('LeaveService', () => {
       subjectType: 'ARTIST',
     });
     const client = {
+      $queryRaw: vi.fn().mockResolvedValue([{ acquired: 1 }]),
+      appointment: {
+        count: vi.fn().mockResolvedValue(1),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
       artistProfile: {
         findUnique: vi.fn().mockResolvedValue({
           employmentStatus: 'ACTIVE',
@@ -115,18 +118,73 @@ describe('LeaveService', () => {
     await expect(
       service.create(
         artistContext,
-        { ...range, confirmedAffectedAppointmentCount: 0, reason: ' 休息 ' },
+        { ...range, confirmedAffectedAppointmentCount: 1, reason: ' 休息 ' },
         now,
       ),
     ).resolves.toMatchObject({ id: 'leave-1', subjectType: 'ARTIST' });
     const createCall: unknown = create.mock.calls[0]?.[0];
     expect(createCall).toMatchObject({
-      data: { artistId: 'artist-1', hostId: null, reason: '休息' },
+      data: {
+        affectedAppointmentCount: 1,
+        artistId: 'artist-1',
+        hostId: null,
+        reason: '休息',
+      },
+    });
+    const updateCall: unknown = client.appointment.updateMany.mock.calls[0]?.[0];
+    expect(updateCall).toMatchObject({
+      data: {
+        cancellationReasonCode: 'ARTIST_LEAVE',
+        cancellationSourceId: 'leave-1',
+        status: 'CANCELLED',
+      },
     });
     expect(append).toHaveBeenCalledWith(
       client,
       expect.objectContaining({ action: 'LEAVE_CREATED', siteId: 'site-songjiang' }),
     );
+  });
+
+  it('rolls back when appointment impact differs from the confirmed preview', async () => {
+    const client = {
+      $queryRaw: vi.fn().mockResolvedValue([{ acquired: 1 }]),
+      appointment: { count: vi.fn().mockResolvedValue(2) },
+      hostProfile: { findUnique: vi.fn().mockResolvedValue(host) },
+      leaveRecord: { create: vi.fn() },
+    };
+    const { service } = createService(client);
+
+    await expect(
+      service.create(context, { ...range, confirmedAffectedAppointmentCount: 1 }, now),
+    ).rejects.toBeInstanceOf(LeaveImpactChangedError);
+    expect(client.leaveRecord.create).not.toHaveBeenCalled();
+  });
+
+  it('lists current and future active leave for the signed-in subject', async () => {
+    const findMany = vi.fn().mockResolvedValue([
+      {
+        affectedAppointmentCount: 1,
+        artistId: null,
+        endDate: range.endDate,
+        hostId: 'host-1',
+        id: 'leave-1',
+        reason: null,
+        rowVersion: 1,
+        startDate: range.startDate,
+        status: 'ACTIVE',
+        subjectType: 'HOST',
+      },
+    ]);
+    const { service } = createService({
+      hostProfile: { findUnique: vi.fn().mockResolvedValue(host) },
+      leaveRecord: { findMany },
+    });
+
+    await expect(service.listSelf(context, now)).resolves.toMatchObject([{ id: 'leave-1' }]);
+    const listCall: unknown = findMany.mock.calls[0]?.[0];
+    expect(listCall).toMatchObject({
+      where: { hostId: 'host-1', status: 'ACTIVE' },
+    });
   });
 
   it('denies customer service from submitting ordinary leave', async () => {

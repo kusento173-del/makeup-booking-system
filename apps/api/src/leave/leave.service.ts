@@ -4,6 +4,7 @@ import { Injectable } from '@nestjs/common';
 import { AuditCommandService } from '../audit/audit-command.service';
 import { AuthorizationDeniedError } from '../auth/authorization-policy.service';
 import { DatabaseService } from '../database/database.service';
+import { acquireTransactionLock } from '../database/transaction-lock';
 import { formatDateOnly, toBusinessDate } from '../shift/business-date';
 import {
   LeaveDateRangeInvalidError,
@@ -74,9 +75,37 @@ export class LeaveService {
     now = new Date(),
   ): Promise<LeaveImpactPreview> {
     validateRange(range, now);
-    return this.database.read(async (client) =>
-      this.toPreview(await this.resolveSelf(client, context), range),
-    );
+    return this.database.read(async (client) => {
+      const subject = await this.resolveSelf(client, context);
+      return this.toPreview(subject, range, await this.appointmentCount(client, subject, range));
+    });
+  }
+
+  listSelf(context: LeaveCommandContext, now = new Date()): Promise<readonly LeaveSummary[]> {
+    return this.database.read(async (client) => {
+      const subject = await this.resolveSelf(client, context);
+      const leaves = await client.leaveRecord.findMany({
+        orderBy: [{ startDate: 'asc' }, { createdAt: 'desc' }],
+        select: {
+          affectedAppointmentCount: true,
+          artistId: true,
+          endDate: true,
+          hostId: true,
+          id: true,
+          reason: true,
+          rowVersion: true,
+          startDate: true,
+          status: true,
+          subjectType: true,
+        },
+        where: {
+          endDate: { gte: toBusinessDate(now) },
+          status: 'ACTIVE',
+          ...(subject.subjectType === 'ARTIST' ? { artistId: subject.id } : { hostId: subject.id }),
+        },
+      });
+      return leaves.map((leave) => this.toSummary(leave));
+    });
   }
 
   create(
@@ -86,13 +115,16 @@ export class LeaveService {
   ): Promise<LeaveSummary> {
     validateRange(command, now);
     const reason = optionalReason(command.reason);
-    if (command.confirmedAffectedAppointmentCount !== 0) throw new LeaveImpactChangedError();
-
     return this.database.transaction(async (transaction) => {
       const subject = await this.resolveSelf(transaction, context);
+      await this.lockSchedule(transaction, subject, command);
+      const affectedAppointmentCount = await this.appointmentCount(transaction, subject, command);
+      if (command.confirmedAffectedAppointmentCount !== affectedAppointmentCount) {
+        throw new LeaveImpactChangedError();
+      }
       const leave = await transaction.leaveRecord.create({
         data: {
-          affectedAppointmentCount: 0,
+          affectedAppointmentCount,
           artistId: subject.subjectType === 'ARTIST' ? subject.id : null,
           createdByUserId: context.userId,
           endDate: command.endDate,
@@ -115,6 +147,20 @@ export class LeaveService {
         },
       });
       const summary = this.toSummary(leave);
+      const cancelled = await transaction.appointment.updateMany({
+        data: {
+          cancellationReasonCode: subject.subjectType === 'ARTIST' ? 'ARTIST_LEAVE' : 'HOST_LEAVE',
+          cancellationReasonText: reason ?? null,
+          cancellationSourceId: leave.id,
+          cancellationSourceType: 'LEAVE_RECORD',
+          cancelledAt: now,
+          cancelledByUserId: context.userId,
+          rowVersion: { increment: 1 },
+          status: 'CANCELLED',
+        },
+        where: this.appointmentWhere(subject, command),
+      });
+      if (cancelled.count !== affectedAppointmentCount) throw new LeaveImpactChangedError();
       await this.audit.append(transaction, context, {
         action: 'LEAVE_CREATED',
         afterData: { ...summary },
@@ -209,9 +255,50 @@ export class LeaveService {
     throw new AuthorizationDeniedError();
   }
 
-  private toPreview(subject: LeaveSubject, range: LeaveDateRange): LeaveImpactPreview {
+  private appointmentCount(
+    client: DatabaseClient | Prisma.TransactionClient,
+    subject: LeaveSubject,
+    range: LeaveDateRange,
+  ): Promise<number> {
+    return client.appointment.count({ where: this.appointmentWhere(subject, range) });
+  }
+
+  private appointmentWhere(
+    subject: LeaveSubject,
+    range: LeaveDateRange,
+  ): Prisma.AppointmentWhereInput {
     return {
-      affectedAppointmentCount: 0,
+      appointmentDate: { gte: range.startDate, lte: range.endDate },
+      status: 'BOOKED',
+      ...(subject.subjectType === 'ARTIST' ? { artistId: subject.id } : { hostId: subject.id }),
+    };
+  }
+
+  private async lockSchedule(
+    transaction: Prisma.TransactionClient,
+    subject: LeaveSubject,
+    range: LeaveDateRange,
+  ): Promise<void> {
+    const prefix = subject.subjectType === 'ARTIST' ? 'artist' : 'host';
+    for (
+      let date = new Date(range.startDate);
+      date <= range.endDate;
+      date.setUTCDate(date.getUTCDate() + 1)
+    ) {
+      await acquireTransactionLock(
+        transaction,
+        `appointment:${prefix}:${subject.id}:${formatDateOnly(date)}`,
+      );
+    }
+  }
+
+  private toPreview(
+    subject: LeaveSubject,
+    range: LeaveDateRange,
+    affectedAppointmentCount: number,
+  ): LeaveImpactPreview {
+    return {
+      affectedAppointmentCount,
       endDate: formatDateOnly(range.endDate),
       startDate: formatDateOnly(range.startDate),
       subjectId: subject.id,

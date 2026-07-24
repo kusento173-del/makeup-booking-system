@@ -23,5 +23,7 @@ describe('mobile navigation', () => {
     expect(featureRoute('booking', 'HOST')).toBe('/pages/booking/index');
     expect(featureRoute('booking', 'OPERATOR')).toBe('/pages/booking/index');
     expect(featureRoute('shift', 'ARTIST')).toBe('/pages/shift/index');
+    expect(featureRoute('leave', 'ARTIST')).toBe('/pages/leave/index');
+    expect(featureRoute('leave', 'HOST')).toBe('/pages/leave/index');
   });
 });
