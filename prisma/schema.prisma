@@ -27,6 +27,7 @@ model Site {
   bindingCodes        AccountBindingCode[]
   shiftChangeRequests ArtistShiftChangeRequest[]
   artistOvertimes     ArtistOvertime[]
+  unavailablePeriods  ArtistUnavailablePeriod[]
   appointments        Appointment[]
   fixedRequests       FixedAppointmentRequest[]
   fixedRules          FixedAppointmentRule[]
@@ -48,36 +49,38 @@ model AppUser {
   updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
   rowVersion       Int       @default(1) @map("row_version")
 
-  identities              UserIdentity[]
-  passwordCredential      PasswordCredential?
-  roles                   UserRole[]                   @relation("UserRoleOwner")
-  assignedRoles           UserRole[]                   @relation("UserRoleAssigner")
-  sessions                AuthSession[]
-  operationLogs           OperationLog[]
-  hostProfile             HostProfile?
-  artistProfile           ArtistProfile?
-  operatorProfile         OperatorProfile?
-  qualificationChanges    HostQualificationHistory[]   @relation("HostQualificationChangedBy")
-  uploadedImportBatches   ImportBatch[]                @relation("ImportBatchUploader")
-  confirmedImportBatches  ImportBatch[]                @relation("ImportBatchConfirmer")
-  createdBindingCodes     AccountBindingCode[]         @relation("BindingCodeCreator")
-  consumedBindingCodes    AccountBindingCode[]         @relation("BindingCodeConsumer")
-  revokedBindingCodes     AccountBindingCode[]         @relation("BindingCodeRevoker")
-  bindingChallenges       AuthBindingChallenge[]
-  roleSelectionChallenges AuthRoleSelectionChallenge[]
-  createdShiftTemplates   ArtistShiftTemplate[]        @relation("ArtistShiftCreatedBy")
-  submittedShiftChanges   ArtistShiftChangeRequest[]   @relation("ArtistShiftSubmittedBy")
-  reviewedShiftChanges    ArtistShiftChangeRequest[]   @relation("ArtistShiftReviewedBy")
-  submittedOvertimes      ArtistOvertime[]             @relation("ArtistOvertimeSubmittedBy")
-  reviewedOvertimes       ArtistOvertime[]             @relation("ArtistOvertimeReviewedBy")
-  createdLeaveRecords     LeaveRecord[]                @relation("LeaveRecordCreatedBy")
-  cancelledLeaveRecords   LeaveRecord[]                @relation("LeaveRecordCancelledBy")
-  createdAppointments     Appointment[]                @relation("AppointmentCreatedBy")
-  cancelledAppointments   Appointment[]                @relation("AppointmentCancelledBy")
-  idempotencyRecords      IdempotencyRecord[]
-  submittedFixedRequests  FixedAppointmentRequest[]    @relation("FixedRequestSubmittedBy")
-  reviewedFixedRequests   FixedAppointmentRequest[]    @relation("FixedRequestReviewedBy")
-  requestedExportJobs     ExportJob[]                  @relation("ExportJobRequester")
+  identities                  UserIdentity[]
+  passwordCredential          PasswordCredential?
+  roles                       UserRole[]                   @relation("UserRoleOwner")
+  assignedRoles               UserRole[]                   @relation("UserRoleAssigner")
+  sessions                    AuthSession[]
+  operationLogs               OperationLog[]
+  hostProfile                 HostProfile?
+  artistProfile               ArtistProfile?
+  operatorProfile             OperatorProfile?
+  qualificationChanges        HostQualificationHistory[]   @relation("HostQualificationChangedBy")
+  uploadedImportBatches       ImportBatch[]                @relation("ImportBatchUploader")
+  confirmedImportBatches      ImportBatch[]                @relation("ImportBatchConfirmer")
+  createdBindingCodes         AccountBindingCode[]         @relation("BindingCodeCreator")
+  consumedBindingCodes        AccountBindingCode[]         @relation("BindingCodeConsumer")
+  revokedBindingCodes         AccountBindingCode[]         @relation("BindingCodeRevoker")
+  bindingChallenges           AuthBindingChallenge[]
+  roleSelectionChallenges     AuthRoleSelectionChallenge[]
+  createdShiftTemplates       ArtistShiftTemplate[]        @relation("ArtistShiftCreatedBy")
+  submittedShiftChanges       ArtistShiftChangeRequest[]   @relation("ArtistShiftSubmittedBy")
+  reviewedShiftChanges        ArtistShiftChangeRequest[]   @relation("ArtistShiftReviewedBy")
+  submittedOvertimes          ArtistOvertime[]             @relation("ArtistOvertimeSubmittedBy")
+  reviewedOvertimes           ArtistOvertime[]             @relation("ArtistOvertimeReviewedBy")
+  createdLeaveRecords         LeaveRecord[]                @relation("LeaveRecordCreatedBy")
+  cancelledLeaveRecords       LeaveRecord[]                @relation("LeaveRecordCancelledBy")
+  createdUnavailablePeriods   ArtistUnavailablePeriod[]    @relation("ArtistUnavailablePeriodCreatedBy")
+  cancelledUnavailablePeriods ArtistUnavailablePeriod[]    @relation("ArtistUnavailablePeriodCancelledBy")
+  createdAppointments         Appointment[]                @relation("AppointmentCreatedBy")
+  cancelledAppointments       Appointment[]                @relation("AppointmentCancelledBy")
+  idempotencyRecords          IdempotencyRecord[]
+  submittedFixedRequests      FixedAppointmentRequest[]    @relation("FixedRequestSubmittedBy")
+  reviewedFixedRequests       FixedAppointmentRequest[]    @relation("FixedRequestReviewedBy")
+  requestedExportJobs         ExportJob[]                  @relation("ExportJobRequester")
 
   @@index([status], map: "app_users_status_idx")
   @@map("app_users")
@@ -265,6 +268,7 @@ model ArtistProfile {
   shiftChangeRequests ArtistShiftChangeRequest[]
   overtimes           ArtistOvertime[]
   leaveRecords        LeaveRecord[]
+  unavailablePeriods  ArtistUnavailablePeriod[]
   appointments        Appointment[]
   targetFixedRequests FixedAppointmentRequest[]
   fixedRules          FixedAppointmentRule[]
@@ -405,6 +409,37 @@ model LeaveRecord {
   @@index([createdByUserId], map: "leave_records_created_by_idx")
   @@index([cancelledByUserId], map: "leave_records_cancelled_by_idx")
   @@map("leave_records")
+}
+
+model ArtistUnavailablePeriod {
+  id                       String                    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  artistId                 String                    @map("artist_id") @db.Uuid
+  siteId                   String                    @map("site_id") @db.Uuid
+  unavailableDate          DateTime                  @map("unavailable_date") @db.Date
+  startMinute              Int                       @map("start_minute") @db.SmallInt
+  endMinute                Int                       @map("end_minute") @db.SmallInt
+  minuteRange              Unsupported("int4range")? @default(dbgenerated("int4range((start_minute)::integer, (end_minute)::integer, '[)'::text)")) @map("minute_range")
+  reason                   String                    @db.VarChar(500)
+  status                   String                    @default("ACTIVE") @db.VarChar(16)
+  createdByUserId          String                    @map("created_by_user_id") @db.Uuid
+  createdAt                DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
+  cancelledByUserId        String?                   @map("cancelled_by_user_id") @db.Uuid
+  cancelledAt              DateTime?                 @map("cancelled_at") @db.Timestamptz(3)
+  cancellationReason       String?                   @map("cancellation_reason") @db.VarChar(500)
+  affectedAppointmentCount Int                       @default(0) @map("affected_appointment_count")
+  updatedAt                DateTime                  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  rowVersion               Int                       @default(1) @map("row_version")
+
+  artist      ArtistProfile @relation(fields: [artistId, siteId], references: [id, siteId], onDelete: Restrict, onUpdate: Cascade, map: "artist_unavailable_periods_artist_site_fkey")
+  site        Site          @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  createdBy   AppUser       @relation("ArtistUnavailablePeriodCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  cancelledBy AppUser?      @relation("ArtistUnavailablePeriodCancelledBy", fields: [cancelledByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([artistId, unavailableDate, status], map: "artist_unavailable_periods_artist_date_status_idx")
+  @@index([siteId, unavailableDate, status], map: "artist_unavailable_periods_site_date_status_idx")
+  @@index([createdByUserId], map: "artist_unavailable_periods_created_by_idx")
+  @@index([cancelledByUserId], map: "artist_unavailable_periods_cancelled_by_idx")
+  @@map("artist_unavailable_periods")
 }
 
 model Appointment {
