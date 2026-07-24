@@ -46,6 +46,7 @@ const artists = [
     availabilitySource: 'REGULAR_SHIFT',
     available: true,
     breakInterval: null,
+    unavailablePeriods: [],
     unavailableReason: null,
     workIntervals: [{ endMinute: 1020, startMinute: 540 }],
   },

@@ -75,6 +75,9 @@ export class ScheduleArtistRowDto {
   breakInterval!: ScheduleMinuteIntervalDto | null;
 
   @ApiProperty({ isArray: true, type: ScheduleMinuteIntervalDto })
+  unavailablePeriods!: ScheduleMinuteIntervalDto[];
+
+  @ApiProperty({ isArray: true, type: ScheduleMinuteIntervalDto })
   workIntervals!: ScheduleMinuteIntervalDto[];
 
   @ApiProperty({

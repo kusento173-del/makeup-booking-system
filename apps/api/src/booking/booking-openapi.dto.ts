@@ -9,6 +9,9 @@ export class BookingSlotDto {
 
   @ApiProperty({ maximum: 1425, minimum: 0, multipleOf: 15 })
   startMinute!: number;
+
+  @ApiProperty({ format: 'date', isArray: true, type: String })
+  unavailablePeriodConflictDates!: string[];
 }
 
 export class BookingSlotResultDto {

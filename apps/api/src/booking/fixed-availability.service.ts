@@ -38,6 +38,12 @@ interface TimedAppointment {
   readonly startAt: Date;
 }
 
+interface TimedUnavailablePeriod {
+  readonly endMinute: number;
+  readonly startMinute: number;
+  readonly unavailableDate: Date;
+}
+
 export interface FixedAvailabilityQueryOptions {
   readonly excludeRuleId?: string;
   readonly excludeRequestId?: string;
@@ -296,37 +302,46 @@ export class FixedAvailabilityService {
     if (starts.length === 0) {
       return { ...base, slots: [], unavailableReason: 'NO_STABLE_TIME_SLOT' };
     }
-    const [fixedOccupations, pendingOccupations, artistSingles, hostSingles] = await Promise.all([
-      client.fixedAppointmentRuleWeekday.findMany({
-        select: {
-          endMinute: true,
-          isoWeekday: true,
-          startMinute: true,
-        },
-        where: {
-          ...(options.excludeRuleId ? { ruleId: { not: options.excludeRuleId } } : {}),
-          isoWeekday: { in: [...weekdays] },
-          OR: [{ artistId: input.artistId }, { hostId: input.hostId }],
-          AND: [{ OR: [{ validUntil: null }, { validUntil: { gt: input.requestedStartDate } }] }],
-        },
-      }),
-      client.fixedAppointmentRequest.findMany({
-        select: {
-          targetDurationMinutes: true,
-          targetStartMinute: true,
-          targetWeekdays: true,
-        },
-        where: {
-          hostId: { not: input.hostId },
-          ...(options.excludeRequestId ? { id: { not: options.excludeRequestId } } : {}),
-          status: 'PENDING',
-          targetArtistId: input.artistId,
-          targetWeekdays: { hasSome: [...weekdays] },
-        },
-      }),
-      this.findSingles(client, 'artistId', input.artistId, input.requestedStartDate),
-      this.findSingles(client, 'hostId', input.hostId, input.requestedStartDate),
-    ]);
+    const [fixedOccupations, pendingOccupations, artistSingles, hostSingles, unavailablePeriods] =
+      await Promise.all([
+        client.fixedAppointmentRuleWeekday.findMany({
+          select: {
+            endMinute: true,
+            isoWeekday: true,
+            startMinute: true,
+          },
+          where: {
+            ...(options.excludeRuleId ? { ruleId: { not: options.excludeRuleId } } : {}),
+            isoWeekday: { in: [...weekdays] },
+            OR: [{ artistId: input.artistId }, { hostId: input.hostId }],
+            AND: [{ OR: [{ validUntil: null }, { validUntil: { gt: input.requestedStartDate } }] }],
+          },
+        }),
+        client.fixedAppointmentRequest.findMany({
+          select: {
+            targetDurationMinutes: true,
+            targetStartMinute: true,
+            targetWeekdays: true,
+          },
+          where: {
+            hostId: { not: input.hostId },
+            ...(options.excludeRequestId ? { id: { not: options.excludeRequestId } } : {}),
+            status: 'PENDING',
+            targetArtistId: input.artistId,
+            targetWeekdays: { hasSome: [...weekdays] },
+          },
+        }),
+        this.findSingles(client, 'artistId', input.artistId, input.requestedStartDate),
+        this.findSingles(client, 'hostId', input.hostId, input.requestedStartDate),
+        client.artistUnavailablePeriod.findMany({
+          select: { endMinute: true, startMinute: true, unavailableDate: true },
+          where: {
+            artistId: input.artistId,
+            status: 'ACTIVE',
+            unavailableDate: { gte: input.requestedStartDate },
+          },
+        }),
+      ]);
     const occupations = [
       ...fixedOccupations,
       ...pendingOccupations.flatMap((request) => {
@@ -351,6 +366,7 @@ export class FixedAvailabilityService {
         weekdays,
         occupations,
         singles,
+        unavailablePeriods,
       ),
     );
     return { ...base, slots, unavailableReason: null };
@@ -384,6 +400,7 @@ export class FixedAvailabilityService {
       readonly startMinute: number;
     }[],
     singles: readonly TimedAppointment[],
+    unavailablePeriods: readonly TimedUnavailablePeriod[],
   ): FixedAvailabilitySlot {
     const endMinute = startMinute + durationMinutes;
     const fixedConflictWeekdays = [
@@ -409,7 +426,18 @@ export class FixedAvailabilityService {
           .map((item) => formatDateOnly(item.appointmentDate)),
       ),
     ].sort();
-    const lastConflict = singleConflictDates.at(-1);
+    const unavailablePeriodConflictDates = [
+      ...new Set(
+        unavailablePeriods
+          .filter(
+            (period) =>
+              weekdays.includes(isoWeekdayForDate(period.unavailableDate)) &&
+              overlaps(startMinute, endMinute, period.startMinute, period.endMinute),
+          )
+          .map((period) => formatDateOnly(period.unavailableDate)),
+      ),
+    ].sort();
+    const lastConflict = [...singleConflictDates, ...unavailablePeriodConflictDates].sort().at(-1);
     return {
       available: fixedConflictWeekdays.length === 0,
       earliestStartDate:
@@ -422,6 +450,7 @@ export class FixedAvailabilityService {
       fixedConflictWeekdays,
       singleConflictDates,
       startMinute,
+      unavailablePeriodConflictDates,
     };
   }
 

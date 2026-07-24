@@ -37,6 +37,7 @@ export interface ScheduleArtist {
   readonly availabilitySource: 'APPROVED_OVERTIME' | 'REGULAR_SHIFT' | null;
   readonly available: boolean;
   readonly breakInterval: MinuteInterval | null;
+  readonly unavailablePeriods: readonly MinuteInterval[];
   readonly unavailableReason: ScheduleUnavailableReason | null;
   readonly workIntervals: readonly MinuteInterval[];
 }

@@ -24,6 +24,7 @@ export interface FixedAvailabilitySlot {
   readonly fixedConflictWeekdays: readonly number[];
   readonly singleConflictDates: readonly string[];
   readonly startMinute: number;
+  readonly unavailablePeriodConflictDates: readonly string[];
 }
 
 export interface FixedAvailabilityResult {

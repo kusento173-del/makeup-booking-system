@@ -14,7 +14,11 @@ import {
   isoWeekdayForDate,
   toBusinessDate,
 } from '../shift/business-date';
-import { workIntervalsForWeekday, type ShiftDefinition } from '../shift/shift-time';
+import {
+  subtractMinuteIntervals,
+  workIntervalsForWeekday,
+  type ShiftDefinition,
+} from '../shift/shift-time';
 import { BookingStateConflictError } from '../booking/booking-create.errors';
 import { ScheduleDateOutOfRangeError, ScheduleSiteRequiredError } from './schedule-board.errors';
 import type {
@@ -49,6 +53,11 @@ const ARTIST_SELECT = {
       workdays: true,
     },
     take: 1,
+  },
+  unavailablePeriods: {
+    orderBy: { startMinute: 'asc' as const },
+    select: { endMinute: true, startMinute: true },
+    where: { status: 'ACTIVE' },
   },
 } satisfies Prisma.ArtistProfileSelect;
 
@@ -119,6 +128,10 @@ export class ScheduleBoardService {
                 OR: [{ validUntil: null }, { validUntil: { gt: input.date } }],
               },
             },
+            unavailablePeriods: {
+              ...ARTIST_SELECT.unavailablePeriods,
+              where: { status: 'ACTIVE', unavailableDate: input.date },
+            },
           },
           where: {
             siteId,
@@ -185,6 +198,7 @@ export class ScheduleBoardService {
       appointments: appointments.map((appointment) => this.appointment(appointment, date, now)),
       artistId: artist.id,
       artistNickname: artist.nickname,
+      unavailablePeriods: artist.unavailablePeriods,
     };
     if (siteStatus !== 'ACTIVE') return this.unavailable(base, 'SITE_INACTIVE');
     if (artist.employmentStatus !== 'ACTIVE') return this.unavailable(base, 'ARTIST_INACTIVE');
@@ -202,7 +216,10 @@ export class ScheduleBoardService {
   }
 
   private available(
-    base: Pick<ScheduleArtistRow, 'appointments' | 'artistId' | 'artistNickname'>,
+    base: Pick<
+      ScheduleArtistRow,
+      'appointments' | 'artistId' | 'artistNickname' | 'unavailablePeriods'
+    >,
     definition: ShiftDefinition,
     weekday: number,
     availabilitySource: NonNullable<ScheduleArtistRow['availabilitySource']>,
@@ -219,12 +236,18 @@ export class ScheduleBoardService {
               startMinute: definition.breakStartMinute,
             },
       unavailableReason: null,
-      workIntervals: workIntervalsForWeekday(definition, weekday),
+      workIntervals: subtractMinuteIntervals(
+        workIntervalsForWeekday(definition, weekday),
+        base.unavailablePeriods,
+      ),
     };
   }
 
   private unavailable(
-    base: Pick<ScheduleArtistRow, 'appointments' | 'artistId' | 'artistNickname'>,
+    base: Pick<
+      ScheduleArtistRow,
+      'appointments' | 'artistId' | 'artistNickname' | 'unavailablePeriods'
+    >,
     unavailableReason: NonNullable<ScheduleArtistRow['unavailableReason']>,
   ): ScheduleArtistRow {
     return {

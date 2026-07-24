@@ -338,6 +338,11 @@ export function SchedulePage({ onUnauthorized, session }: SchedulePageProps) {
                       ) : (
                         <span>无休息时段</span>
                       )}
+                      {artist.unavailablePeriods.length > 0 ? (
+                        <span>
+                          临时不可排 {artist.unavailablePeriods.map(intervalLabel).join('、')}
+                        </span>
+                      ) : null}
                     </>
                   ) : (
                     <strong className="unavailable-text">

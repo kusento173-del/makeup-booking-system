@@ -32,6 +32,7 @@ const artists = [
     nickname: '柔柔',
     overtimes: [],
     shiftTemplates: [shift],
+    unavailablePeriods: [{ endMinute: 630, startMinute: 600 }],
   },
   {
     employmentStatus: 'ACTIVE',
@@ -40,6 +41,7 @@ const artists = [
     nickname: '江江',
     overtimes: [],
     shiftTemplates: [shift],
+    unavailablePeriods: [],
   },
 ];
 const appointments = [
@@ -118,9 +120,11 @@ describe('ScheduleBoardService', () => {
           availabilitySource: 'REGULAR_SHIFT',
           available: true,
           breakInterval: { endMinute: 780, startMinute: 720 },
+          unavailablePeriods: [{ endMinute: 630, startMinute: 600 }],
           unavailableReason: null,
           workIntervals: [
-            { endMinute: 720, startMinute: 540 },
+            { endMinute: 600, startMinute: 540 },
+            { endMinute: 720, startMinute: 630 },
             { endMinute: 1020, startMinute: 780 },
           ],
         },
@@ -131,6 +135,7 @@ describe('ScheduleBoardService', () => {
           availabilitySource: null,
           available: false,
           breakInterval: null,
+          unavailablePeriods: [],
           unavailableReason: 'ARTIST_ON_LEAVE',
           workIntervals: [],
         },

@@ -79,6 +79,7 @@ function createService(options?: {
   host?: object | null;
   hostSingles?: readonly object[];
   pending?: readonly object[];
+  unavailablePeriods?: readonly object[];
 }) {
   const client = {
     appointment: {
@@ -91,6 +92,9 @@ function createService(options?: {
       findUnique: vi
         .fn()
         .mockResolvedValue(options?.artist === undefined ? artist : options.artist),
+    },
+    artistUnavailablePeriod: {
+      findMany: vi.fn().mockResolvedValue(options?.unavailablePeriods ?? []),
     },
     fixedAppointmentRuleWeekday: {
       findMany: vi.fn().mockResolvedValue(options?.fixed ?? []),
@@ -146,6 +150,13 @@ describe('FixedAvailabilityService', () => {
           targetWeekdays: [3],
         },
       ],
+      unavailablePeriods: [
+        {
+          endMinute: 570,
+          startMinute: 540,
+          unavailableDate: new Date('2026-08-05T00:00:00.000Z'),
+        },
+      ],
     });
 
     const result = await service.getAvailability(context, input, now);
@@ -158,11 +169,12 @@ describe('FixedAvailabilityService', () => {
     });
     expect(result.slots.find((slot) => slot.startMinute === 540)).toEqual({
       available: true,
-      earliestStartDate: '2026-08-04',
+      earliestStartDate: '2026-08-06',
       endMinute: 570,
       fixedConflictWeekdays: [],
       singleConflictDates: ['2026-08-03'],
       startMinute: 540,
+      unavailablePeriodConflictDates: ['2026-08-05'],
     });
     expect(result.slots.find((slot) => slot.startMinute === 570)).toMatchObject({
       available: false,
