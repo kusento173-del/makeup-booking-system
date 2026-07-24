@@ -5,6 +5,7 @@ export default defineAppConfig({
     'pages/booking/index',
     'pages/shift/index',
     'pages/leave/index',
+    'pages/overtime/index',
     'pages/feature/index',
   ],
   window: {

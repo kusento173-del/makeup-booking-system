@@ -25,5 +25,6 @@ describe('mobile navigation', () => {
     expect(featureRoute('shift', 'ARTIST')).toBe('/pages/shift/index');
     expect(featureRoute('leave', 'ARTIST')).toBe('/pages/leave/index');
     expect(featureRoute('leave', 'HOST')).toBe('/pages/leave/index');
+    expect(featureRoute('overtime', 'ARTIST')).toBe('/pages/overtime/index');
   });
 });

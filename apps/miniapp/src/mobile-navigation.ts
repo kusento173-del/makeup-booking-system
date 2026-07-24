@@ -71,6 +71,7 @@ export function featureRoute(featureId: MobileFeatureId, roleCode?: RoleCode): s
   if (featureId === 'leave' && (roleCode === 'HOST' || roleCode === 'ARTIST')) {
     return '/pages/leave/index';
   }
+  if (featureId === 'overtime' && roleCode === 'ARTIST') return '/pages/overtime/index';
   if (featureId === 'booking' && (roleCode === 'HOST' || roleCode === 'OPERATOR')) {
     return '/pages/booking/index';
   }
