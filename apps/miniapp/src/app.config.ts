@@ -3,6 +3,7 @@ export default defineAppConfig({
     'pages/index/index',
     'pages/schedule/index',
     'pages/booking/index',
+    'pages/shift/index',
     'pages/feature/index',
   ],
   window: {

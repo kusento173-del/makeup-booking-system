@@ -1,5 +1,5 @@
 import { Button, Input, Text, View } from '@tarojs/components';
-import Taro from '@tarojs/taro';
+import Taro, { useDidShow } from '@tarojs/taro';
 import { useEffect, useRef, useState } from 'react';
 
 import { ApiError } from '../../api-client';
@@ -9,6 +9,7 @@ import {
   type BindableRoleCode,
   type AuthFlowResult,
   type LoginRole,
+  loadSession,
   loginWithWechat,
   logoutSession,
   restoreSession,
@@ -17,6 +18,7 @@ import {
   type SessionTokenPair,
 } from '../../auth-session';
 import { featureRoute, getMobileHome } from '../../mobile-navigation';
+import { getOwnArtist } from '../../shift-api';
 import './index.css';
 
 const ROLE_LABELS = { ARTIST: '化妆师', HOST: '主播', OPERATOR: '运营' } as const;
@@ -49,6 +51,7 @@ export default function IndexPage() {
   const [bindingCode, setBindingCode] = useState('');
   const [targetName, setTargetName] = useState('');
   const [siteCode, setSiteCode] = useState('SONGJIANG');
+  const [artistShiftConfigured, setArtistShiftConfigured] = useState<boolean | null>(null);
   const roleHome = session ? getMobileHome(session.role.roleCode) : null;
 
   useEffect(() => {
@@ -56,6 +59,11 @@ export default function IndexPage() {
     initialized.current = true;
     void initialize();
   }, []);
+
+  useDidShow(() => {
+    const current = loadSession();
+    if (current?.role.roleCode === 'ARTIST') void refreshArtistShiftStatus(current);
+  });
 
   async function initialize(): Promise<void> {
     setBusy(true);
@@ -89,6 +97,17 @@ export default function IndexPage() {
     setBinding(null);
     setRoleSelection(null);
     setError(null);
+    setArtistShiftConfigured(null);
+    if (value.role.roleCode === 'ARTIST') void refreshArtistShiftStatus(value);
+  }
+
+  async function refreshArtistShiftStatus(value: SessionTokenPair): Promise<void> {
+    try {
+      const artist = await getOwnArtist(value.accessToken);
+      setArtistShiftConfigured(artist?.initialShiftConfigured ?? null);
+    } catch {
+      setArtistShiftConfigured(null);
+    }
   }
 
   async function submitBinding(): Promise<void> {
@@ -248,6 +267,18 @@ export default function IndexPage() {
             <Text className="section-title">{roleHome.title}</Text>
             <Text className="section-note">{roleHome.description}</Text>
           </View>
+          {session.role.roleCode === 'ARTIST' && artistShiftConfigured === false ? (
+            <View className="shift-reminder">
+              <Text className="reminder-title">你尚未设置工作时间</Text>
+              <Text className="reminder-text">目前主播无法预约你，请先完成可预约时间设置。</Text>
+              <Button
+                className="reminder-action"
+                onClick={() => void Taro.navigateTo({ url: '/pages/shift/index' })}
+              >
+                立即设置班次
+              </Button>
+            </View>
+          ) : null}
           <View className="business-list">
             {roleHome.features.map((feature) => (
               <Button
