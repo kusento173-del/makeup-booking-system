@@ -14,6 +14,7 @@ const routes = [
   '/pages/leave/index',
   '/pages/overtime/index',
   '/pages/unavailability/index',
+  '/pages/fixed/index',
 ];
 
 function quoteCommandArgument(value) {
@@ -87,6 +88,7 @@ async function assertPageRendered(miniProgram, route) {
     throw new Error(`${route} 未进入目标页面`);
   }
 
+  await new Promise((resolve) => setTimeout(resolve, 300));
   const views = await page.$$('view');
   if (views.length === 0) {
     throw new Error(`${route} 页面实例存在，但没有渲染任何视图`);
@@ -102,6 +104,7 @@ async function main() {
 
   miniProgram.on('exception', (error) => {
     runtimeErrors.push(String(error));
+    process.stderr.write(`运行时异常：${String(error)}\n`);
   });
 
   try {

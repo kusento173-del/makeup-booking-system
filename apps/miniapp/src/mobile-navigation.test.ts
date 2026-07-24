@@ -15,6 +15,7 @@ describe('mobile navigation', () => {
     expect(getAllowedFeature('HOST', 'booking')?.title).toBe('预约化妆');
     expect(getAllowedFeature('HOST', 'fixed')).toBeNull();
     expect(getAllowedFeature('OPERATOR', 'fixed')?.title).toBe('固定申请');
+    expect(featureRoute('fixed', 'OPERATOR')).toBe('/pages/fixed/index');
     expect(getAllowedFeature('ARTIST', 'overtime')?.title).toBe('加班');
     expect(getAllowedFeature('ARTIST', 'unavailability')?.title).toBe('临时不可排班');
   });

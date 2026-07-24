@@ -90,5 +90,6 @@ export function featureRoute(featureId: MobileFeatureId, roleCode?: RoleCode): s
   if (featureId === 'booking' && (roleCode === 'HOST' || roleCode === 'OPERATOR')) {
     return '/pages/booking/index';
   }
+  if (featureId === 'fixed' && roleCode === 'OPERATOR') return '/pages/fixed/index';
   return `/pages/feature/index?feature=${featureId}`;
 }
