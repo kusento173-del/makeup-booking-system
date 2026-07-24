@@ -13,14 +13,12 @@ describe('mobile navigation', () => {
 
   it('阻止角色打开未授权入口', () => {
     expect(getAllowedFeature('HOST', 'booking')?.title).toBe('预约化妆');
-    expect(getAllowedFeature('HOST', 'fixed-relations')?.title).toBe('固定化妆师');
     expect(getAllowedFeature('HOST', 'fixed')).toBeNull();
     expect(getAllowedFeature('OPERATOR', 'fixed')?.title).toBe('固定申请');
     expect(featureRoute('fixed', 'OPERATOR')).toBe('/pages/fixed/index');
     expect(featureRoute('managed-hosts', 'OPERATOR')).toBe('/pages/managed-hosts/index');
     expect(getAllowedFeature('ARTIST', 'overtime')?.title).toBe('加班');
     expect(getAllowedFeature('ARTIST', 'unavailability')?.title).toBe('临时不可排班');
-    expect(getAllowedFeature('ARTIST', 'fixed-relations')?.title).toBe('固定主播');
   });
 
   it('生成稳定的小程序业务入口地址', () => {
@@ -32,7 +30,5 @@ describe('mobile navigation', () => {
     expect(featureRoute('leave', 'HOST')).toBe('/pages/leave/index');
     expect(featureRoute('overtime', 'ARTIST')).toBe('/pages/overtime/index');
     expect(featureRoute('unavailability', 'ARTIST')).toBe('/pages/unavailability/index');
-    expect(featureRoute('fixed-relations', 'HOST')).toBe('/pages/fixed-relations/index');
-    expect(featureRoute('fixed-relations', 'ARTIST')).toBe('/pages/fixed-relations/index');
   });
 });

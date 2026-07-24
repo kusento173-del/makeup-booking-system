@@ -172,6 +172,58 @@
   font-size: 26px;
 }
 
+.fixed-summary {
+  margin-top: 20px;
+  padding: 20px;
+  border-radius: 10px;
+  background: #f1f6f7;
+}
+
+.fixed-summary-title,
+.fixed-summary-name,
+.fixed-summary-time,
+.fixed-summary-note,
+.fixed-summary-error {
+  display: block;
+}
+
+.fixed-summary-title {
+  color: #102b3a;
+  font-size: 29px;
+  font-weight: 700;
+}
+
+.fixed-summary-item {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #d6e1e5;
+}
+
+.fixed-summary-name {
+  color: #102b3a;
+  font-size: 27px;
+  font-weight: 700;
+}
+
+.fixed-summary-time {
+  margin-top: 5px;
+  color: #244958;
+  font-size: 25px;
+  font-weight: 600;
+}
+
+.fixed-summary-note,
+.fixed-summary-error {
+  margin-top: 7px;
+  color: #62717b;
+  font-size: 23px;
+  line-height: 1.5;
+}
+
+.fixed-summary-error {
+  color: #9b342d;
+}
+
 .role-badge,
 .entry-title,
 .entry-description {

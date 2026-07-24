@@ -17,6 +17,8 @@ import {
   selectLoginRole,
   type SessionTokenPair,
 } from '../../auth-session';
+import { listMyFixedRelations, type MyFixedRelation } from '../../fixed-api';
+import { fixedTimeLabel, weekdayLabel } from '../../fixed-view';
 import { featureRoute, getMobileHome } from '../../mobile-navigation';
 import { getOwnArtist } from '../../shift-api';
 import './index.css';
@@ -51,6 +53,8 @@ export default function IndexPage() {
   const [targetName, setTargetName] = useState('');
   const [siteCode, setSiteCode] = useState('SONGJIANG');
   const [artistShiftConfigured, setArtistShiftConfigured] = useState<boolean | null>(null);
+  const [fixedRelations, setFixedRelations] = useState<readonly MyFixedRelation[] | null>(null);
+  const [fixedRelationsError, setFixedRelationsError] = useState(false);
   const roleHome = session ? getMobileHome(session.role.roleCode) : null;
 
   useEffect(() => {
@@ -60,6 +64,9 @@ export default function IndexPage() {
   useDidShow(() => {
     const current = loadSession();
     if (current?.role.roleCode === 'ARTIST') void refreshArtistShiftStatus(current);
+    if (current?.role.roleCode === 'ARTIST' || current?.role.roleCode === 'HOST') {
+      void refreshFixedRelations(current);
+    }
   });
 
   async function initialize(): Promise<void> {
@@ -95,7 +102,12 @@ export default function IndexPage() {
     setRoleSelection(null);
     setError(null);
     setArtistShiftConfigured(null);
+    setFixedRelations(null);
+    setFixedRelationsError(false);
     if (value.role.roleCode === 'ARTIST') void refreshArtistShiftStatus(value);
+    if (value.role.roleCode === 'ARTIST' || value.role.roleCode === 'HOST') {
+      void refreshFixedRelations(value);
+    }
   }
 
   async function refreshArtistShiftStatus(value: SessionTokenPair): Promise<void> {
@@ -104,6 +116,16 @@ export default function IndexPage() {
       setArtistShiftConfigured(artist?.initialShiftConfigured ?? null);
     } catch {
       setArtistShiftConfigured(null);
+    }
+  }
+
+  async function refreshFixedRelations(value: SessionTokenPair): Promise<void> {
+    setFixedRelationsError(false);
+    try {
+      setFixedRelations(await listMyFixedRelations(value.accessToken));
+    } catch {
+      setFixedRelations([]);
+      setFixedRelationsError(true);
     }
   }
 
@@ -274,6 +296,46 @@ export default function IndexPage() {
               >
                 立即设置班次
               </Button>
+            </View>
+          ) : null}
+          {session.role.roleCode === 'ARTIST' || session.role.roleCode === 'HOST' ? (
+            <View className="fixed-summary">
+              <Text className="fixed-summary-title">
+                {session.role.roleCode === 'ARTIST' ? '固定主播' : '固定化妆师'}
+              </Text>
+              {fixedRelations === null ? (
+                <Text className="fixed-summary-note">正在读取固定关系…</Text>
+              ) : null}
+              {fixedRelationsError ? (
+                <Text className="fixed-summary-error">固定关系读取失败，请重新进入首页。</Text>
+              ) : null}
+              {!fixedRelationsError && fixedRelations?.length === 0 ? (
+                <Text className="fixed-summary-note">
+                  {session.role.roleCode === 'ARTIST'
+                    ? '当前没有固定主播。'
+                    : '当前没有固定化妆师。'}
+                </Text>
+              ) : null}
+              {fixedRelations?.map((relation) => (
+                <View className="fixed-summary-item" key={relation.id}>
+                  <Text className="fixed-summary-name">
+                    {session.role.roleCode === 'ARTIST'
+                      ? `${relation.hostName}（${relation.hostCode}）`
+                      : relation.artistNickname}
+                  </Text>
+                  <Text className="fixed-summary-time">
+                    {weekdayLabel(relation.weekdays)} ·{' '}
+                    {fixedTimeLabel(
+                      relation.startMinute,
+                      relation.startMinute + relation.durationMinutes,
+                    )}
+                  </Text>
+                  <Text className="fixed-summary-note">
+                    {relation.siteName} · {relation.validFrom} 起 ·{' '}
+                    {relation.validUntil ? `${relation.validUntil} 前有效` : '长期有效'}
+                  </Text>
+                </View>
+              ))}
             </View>
           ) : null}
           <View className="business-list">
