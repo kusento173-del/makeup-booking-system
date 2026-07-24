@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 import type { BackofficeRoleCode } from './auth-session';
 import type { ManagementView } from './master-data-api';
 
@@ -58,55 +60,56 @@ const NAV_GROUPS: readonly {
 ];
 
 interface BackofficeNavigationProps {
-  readonly collapsed: boolean;
   readonly onSelect: (view: BackofficeView) => void;
-  readonly onToggle: () => void;
   readonly roleCode: BackofficeRoleCode;
   readonly view: BackofficeView;
 }
 
-export function BackofficeNavigation({
-  collapsed,
-  onSelect,
-  onToggle,
-  roleCode,
-  view,
-}: BackofficeNavigationProps) {
+export function BackofficeNavigation({ onSelect, roleCode, view }: BackofficeNavigationProps) {
+  const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(() => new Set());
+
+  function toggleGroup(groupId: string) {
+    setCollapsedGroups((current) => {
+      const next = new Set(current);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+  }
+
   return (
-    <aside className={`sidebar${collapsed ? ' collapsed' : ''}`} aria-label="管理菜单">
-      <div className="sidebar-header">
-        {collapsed ? null : <div className="sidebar-brand">妆序</div>}
-        <button
-          aria-controls="backoffice-navigation"
-          aria-expanded={!collapsed}
-          aria-label={collapsed ? '展开菜单' : '收起菜单'}
-          className="sidebar-toggle"
-          onClick={onToggle}
-          title={collapsed ? '展开菜单' : '收起菜单'}
-          type="button"
-        >
-          {collapsed ? '展开' : '收起'}
-        </button>
-      </div>
-      <nav hidden={collapsed} id="backoffice-navigation">
+    <aside className="sidebar" aria-label="管理菜单">
+      <div className="sidebar-brand">妆序</div>
+      <nav>
         {NAV_GROUPS.map((group) => {
           const items = group.items.filter((item) => !item.adminOnly || roleCode === 'ADMIN');
           if (items.length === 0) return null;
+          const collapsed = collapsedGroups.has(group.id);
           return (
-            <section aria-labelledby={`nav-${group.id}`} className="nav-group" key={group.id}>
-              <p className="nav-group-label" id={`nav-${group.id}`}>
-                {group.label}
-              </p>
-              {items.map((item) => (
-                <button
-                  aria-current={item.id === view ? 'page' : undefined}
-                  key={item.id}
-                  onClick={() => onSelect(item.id)}
-                  type="button"
-                >
-                  {item.label}
-                </button>
-              ))}
+            <section aria-labelledby={`nav-${group.id}-label`} className="nav-group" key={group.id}>
+              <button
+                aria-controls={`nav-${group.id}-items`}
+                aria-expanded={!collapsed}
+                aria-label={`${collapsed ? '展开' : '收起'}${group.label}`}
+                className="nav-group-toggle"
+                onClick={() => toggleGroup(group.id)}
+                type="button"
+              >
+                <span id={`nav-${group.id}-label`}>{group.label}</span>
+                <span aria-hidden="true">{collapsed ? '▸' : '▾'}</span>
+              </button>
+              <div className="nav-group-items" hidden={collapsed} id={`nav-${group.id}-items`}>
+                {items.map((item) => (
+                  <button
+                    aria-current={item.id === view ? 'page' : undefined}
+                    key={item.id}
+                    onClick={() => onSelect(item.id)}
+                    type="button"
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
             </section>
           );
         })}

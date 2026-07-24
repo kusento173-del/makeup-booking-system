@@ -191,10 +191,11 @@ test('已登录管理员可查看排班详情并进入主播维护', async ({ pa
   await expect(page.getByRole('region', { name: '审批管理' })).toBeVisible();
   await expect(page.getByRole('region', { name: '人员管理' })).toBeVisible();
   await expect(page.getByRole('region', { name: '系统设置' })).toBeVisible();
-  await page.getByRole('button', { name: '收起菜单' }).click();
-  await expect(page.getByRole('navigation')).toBeHidden();
-  await page.getByRole('button', { name: '展开菜单' }).click();
-  await expect(page.getByRole('region', { name: '排班管理' })).toBeVisible();
+  const schedulingNavigation = page.getByRole('region', { name: '排班管理' });
+  await schedulingNavigation.getByRole('button', { name: '收起排班管理' }).click();
+  await expect(schedulingNavigation.getByRole('button', { name: '固定主播名单' })).toBeHidden();
+  await schedulingNavigation.getByRole('button', { name: '展开排班管理' }).click();
+  await expect(schedulingNavigation.getByRole('button', { name: '固定主播名单' })).toBeVisible();
   await expect(page.getByRole('article').getByText('柔柔', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: '设置不可排' })).toBeVisible();
   await expect(page.getByText('临时不可排 14:00–15:00')).toBeVisible();

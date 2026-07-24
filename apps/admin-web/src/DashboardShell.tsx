@@ -18,7 +18,6 @@ interface DashboardShellProps {
 }
 
 export function DashboardShell({ busy, onLogout, onUnauthorized, session }: DashboardShellProps) {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [view, setView] = useState<BackofficeView>('schedule');
 
   return (
@@ -37,14 +36,8 @@ export function DashboardShell({ busy, onLogout, onUnauthorized, session }: Dash
           退出登录
         </button>
       </header>
-      <div className={`management-layout${sidebarCollapsed ? ' sidebar-is-collapsed' : ''}`}>
-        <BackofficeNavigation
-          collapsed={sidebarCollapsed}
-          onSelect={setView}
-          onToggle={() => setSidebarCollapsed((collapsed) => !collapsed)}
-          roleCode={session.role.roleCode}
-          view={view}
-        />
+      <div className="management-layout">
+        <BackofficeNavigation onSelect={setView} roleCode={session.role.roleCode} view={view} />
         {view === 'schedule' ? (
           <SchedulePage onUnauthorized={onUnauthorized} session={session} />
         ) : view === 'exports' ? (
