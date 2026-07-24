@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('./api-client', () => ({ apiRequest: vi.fn() }));
 
 import { apiRequest } from './api-client';
-import { cancelAppointment } from './appointment-api';
+import { cancelAppointment, listAppointments } from './appointment-api';
 
 const request = vi.mocked(apiRequest);
 
@@ -25,5 +25,21 @@ describe('appointment api', () => {
       method: 'POST',
       token: 'token-1',
     });
+  });
+
+  it('按目标主播查询运营负责范围内的预约', async () => {
+    request.mockResolvedValue({ items: [], page: 1, pageSize: 100, total: 0 });
+    await listAppointments({
+      fromDate: '2026-07-24',
+      hostId: 'host-1',
+      page: 1,
+      pageSize: 100,
+      toDate: '2026-07-31',
+      token: 'token-1',
+    });
+    expect(request).toHaveBeenCalledWith(
+      '/appointments?fromDate=2026-07-24&page=1&pageSize=100&toDate=2026-07-31&hostId=host-1',
+      { token: 'token-1' },
+    );
   });
 });

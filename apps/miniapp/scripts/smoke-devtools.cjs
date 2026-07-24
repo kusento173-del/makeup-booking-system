@@ -17,6 +17,7 @@ const routes = [
   '/pages/unavailability/index',
   '/pages/fixed/index',
   '/pages/managed-hosts/index',
+  '/pages/managed-host-detail/index',
   '/pages/feature/index',
 ];
 
@@ -91,13 +92,15 @@ async function assertPageRendered(miniProgram, route) {
     throw new Error(`${route} 未进入目标页面`);
   }
 
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  const views = await page.$$('view');
-  if (views.length === 0) {
-    throw new Error(`${route} 页面实例存在，但没有渲染任何视图`);
+  for (let attempt = 1; attempt <= 10; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    const views = await page.$$('view');
+    if (views.length > 0) {
+      process.stdout.write(`✓ ${route}（${views.length} 个视图）\n`);
+      return;
+    }
   }
-
-  process.stdout.write(`✓ ${route}（${views.length} 个视图）\n`);
+  throw new Error(`${route} 页面实例存在，但 3 秒内没有渲染任何视图`);
 }
 
 async function main() {

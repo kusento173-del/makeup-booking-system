@@ -28,6 +28,7 @@ export interface AppointmentPage {
 
 export function listAppointments(input: {
   readonly fromDate: string;
+  readonly hostId?: string;
   readonly page: number;
   readonly pageSize?: number;
   readonly toDate: string;
@@ -39,6 +40,7 @@ export function listAppointments(input: {
     pageSize: String(input.pageSize ?? 50),
     toDate: input.toDate,
   });
+  if (input.hostId) query.set('hostId', input.hostId);
   return apiRequest(`/appointments?${query.toString()}`, { token: input.token });
 }
 

@@ -378,12 +378,13 @@ describe('booking request parser', () => {
     expect(
       parseAppointmentListRequest({
         fromDate: '2026-07-01',
+        hostId,
         page: '2',
         pageSize: '100',
         status: 'CANCELLED',
         toDate: '2026-07-31',
       }),
-    ).toMatchObject({ page: 2, pageSize: 100, status: 'CANCELLED' });
+    ).toMatchObject({ hostId, page: 2, pageSize: 100, status: 'CANCELLED' });
     expect(() =>
       parseAppointmentListRequest({ fromDate: '2026-07-01', toDate: '2026-08-01' }),
     ).toThrow(BookingRequestInvalidError);

@@ -71,6 +71,7 @@ export class BookingController {
   @Get('appointments')
   @ApiOperation({ summary: '按角色范围查询今日、未来或历史预约' })
   @ApiQuery({ format: 'date', name: 'fromDate', required: false, type: String })
+  @ApiQuery({ format: 'uuid', name: 'hostId', required: false, type: String })
   @ApiQuery({ format: 'date', name: 'toDate', required: false, type: String })
   @ApiQuery({ minimum: 1, name: 'page', required: false, type: Number })
   @ApiQuery({ maximum: 100, minimum: 1, name: 'pageSize', required: false, type: Number })

@@ -127,7 +127,14 @@ describe('AppointmentQueryService', () => {
     await service.list({ ...context, roleCode: 'OPERATOR', userId: 'operator-user-1' }, input, now);
 
     expect(client.hostOperatorRelation.findMany.mock.calls[0]?.[0]).toMatchObject({
-      where: { operator: { employmentStatus: 'ACTIVE', userId: 'operator-user-1' } },
+      where: {
+        host: { siteId: 'site-1' },
+        operator: {
+          employmentStatus: 'ACTIVE',
+          siteId: 'site-1',
+          userId: 'operator-user-1',
+        },
+      },
     });
     expect(whereParts(client)).toContainEqual({
       OR: [
@@ -140,6 +147,41 @@ describe('AppointmentQueryService', () => {
         },
       ],
     });
+  });
+
+  it('narrows an operator query to one host without replacing relation scope', async () => {
+    const { client, service } = createService({
+      relations: [
+        {
+          hostId: 'host-1',
+          validFrom: input.fromDate,
+          validUntil: null,
+        },
+      ],
+    });
+
+    await service.list(
+      { ...context, roleCode: 'OPERATOR', userId: 'operator-user-1' },
+      { ...input, hostId: 'host-1' },
+      now,
+    );
+
+    expect(whereParts(client)).toContainEqual({ hostId: 'host-1' });
+    expect(whereParts(client)).toContainEqual({
+      OR: [
+        {
+          appointmentDate: { gte: input.fromDate, lte: input.toDate },
+          hostId: 'host-1',
+        },
+      ],
+    });
+  });
+
+  it('rejects an operator session without a site scope', async () => {
+    const { service } = createService();
+    await expect(
+      service.list({ ...context, roleCode: 'OPERATOR', siteId: null }, input, now),
+    ).rejects.toBeInstanceOf(AuthorizationDeniedError);
   });
 
   it('uses effective time when filtering booked and completed views', async () => {

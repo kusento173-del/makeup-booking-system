@@ -2,6 +2,7 @@ export type AppointmentDisplayStatus = 'BOOKED' | 'CANCELLED' | 'COMPLETED';
 
 export interface AppointmentListInput {
   readonly fromDate: Date;
+  readonly hostId?: string;
   readonly page: number;
   readonly pageSize: number;
   readonly status?: AppointmentDisplayStatus;

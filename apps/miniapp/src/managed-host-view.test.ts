@@ -4,6 +4,7 @@ import type { ManagedHostSummary } from './fixed-api';
 import {
   managedHostActionRoute,
   managedHostBookingLabel,
+  managedHostDetailDates,
   managedHostFixedLabel,
   managedHostPendingLabel,
   toBookingHost,
@@ -58,5 +59,20 @@ describe('managed host view', () => {
       nickname: '阿伟',
       siteId: 'site-1',
     });
+    expect(managedHostActionRoute('managed-host-detail', 'host-1', '2026-07-27')).toBe(
+      '/pages/managed-host-detail/index?hostId=host-1&date=2026-07-27',
+    );
+    expect(
+      managedHostDetailDates(new Date('2026-07-23T16:30:00.000Z')).map((item) => item.date),
+    ).toEqual([
+      '2026-07-24',
+      '2026-07-25',
+      '2026-07-26',
+      '2026-07-27',
+      '2026-07-28',
+      '2026-07-29',
+      '2026-07-30',
+      '2026-07-31',
+    ]);
   });
 });

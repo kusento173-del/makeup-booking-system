@@ -100,7 +100,7 @@ export default function ManagedHostsPage() {
     void load(token, date, query, 1, false);
   }
 
-  function openBusiness(action: 'booking' | 'fixed', hostId: string): void {
+  function openBusiness(action: 'booking' | 'fixed' | 'managed-host-detail', hostId: string): void {
     void Taro.navigateTo({ url: managedHostActionRoute(action, hostId, date) });
   }
 
@@ -194,6 +194,13 @@ export default function ManagedHostsPage() {
               ) : null}
 
               <View className="managed-actions">
+                <Button
+                  className="managed-action"
+                  onClick={() => openBusiness('managed-host-detail', host.hostId)}
+                  size="mini"
+                >
+                  查看详情
+                </Button>
                 <Button
                   className="managed-action primary"
                   disabled={!canBook}

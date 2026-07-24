@@ -51,6 +51,7 @@ export class AppointmentQueryService {
       const where: Prisma.AppointmentWhereInput = {
         AND: [
           { appointmentDate: { gte: input.fromDate, lte: input.toDate } },
+          ...(input.hostId ? [{ hostId: input.hostId }] : []),
           scope,
           this.status(input.status, now),
         ],
@@ -90,10 +91,16 @@ export class AppointmentQueryService {
       case 'ADMIN':
         return {};
       case 'OPERATOR': {
+        if (!context.siteId) throw new AuthorizationDeniedError();
         const relations = await client.hostOperatorRelation.findMany({
           select: { hostId: true, validFrom: true, validUntil: true },
           where: {
-            operator: { employmentStatus: 'ACTIVE', userId: context.userId },
+            host: { siteId: context.siteId },
+            operator: {
+              employmentStatus: 'ACTIVE',
+              siteId: context.siteId,
+              userId: context.userId,
+            },
             validFrom: { lte: input.toDate },
             OR: [{ validUntil: null }, { validUntil: { gt: input.fromDate } }],
           },

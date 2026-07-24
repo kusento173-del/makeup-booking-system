@@ -402,7 +402,7 @@ export function parseAppointmentListRequest(
   now = new Date(),
 ): AppointmentListInput {
   const input = record(query);
-  exactKeys(input, ['fromDate', 'page', 'pageSize', 'status', 'toDate']);
+  exactKeys(input, ['fromDate', 'hostId', 'page', 'pageSize', 'status', 'toDate']);
   const fromDate = input.fromDate === undefined ? toBusinessDate(now) : dateOnly(input.fromDate);
   const toDate = input.toDate === undefined ? fromDate : dateOnly(input.toDate);
   const rangeDays = Math.round((toDate.getTime() - fromDate.getTime()) / 86_400_000) + 1;
@@ -416,6 +416,7 @@ export function parseAppointmentListRequest(
   }
   return {
     fromDate,
+    ...(input.hostId !== undefined ? { hostId: uuid(input.hostId) } : {}),
     page,
     pageSize,
     ...(input.status ? { status: input.status as AppointmentDisplayStatus } : {}),

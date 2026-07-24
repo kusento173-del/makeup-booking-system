@@ -9,6 +9,7 @@ export default defineAppConfig({
     'pages/unavailability/index',
     'pages/fixed/index',
     'pages/managed-hosts/index',
+    'pages/managed-host-detail/index',
     'pages/feature/index',
   ],
   window: {
