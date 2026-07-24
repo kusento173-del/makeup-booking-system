@@ -42,7 +42,7 @@ const HOME_BY_ROLE: Readonly<Record<MobileRoleCode, MobileHome>> = {
     description: '查看个人排班，管理班次、请假和加班申请。',
     features: [
       { description: '今日、明日、未来七日和历史记录', id: 'schedule', title: '我的排班' },
-      { description: '首次设置和查看当前固定班次', id: 'shift', title: '班次' },
+      { description: '设置、查看和申请修改固定班次', id: 'shift', title: '班次' },
       { description: '申请未来七日内请假', id: 'leave', title: '请假' },
       { description: '为常规非工作日提交加班申请', id: 'overtime', title: '加班' },
     ],

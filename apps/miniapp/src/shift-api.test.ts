@@ -3,7 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('./api-client', () => ({ apiRequest: vi.fn() }));
 
 import { apiRequest } from './api-client';
-import { getCurrentShift, getOwnArtist, setInitialShift } from './shift-api';
+import {
+  getCurrentShift,
+  getOwnArtist,
+  getPendingShiftChange,
+  setInitialShift,
+  submitShiftChange,
+  withdrawShiftChange,
+} from './shift-api';
 
 const request = vi.mocked(apiRequest);
 
@@ -40,6 +47,41 @@ describe('shift api', () => {
     await setInitialShift('token-1', 'artist-1', definition);
     expect(request).toHaveBeenCalledWith('/artists/artist-1/shifts/initial', {
       body: definition,
+      method: 'POST',
+      token: 'token-1',
+    });
+  });
+
+  it('读取本人待审核班次修改', async () => {
+    request.mockResolvedValue({ items: [{ id: 'change-1' }] });
+    await expect(getPendingShiftChange('token-1')).resolves.toEqual({ id: 'change-1' });
+    expect(request).toHaveBeenCalledWith('/shift-changes?page=1&pageSize=1&status=PENDING', {
+      token: 'token-1',
+    });
+  });
+
+  it('提交并撤回班次修改申请', async () => {
+    const input = {
+      breakEndMinute: 780,
+      breakStartMinute: 720,
+      effectiveFrom: '2026-07-25',
+      reason: '调整工作时间',
+      workEndMinute: 1095,
+      workStartMinute: 540,
+      workdays: [1, 2, 3, 4, 5],
+    };
+    request.mockResolvedValueOnce({ id: 'change-1' }).mockResolvedValueOnce(undefined);
+
+    await submitShiftChange('token-1', 'artist-1', input);
+    expect(request).toHaveBeenNthCalledWith(1, '/artists/artist-1/shifts/changes', {
+      body: input,
+      method: 'POST',
+      token: 'token-1',
+    });
+
+    await withdrawShiftChange('token-1', 'change-1', 2);
+    expect(request).toHaveBeenNthCalledWith(2, '/shift-changes/change-1/withdraw', {
+      body: { expectedRowVersion: 2 },
       method: 'POST',
       token: 'token-1',
     });

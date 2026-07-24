@@ -25,8 +25,21 @@ export interface ArtistShift extends ShiftDefinition {
   readonly versionNo: number;
 }
 
+export interface ShiftChange extends ShiftDefinition {
+  readonly effectiveFrom: string;
+  readonly id: string;
+  readonly reason: string;
+  readonly rowVersion: number;
+  readonly status: 'APPROVED' | 'PENDING' | 'REJECTED' | 'WITHDRAWN';
+  readonly submittedAt: string;
+}
+
 interface ArtistPage {
   readonly items: readonly OwnArtist[];
+}
+
+interface ShiftChangePage {
+  readonly items: readonly ShiftChange[];
 }
 
 export async function getOwnArtist(token: string): Promise<OwnArtist | null> {
@@ -45,6 +58,38 @@ export function setInitialShift(
 ): Promise<ArtistShift> {
   return apiRequest(`/artists/${artistId}/shifts/initial`, {
     body: definition,
+    method: 'POST',
+    token,
+  });
+}
+
+export async function getPendingShiftChange(token: string): Promise<ShiftChange | null> {
+  const page = await apiRequest<ShiftChangePage>(
+    '/shift-changes?page=1&pageSize=1&status=PENDING',
+    { token },
+  );
+  return page.items[0] ?? null;
+}
+
+export function submitShiftChange(
+  token: string,
+  artistId: string,
+  input: ShiftDefinition & { readonly effectiveFrom: string; readonly reason: string },
+): Promise<ShiftChange> {
+  return apiRequest(`/artists/${artistId}/shifts/changes`, {
+    body: input,
+    method: 'POST',
+    token,
+  });
+}
+
+export function withdrawShiftChange(
+  token: string,
+  requestId: string,
+  expectedRowVersion: number,
+): Promise<void> {
+  return apiRequest(`/shift-changes/${requestId}/withdraw`, {
+    body: { expectedRowVersion },
     method: 'POST',
     token,
   });

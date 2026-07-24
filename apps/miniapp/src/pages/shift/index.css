@@ -53,9 +53,11 @@
 .weekday-button,
 .choice-button,
 .save-button,
+.secondary-button,
 .weekday-button::after,
 .choice-button::after,
-.save-button::after {
+.save-button::after,
+.secondary-button::after {
   border: 0;
 }
 
@@ -130,4 +132,26 @@
   background: #245c6d;
   font-size: 28px;
   font-weight: 700;
+}
+
+.secondary-button {
+  margin-top: 18px;
+  border: 1px solid #b9c7ce;
+  color: #334c59;
+  background: #fff;
+  font-size: 27px;
+}
+
+.reason-input {
+  width: 100%;
+  min-height: 150px;
+  box-sizing: border-box;
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid #d9e1e5;
+  border-radius: 10px;
+  color: #243844;
+  background: #f8fafb;
+  font-size: 26px;
+  line-height: 1.5;
 }

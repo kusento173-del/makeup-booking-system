@@ -1,4 +1,4 @@
-import { Button, Picker, Text, View } from '@tarojs/components';
+import { Button, Picker, Text, Textarea, View } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { useEffect, useState } from 'react';
 
@@ -9,8 +9,12 @@ import {
   type ArtistShift,
   getCurrentShift,
   getOwnArtist,
+  getPendingShiftChange,
   setInitialShift,
+  type ShiftChange,
   type ShiftDefinition,
+  submitShiftChange,
+  withdrawShiftChange,
 } from '../../shift-api';
 import {
   END_TIME_OPTIONS,
@@ -36,13 +40,24 @@ function errorMessage(cause: unknown): string {
   return '班次操作失败，请稍后重试。';
 }
 
+function nextDateValue(now = new Date()): string {
+  const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
 export default function ShiftPage() {
   const [artistName, setArtistName] = useState('');
   const [artistId, setArtistId] = useState('');
   const [token, setToken] = useState('');
   const [current, setCurrent] = useState<ArtistShift | null>(null);
+  const [pending, setPending] = useState<ShiftChange | null>(null);
   const [definition, setDefinition] = useState<ShiftDefinition>(DEFAULT_SHIFT);
   const [hasBreak, setHasBreak] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [effectiveFrom, setEffectiveFrom] = useState(nextDateValue);
+  const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -72,7 +87,12 @@ export default function ShiftPage() {
       setArtistId(artist.id);
       setArtistName(artist.nickname);
       setToken(session.accessToken);
-      setCurrent(await getCurrentShift(session.accessToken, artist.id));
+      const [currentShift, pendingChange] = await Promise.all([
+        getCurrentShift(session.accessToken, artist.id),
+        getPendingShiftChange(session.accessToken),
+      ]);
+      setCurrent(currentShift);
+      setPending(pendingChange);
     } catch (cause) {
       setError(errorMessage(cause));
     } finally {
@@ -96,6 +116,22 @@ export default function ShiftPage() {
     });
   }
 
+  function beginEdit(): void {
+    if (!current) return;
+    setDefinition({
+      breakEndMinute: current.breakEndMinute,
+      breakStartMinute: current.breakStartMinute,
+      workEndMinute: current.workEndMinute,
+      workStartMinute: current.workStartMinute,
+      workdays: current.workdays,
+    });
+    setHasBreak(current.breakStartMinute !== null);
+    setEffectiveFrom(nextDateValue());
+    setReason('');
+    setError(null);
+    setEditing(true);
+  }
+
   async function submit(): Promise<void> {
     if (!artistId || !token) return;
     const validationError = validateShiftDefinition(definition);
@@ -103,12 +139,18 @@ export default function ShiftPage() {
       setError(validationError);
       return;
     }
+    if (current && !reason.trim()) {
+      setError('请填写修改原因。');
+      return;
+    }
     const confirmed = await Taro.showModal({
       cancelText: '返回修改',
-      confirmText: '确认保存',
-      content: `${workdayLabel(definition.workdays)}\n${shiftTimeLabel(
-        definition,
-      )}\n首次设置无需审批，保存后立即生效。`,
+      confirmText: current ? '提交审核' : '确认保存',
+      content: `${workdayLabel(definition.workdays)}\n${shiftTimeLabel(definition)}\n${
+        current
+          ? `计划 ${effectiveFrom} 生效，提交后由客服审核。`
+          : '首次设置无需审批，保存后立即生效。'
+      }`,
       title: '确认固定班次',
     });
     if (!confirmed.confirm) return;
@@ -116,9 +158,42 @@ export default function ShiftPage() {
     setSaving(true);
     setError(null);
     try {
-      const saved = await setInitialShift(token, artistId, definition);
-      setCurrent(saved);
-      await Taro.showToast({ icon: 'success', title: '班次已设置' });
+      if (current) {
+        const change = await submitShiftChange(token, artistId, {
+          ...definition,
+          effectiveFrom,
+          reason: reason.trim(),
+        });
+        setPending(change);
+        setEditing(false);
+        await Taro.showToast({ icon: 'success', title: '已提交审核' });
+      } else {
+        const saved = await setInitialShift(token, artistId, definition);
+        setCurrent(saved);
+        await Taro.showToast({ icon: 'success', title: '班次已设置' });
+      }
+    } catch (cause) {
+      setError(errorMessage(cause));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function withdraw(): Promise<void> {
+    if (!pending || !token) return;
+    const confirmed = await Taro.showModal({
+      cancelText: '保留申请',
+      confirmText: '确认撤回',
+      content: '撤回后可以重新提交班次修改申请。',
+      title: '撤回班次修改',
+    });
+    if (!confirmed.confirm) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await withdrawShiftChange(token, pending.id, pending.rowVersion);
+      setPending(null);
+      await Taro.showToast({ icon: 'success', title: '申请已撤回' });
     } catch (cause) {
       setError(errorMessage(cause));
     } finally {
@@ -133,7 +208,7 @@ export default function ShiftPage() {
     );
   }
 
-  if (current) {
+  if (current && !editing) {
     return (
       <View className="shift-page">
         <View className="shift-card">
@@ -145,6 +220,24 @@ export default function ShiftPage() {
             当前为第 {current.versionNo} 版。首次设置已完成，后续修改需要提交客服审核。
           </Text>
         </View>
+        {pending ? (
+          <View className="shift-warning">
+            <Text className="warning-title">班次修改待审核</Text>
+            <Text className="shift-row">计划生效：{pending.effectiveFrom}</Text>
+            <Text className="shift-row">工作日：{workdayLabel(pending.workdays)}</Text>
+            <Text className="shift-row">工作时间：{shiftTimeLabel(pending)}</Text>
+            <Text className="shift-row">修改原因：{pending.reason}</Text>
+            <Text className="shift-note">审核通过前仍按当前班次开放预约。</Text>
+            <Button className="secondary-button" disabled={saving} onClick={() => void withdraw()}>
+              {saving ? '正在撤回…' : '撤回申请'}
+            </Button>
+          </View>
+        ) : (
+          <Button className="save-button" onClick={beginEdit}>
+            申请修改班次
+          </Button>
+        )}
+        {error ? <View className="shift-error">{error}</View> : null}
       </View>
     );
   }
@@ -152,8 +245,12 @@ export default function ShiftPage() {
   return (
     <View className="shift-page">
       <View className="shift-warning">
-        <Text className="warning-title">尚未设置可预约时间</Text>
-        <Text className="warning-text">设置完成前，主播无法预约你。所有工作日共用同一套班次。</Text>
+        <Text className="warning-title">{current ? '修改固定班次' : '尚未设置可预约时间'}</Text>
+        <Text className="warning-text">
+          {current
+            ? '修改申请需客服审核，审核通过前仍按当前班次开放预约。'
+            : '设置完成前，主播无法预约你。所有工作日共用同一套班次。'}
+        </Text>
       </View>
 
       <View className="shift-card">
@@ -229,10 +326,39 @@ export default function ShiftPage() {
         <Text className="shift-row">{shiftTimeLabel(definition)}</Text>
       </View>
 
+      {current ? (
+        <View className="shift-card">
+          <Text className="shift-title">4. 填写生效日期和原因</Text>
+          <View className="time-field">
+            <Text className="time-label">计划生效日期</Text>
+            <Picker
+              mode="date"
+              onChange={(event) => setEffectiveFrom(event.detail.value)}
+              start={nextDateValue()}
+              value={effectiveFrom}
+            >
+              <View className="time-value">{effectiveFrom}</View>
+            </Picker>
+          </View>
+          <Textarea
+            className="reason-input"
+            maxlength={500}
+            onInput={(event) => setReason(event.detail.value)}
+            placeholder="请简要说明为什么修改班次"
+            value={reason}
+          />
+        </View>
+      ) : null}
+
       {error ? <View className="shift-error">{error}</View> : null}
       <Button className="save-button" disabled={saving} onClick={() => void submit()}>
-        {saving ? '正在保存…' : '保存首次班次'}
+        {saving ? '正在提交…' : current ? '提交客服审核' : '保存首次班次'}
       </Button>
+      {current ? (
+        <Button className="secondary-button" disabled={saving} onClick={() => setEditing(false)}>
+          取消修改
+        </Button>
+      ) : null}
     </View>
   );
 }

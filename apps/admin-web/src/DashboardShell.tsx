@@ -5,6 +5,7 @@ import { BackofficeNavigation, type BackofficeView } from './BackofficeNavigatio
 import { ExportPage } from './ExportPage';
 import { ManagementPage } from './ManagementPage';
 import { SchedulePage } from './SchedulePage';
+import { ShiftApprovalPage } from './ShiftApprovalPage';
 
 interface DashboardShellProps {
   readonly busy: boolean;
@@ -38,6 +39,8 @@ export function DashboardShell({ busy, onLogout, onUnauthorized, session }: Dash
           <SchedulePage onUnauthorized={onUnauthorized} session={session} />
         ) : view === 'exports' ? (
           <ExportPage onUnauthorized={onUnauthorized} session={session} />
+        ) : view === 'approvals' ? (
+          <ShiftApprovalPage onUnauthorized={onUnauthorized} session={session} />
         ) : (
           <ManagementPage
             key={view}
