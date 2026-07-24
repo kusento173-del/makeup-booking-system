@@ -45,6 +45,7 @@ export type AccountBindingTarget =
     };
 
 const SESSION_STORAGE_KEY = 'makeup-booking-session-v1';
+const WECHAT_LOGIN_TIMEOUT_MS = 10_000;
 
 export function saveSession(session: SessionTokenPair): void {
   Taro.setStorageSync(SESSION_STORAGE_KEY, session);
@@ -68,9 +69,26 @@ export function loadSession(): SessionTokenPair | null {
 }
 
 export async function loginWithWechat(): Promise<AuthFlowResult> {
-  const { code } = await Taro.login();
-  if (!code) throw new Error('微信登录凭证获取失败');
-  return apiRequest('/auth/wechat/login', { body: { code }, method: 'POST' });
+  let lastTimeout: unknown;
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const { code } = await Taro.login({ timeout: WECHAT_LOGIN_TIMEOUT_MS });
+      if (!code) throw new Error('微信登录凭证获取失败');
+      return apiRequest('/auth/wechat/login', { body: { code }, method: 'POST' });
+    } catch (cause) {
+      if (!wechatLoginTimedOut(cause)) throw cause;
+      lastTimeout = cause;
+    }
+  }
+
+  throw lastTimeout;
+}
+
+function wechatLoginTimedOut(cause: unknown): boolean {
+  if (cause instanceof Error) return /timeout/i.test(cause.message);
+  if (typeof cause !== 'object' || cause === null || !('errMsg' in cause)) return false;
+  return typeof cause.errMsg === 'string' && /timeout/i.test(cause.errMsg);
 }
 
 export function bindWechatAccount(input: {

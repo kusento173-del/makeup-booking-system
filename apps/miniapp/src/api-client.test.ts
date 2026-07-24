@@ -13,11 +13,15 @@ describe('miniapp API client', () => {
     request.mockResolvedValue({ data: undefined, statusCode: 204 });
   });
 
-  it('没有请求体时不发送 JSON 内容类型', async () => {
+  it('没有请求体的 POST 发送合法空 JSON', async () => {
     await apiRequest('/auth/logout', { method: 'POST', token: 'access-token' });
 
     expect(request).toHaveBeenCalledWith({
-      header: { Authorization: 'Bearer access-token' },
+      data: {},
+      header: {
+        Authorization: 'Bearer access-token',
+        'Content-Type': 'application/json',
+      },
       method: 'POST',
       url: 'http://127.0.0.1:3000/auth/logout',
     });

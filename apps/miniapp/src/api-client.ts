@@ -28,15 +28,17 @@ export async function apiRequest<T>(
     readonly token?: string;
   } = {},
 ): Promise<T> {
-  const hasBody = options.body !== undefined;
+  const method = options.method ?? 'GET';
+  const body = options.body ?? (method === 'POST' ? {} : undefined);
+  const hasBody = body !== undefined;
   const response = await Taro.request<T | ApiErrorBody>({
-    ...(hasBody ? { data: options.body } : {}),
+    ...(hasBody ? { data: body } : {}),
     header: {
       ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
       ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
       ...options.headers,
     },
-    method: options.method ?? 'GET',
+    method,
     url: `${API_BASE_URL}${path}`,
   });
   if (response.statusCode < 200 || response.statusCode >= 300) {
