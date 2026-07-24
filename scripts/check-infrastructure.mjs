@@ -31,6 +31,20 @@ if (postgresResult !== '1') {
   throw new Error('PostgreSQL is reachable, but the btree_gist migration has not been applied');
 }
 
+const postgresTimezone = runDocker([
+  'compose',
+  'exec',
+  '-T',
+  'postgres',
+  'sh',
+  '-ec',
+  'psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --tuples-only --no-align --command "SHOW TimeZone;"',
+]);
+
+if (postgresTimezone !== 'UTC') {
+  throw new Error(`PostgreSQL must use UTC, but reported ${postgresTimezone || '<empty>'}`);
+}
+
 const redisResult = runDocker([
   'compose',
   'exec',
@@ -45,5 +59,5 @@ if (redisResult !== 'PONG') {
   throw new Error(`Unexpected Redis response: ${redisResult || '<empty>'}`);
 }
 
-console.log('PostgreSQL: connected; btree_gist is installed');
+console.log('PostgreSQL: connected; UTC timezone; btree_gist is installed');
 console.log('Redis: connected; authenticated PING returned PONG');

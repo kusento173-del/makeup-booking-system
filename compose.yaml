@@ -8,7 +8,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-makeup_booking}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-makeup_local}
       POSTGRES_USER: ${POSTGRES_USER:-makeup}
-      TZ: Asia/Shanghai
+      TZ: UTC
     ports:
       - '127.0.0.1:${POSTGRES_PORT:-5432}:5432'
     volumes:
@@ -26,7 +26,7 @@ services:
     restart: unless-stopped
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-makeup_local}
-      TZ: Asia/Shanghai
+      TZ: UTC
     command:
       - sh
       - -ec
