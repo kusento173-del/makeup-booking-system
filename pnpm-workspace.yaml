@@ -45,6 +45,7 @@ minimumReleaseAgeExclude:
   - '@prisma/driver-adapter-utils@7.9.0'
 
 overrides:
+  find-my-way: 9.7.0
   glob: 10.5.0
   swiper: 'catalog:'
 
