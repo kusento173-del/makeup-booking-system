@@ -3,7 +3,12 @@ import { Injectable } from '@nestjs/common';
 
 import { DatabaseService } from '../database/database.service';
 import { formatDateOnly, isoWeekdayForDate } from '../shift/business-date';
-import { workIntervalsForWeekday, type ShiftDefinition } from '../shift/shift-time';
+import {
+  subtractMinuteIntervals,
+  workIntervalsForWeekday,
+  type MinuteInterval,
+  type ShiftDefinition,
+} from '../shift/shift-time';
 import {
   AvailabilityArtistNotFoundError,
   AvailabilityDateInvalidError,
@@ -59,7 +64,7 @@ export class ArtistAvailabilityService {
       return this.unavailable(artist.id, artist.nickname, artist.siteId, date, 'SITE_INACTIVE');
     }
 
-    const [shift, leave] = await Promise.all([
+    const [shift, leave, unavailablePeriods] = await Promise.all([
       client.artistShiftTemplate.findFirst({
         orderBy: { versionNo: 'desc' },
         select: {
@@ -83,6 +88,14 @@ export class ArtistAvailabilityService {
           endDate: { gte: date },
           startDate: { lte: date },
           status: 'ACTIVE',
+        },
+      }),
+      client.artistUnavailablePeriod.findMany({
+        select: { endMinute: true, startMinute: true },
+        where: {
+          artistId: artist.id,
+          status: 'ACTIVE',
+          unavailableDate: date,
         },
       }),
     ]);
@@ -111,6 +124,7 @@ export class ArtistAvailabilityService {
         null,
         'REGULAR_SHIFT',
         shift,
+        unavailablePeriods,
       );
     }
     const overtime = await client.artistOvertime.findFirst({
@@ -135,6 +149,7 @@ export class ArtistAvailabilityService {
       overtime.id,
       'APPROVED_OVERTIME',
       overtime,
+      unavailablePeriods,
     );
   }
 
@@ -147,6 +162,7 @@ export class ArtistAvailabilityService {
     overtimeId: string | null,
     source: AvailableArtistDay['source'],
     definition: Omit<ShiftDefinition, 'workdays'>,
+    unavailablePeriods: readonly MinuteInterval[],
   ): AvailableArtistDay {
     const weekday = isoWeekdayForDate(date);
     return {
@@ -154,7 +170,10 @@ export class ArtistAvailabilityService {
       artistNickname,
       available: true,
       date: formatDateOnly(date),
-      intervals: workIntervalsForWeekday({ ...definition, workdays: [weekday] }, weekday),
+      intervals: subtractMinuteIntervals(
+        workIntervalsForWeekday({ ...definition, workdays: [weekday] }, weekday),
+        unavailablePeriods,
+      ),
       overtimeId,
       shiftTemplateId,
       siteId,

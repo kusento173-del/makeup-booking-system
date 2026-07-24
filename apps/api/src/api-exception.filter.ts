@@ -124,6 +124,16 @@ import {
   ScheduleRequestInvalidError,
   ScheduleSiteRequiredError,
 } from './schedule/schedule-board.errors';
+import {
+  ArtistUnavailablePeriodDateInvalidError,
+  ArtistUnavailablePeriodImpactChangedError,
+  ArtistUnavailablePeriodNotFoundError,
+  ArtistUnavailablePeriodReasonInvalidError,
+  ArtistUnavailablePeriodScheduleConflictError,
+  ArtistUnavailablePeriodStateConflictError,
+  ArtistUnavailablePeriodTargetInvalidError,
+} from './unavailability/artist-unavailability.errors';
+import { ArtistUnavailabilityRequestInvalidError } from './unavailability/artist-unavailability-request.parser';
 
 interface ErrorResponse {
   readonly error: {
@@ -187,7 +197,9 @@ export class ApiExceptionFilter implements ExceptionFilter {
       exception instanceof ScheduleSiteRequiredError ||
       exception instanceof ExportDateOutOfRangeError ||
       exception instanceof ExportIdempotencyKeyInvalidError ||
-      exception instanceof ExportRequestInvalidError
+      exception instanceof ExportRequestInvalidError ||
+      exception instanceof ArtistUnavailablePeriodReasonInvalidError ||
+      exception instanceof ArtistUnavailabilityRequestInvalidError
     ) {
       return this.response(HttpStatus.BAD_REQUEST, exception.code, '请求内容不正确');
     }
@@ -208,7 +220,8 @@ export class ApiExceptionFilter implements ExceptionFilter {
       exception instanceof OvertimeNotFoundError ||
       exception instanceof ShiftArtistNotFoundError ||
       exception instanceof ShiftChangeNotFoundError ||
-      exception instanceof ExportNotFoundError
+      exception instanceof ExportNotFoundError ||
+      exception instanceof ArtistUnavailablePeriodNotFoundError
     ) {
       return this.response(HttpStatus.NOT_FOUND, exception.code, '目标数据不存在');
     }
@@ -276,7 +289,12 @@ export class ApiExceptionFilter implements ExceptionFilter {
       exception instanceof ExportIdempotencyConflictError ||
       exception instanceof ExportSiteUnavailableError ||
       exception instanceof ExportStateConflictError ||
-      exception instanceof ExportFileUnavailableError
+      exception instanceof ExportFileUnavailableError ||
+      exception instanceof ArtistUnavailablePeriodDateInvalidError ||
+      exception instanceof ArtistUnavailablePeriodImpactChangedError ||
+      exception instanceof ArtistUnavailablePeriodScheduleConflictError ||
+      exception instanceof ArtistUnavailablePeriodStateConflictError ||
+      exception instanceof ArtistUnavailablePeriodTargetInvalidError
     ) {
       return this.response(HttpStatus.CONFLICT, exception.code, '数据状态冲突，请刷新后重试');
     }

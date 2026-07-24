@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   canFitInShift,
   listShiftStartMinutes,
+  subtractMinuteIntervals,
   type ShiftDefinition,
   ShiftDefinitionInvalidError,
   validateShiftDefinition,
@@ -61,6 +62,22 @@ describe('shift time rules', () => {
       { endMinute: 18 * 60, startMinute: 13 * 60 },
     ]);
     expect(workIntervalsForWeekday(STANDARD_SHIFT, 7)).toEqual([]);
+  });
+
+  it('subtracts temporary unavailable periods and preserves adjacent boundaries', () => {
+    expect(
+      subtractMinuteIntervals(
+        [{ endMinute: 1080, startMinute: 780 }],
+        [
+          { endMinute: 900, startMinute: 840 },
+          { endMinute: 960, startMinute: 930 },
+        ],
+      ),
+    ).toEqual([
+      { endMinute: 840, startMinute: 780 },
+      { endMinute: 930, startMinute: 900 },
+      { endMinute: 1080, startMinute: 960 },
+    ]);
   });
 
   it('checks the complete service duration against lunch and closing time', () => {

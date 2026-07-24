@@ -38,8 +38,12 @@ function createService(options?: {
   leave?: object | null;
   overtime?: object | null;
   shift?: object | null;
+  unavailablePeriods?: readonly object[];
 }) {
   const client = {
+    artistUnavailablePeriod: {
+      findMany: vi.fn().mockResolvedValue(options?.unavailablePeriods ?? []),
+    },
     artistOvertime: {
       findFirst: vi
         .fn()
@@ -97,6 +101,33 @@ describe('ArtistAvailabilityService', () => {
       }),
     );
     expect(client.artistOvertime.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('removes active temporary unavailable periods from the working intervals', async () => {
+    const { client, service } = createService({
+      unavailablePeriods: [
+        { endMinute: 600, startMinute: 570 },
+        { endMinute: 900, startMinute: 840 },
+      ],
+    });
+
+    await expect(service.getDay('artist-1', weekday)).resolves.toMatchObject({
+      available: true,
+      intervals: [
+        { endMinute: 570, startMinute: 540 },
+        { endMinute: 720, startMinute: 600 },
+        { endMinute: 840, startMinute: 780 },
+        { endMinute: 1080, startMinute: 900 },
+      ],
+    });
+    expect(client.artistUnavailablePeriod.findMany).toHaveBeenCalledWith({
+      select: { endMinute: true, startMinute: true },
+      where: {
+        artistId: 'artist-1',
+        status: 'ACTIVE',
+        unavailableDate: weekday,
+      },
+    });
   });
 
   it('returns a non-working reason when neither a workday nor approved overtime applies', async () => {
@@ -158,6 +189,7 @@ describe('ArtistAvailabilityService', () => {
       expect(client.artistShiftTemplate.findFirst).not.toHaveBeenCalled();
       expect(client.artistOvertime.findFirst).not.toHaveBeenCalled();
       expect(client.leaveRecord.findFirst).not.toHaveBeenCalled();
+      expect(client.artistUnavailablePeriod.findMany).not.toHaveBeenCalled();
     },
   );
 

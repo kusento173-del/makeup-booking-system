@@ -13,6 +13,7 @@ import { OvertimeModule } from './overtime/overtime.module';
 import { RedisModule } from './redis/redis.module';
 import { ScheduleModule } from './schedule/schedule.module';
 import { ShiftModule } from './shift/shift.module';
+import { ArtistUnavailabilityModule } from './unavailability/artist-unavailability.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { ShiftModule } from './shift/shift.module';
     RedisModule,
     ScheduleModule,
     ShiftModule,
+    ArtistUnavailabilityModule,
   ],
   controllers: [HealthController],
 })

@@ -24,6 +24,33 @@ export interface MinuteInterval {
   readonly startMinute: number;
 }
 
+export function subtractMinuteIntervals(
+  intervals: readonly MinuteInterval[],
+  blockedIntervals: readonly MinuteInterval[],
+): readonly MinuteInterval[] {
+  return blockedIntervals.reduce<readonly MinuteInterval[]>(
+    (remaining, blocked) =>
+      remaining.flatMap((interval) => {
+        if (
+          blocked.endMinute <= interval.startMinute ||
+          blocked.startMinute >= interval.endMinute
+        ) {
+          return [interval];
+        }
+
+        return [
+          ...(blocked.startMinute > interval.startMinute
+            ? [{ endMinute: blocked.startMinute, startMinute: interval.startMinute }]
+            : []),
+          ...(blocked.endMinute < interval.endMinute
+            ? [{ endMinute: interval.endMinute, startMinute: blocked.endMinute }]
+            : []),
+        ];
+      }),
+    intervals,
+  );
+}
+
 export class ShiftDefinitionInvalidError extends Error {
   readonly code = 'SHIFT_DEFINITION_INVALID';
 
