@@ -5,6 +5,7 @@
   "scripts": {
     "build": "taro build --type weapp",
     "dev": "taro build --type weapp --watch",
+    "smoke:devtools": "node scripts/smoke-devtools.cjs",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
@@ -30,6 +31,7 @@
     "@types/react-dom": "18.3.7",
     "babel-preset-taro": "4.2.1",
     "less": "4.7.0",
+    "miniprogram-automator": "catalog:",
     "stylus": "0.64.0",
     "webpack": "5.91.0"
   }

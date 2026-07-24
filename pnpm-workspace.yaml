@@ -47,6 +47,8 @@ minimumReleaseAgeExclude:
 overrides:
   find-my-way: 9.7.0
   glob: 10.5.0
+  jpeg-js@<0.4.4: 0.4.4
+  minimist@<0.2.4: 0.2.4
   swiper: 'catalog:'
 
 preferWorkspacePackages: true
@@ -72,6 +74,7 @@ catalog:
   husky: 9.1.7
   jose: 5.10.0
   lint-staged: 17.1.0
+  miniprogram-automator: 0.12.1
   pg: 8.22.0
   prisma: 7.9.0
   redis: 6.1.0
