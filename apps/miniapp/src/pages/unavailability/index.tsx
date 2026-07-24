@@ -15,9 +15,6 @@ import {
 } from '../../unavailability-api';
 import './index.css';
 
-const START_OPTIONS = Array.from({ length: 96 }, (_, index) => index * 15);
-const END_OPTIONS = Array.from({ length: 96 }, (_, index) => (index + 1) * 15);
-
 function futureDateValue(days: number, now = new Date()): string {
   const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + days);
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -28,6 +25,15 @@ function futureDateValue(days: number, now = new Date()): string {
 function minuteLabel(minute: number): string {
   if (minute === 1440) return '24:00';
   return `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
+}
+
+function parseTime(value: string): number | null {
+  const match = /^(\d{2}):(\d{2})$/.exec(value);
+  if (!match) return null;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (hour > 23 || minute > 59) return null;
+  return hour * 60 + minute;
 }
 
 function errorMessage(cause: unknown): string {
@@ -79,8 +85,8 @@ export default function UnavailabilityPage() {
 
   async function previewImpact(): Promise<void> {
     if (!token || busy) return;
-    if (endMinute <= startMinute) {
-      setError('结束时间必须晚于开始时间。');
+    if (startMinute % 15 !== 0 || endMinute % 15 !== 0 || endMinute <= startMinute) {
+      setError('请选择有效时间，分钟只能是 00、15、30 或 45，且结束时间必须晚于开始时间。');
       return;
     }
     if (!reason.trim()) {
@@ -200,7 +206,6 @@ export default function UnavailabilityPage() {
             setStartMinute(value);
             resetPreview();
           }}
-          options={START_OPTIONS}
         />
         <TimePicker
           label="结束时间"
@@ -209,7 +214,6 @@ export default function UnavailabilityPage() {
             setEndMinute(value);
             resetPreview();
           }}
-          options={END_OPTIONS}
         />
         <Textarea
           className="unavailability-reason"
@@ -270,20 +274,17 @@ function TimePicker(props: {
   readonly label: string;
   readonly minute: number;
   readonly onChange: (minute: number) => void;
-  readonly options: readonly number[];
 }) {
-  const index = Math.max(0, props.options.indexOf(props.minute));
   return (
     <View className="unavailability-field">
       <Text>{props.label}</Text>
       <Picker
-        mode="selector"
+        mode="time"
         onChange={(event) => {
-          const selected = props.options[Number(event.detail.value)];
-          if (selected !== undefined) props.onChange(selected);
+          const selected = parseTime(event.detail.value);
+          if (selected !== null) props.onChange(selected);
         }}
-        range={props.options.map(minuteLabel)}
-        value={index}
+        value={minuteLabel(props.minute)}
       >
         <View className="unavailability-value">{minuteLabel(props.minute)}</View>
       </Picker>

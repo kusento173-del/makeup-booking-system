@@ -87,6 +87,7 @@ test('已登录管理员可查看排班详情并进入主播维护', async ({ pa
               availabilitySource: 'REGULAR_SHIFT',
               available: true,
               breakInterval: { endMinute: 780, startMinute: 720 },
+              unavailablePeriods: [{ endMinute: 900, startMinute: 840 }],
               unavailableReason: null,
               workIntervals: [
                 { endMinute: 720, startMinute: 540 },
@@ -127,6 +128,8 @@ test('已登录管理员可查看排班详情并进入主播维护', async ({ pa
 
   await expect(page.getByRole('heading', { name: '排班看板' })).toBeVisible();
   await expect(page.getByRole('article').getByText('柔柔', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '设置不可排' })).toBeVisible();
+  await expect(page.getByText('临时不可排 14:00–15:00')).toBeVisible();
   await page.getByRole('button', { name: /09:30.*小雨/ }).click();
   await expect(page.getByRole('heading', { name: '小雨' })).toBeVisible();
   await expect(page.getByText('实际预约化妆师')).toBeVisible();
