@@ -103,6 +103,38 @@ test('已登录管理员可查看排班详情并进入主播维护', async ({ pa
       });
       return;
     }
+    if (path === '/api/fixed-appointments/requests') {
+      await route.fulfill({
+        json: {
+          items: [
+            {
+              currentRuleId: null,
+              effectiveFrom: '2026-07-27',
+              hostCode: 'ZB0001',
+              hostId: 'host-1',
+              hostName: '小雨',
+              id: 'fixed-request-1',
+              reason: '申请长期固定',
+              requestType: 'CREATE',
+              reviewComment: null,
+              rowVersion: 1,
+              siteName: '松江',
+              status: 'PENDING',
+              submittedAt: '2026-07-24T08:00:00.000Z',
+              submittedByOperatorName: '运营甲',
+              targetArtistNickname: '柔柔',
+              targetDurationMinutes: 30,
+              targetStartMinute: 570,
+              targetWeekdays: [1, 3, 5],
+            },
+          ],
+          page: 1,
+          pageSize: 100,
+          total: 1,
+        },
+      });
+      return;
+    }
     await route.fulfill({
       json: {
         items: [
@@ -148,4 +180,11 @@ test('已登录管理员可查看排班详情并进入主播维护', async ({ pa
   await page.getByRole('button', { name: '编辑' }).click();
   await expect(page.getByRole('heading', { name: '维护主播' })).toBeVisible();
   await expect(page.getByLabel('修改原因')).toBeVisible();
+  await page.getByRole('button', { name: '关闭' }).click();
+
+  await page.getByRole('button', { name: '固定申请审批' }).click();
+  await expect(page.getByRole('heading', { name: '固定申请' })).toBeVisible();
+  await expect(page.getByText('小雨', { exact: true })).toBeVisible();
+  await expect(page.getByText('柔柔 · 周一、周三、周五 · 09:30–10:00 · 30分钟')).toBeVisible();
+  await expect(page.getByRole('button', { name: '通过' })).toBeVisible();
 });

@@ -2,7 +2,7 @@ import type { BackofficeRoleCode } from './auth-session';
 import type { ManagementView } from './master-data-api';
 
 export type BackofficeView =
-  'approvals' | 'exports' | 'overtime-approvals' | 'schedule' | ManagementView;
+  'approvals' | 'exports' | 'fixed-approvals' | 'overtime-approvals' | 'schedule' | ManagementView;
 
 const NAV_ITEMS: readonly {
   readonly adminOnly?: boolean;
@@ -13,6 +13,7 @@ const NAV_ITEMS: readonly {
   { id: 'exports', label: '排班导出' },
   { id: 'approvals', label: '班次审批' },
   { id: 'overtime-approvals', label: '加班审批' },
+  { id: 'fixed-approvals', label: '固定申请审批' },
   { id: 'hosts', label: '主播' },
   { id: 'artists', label: '化妆师' },
   { id: 'operators', label: '运营' },
