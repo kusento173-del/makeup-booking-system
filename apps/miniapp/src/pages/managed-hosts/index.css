@@ -14,7 +14,6 @@
 
 .managed-title,
 .managed-note,
-.managed-field-label,
 .managed-state,
 .managed-host-name,
 .managed-host-code,
@@ -37,49 +36,13 @@
   line-height: 1.5;
 }
 
-.managed-field-label {
-  margin-top: 22px;
-  color: #2c4654;
-  font-size: 25px;
-  font-weight: 700;
-}
-
-.managed-date-row {
-  display: flex;
-  gap: 8px;
-  margin-top: 12px;
-  overflow-x: auto;
-}
-
-.managed-date,
 .managed-search-button,
 .managed-action,
 .managed-load-more,
-.managed-date::after,
 .managed-search-button::after,
 .managed-action::after,
 .managed-load-more::after {
   border: 0;
-}
-
-.managed-date {
-  flex: 0 0 116px;
-  margin: 0;
-  padding: 8px 4px;
-  color: #41545f;
-  background: #edf1f3;
-  font-size: 22px;
-  line-height: 1.4;
-}
-
-.managed-date text {
-  display: block;
-}
-
-.managed-date.active {
-  color: #fff;
-  background: #245c6d;
-  font-weight: 700;
 }
 
 .managed-search {

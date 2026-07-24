@@ -499,6 +499,47 @@ export class ManagedHostPageDto {
   total!: number;
 }
 
+export class MyFixedRelationSummaryDto {
+  @ApiProperty({ format: 'uuid' })
+  artistId!: string;
+
+  @ApiProperty()
+  artistNickname!: string;
+
+  @ApiProperty({ enum: [15, 30, 45, 60] })
+  durationMinutes!: number;
+
+  @ApiProperty()
+  hostCode!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  hostId!: string;
+
+  @ApiProperty()
+  hostName!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  siteId!: string;
+
+  @ApiProperty()
+  siteName!: string;
+
+  @ApiProperty({ maximum: 1425, minimum: 0, multipleOf: 15 })
+  startMinute!: number;
+
+  @ApiProperty({ format: 'date' })
+  validFrom!: string;
+
+  @ApiProperty({ format: 'date', nullable: true })
+  validUntil!: string | null;
+
+  @ApiProperty({ isArray: true, maximum: 7, minimum: 1, type: Number })
+  weekdays!: number[];
+}
+
 export class WithdrawFixedRequestDto {
   @ApiProperty({ minimum: 1 })
   expectedRowVersion!: number;

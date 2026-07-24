@@ -7,6 +7,7 @@ import { futureBookingDates } from '../../booking-view';
 import { PageState } from '../../components/PageState';
 import { type ManagedHostSummary, listManagedHostWorkspace } from '../../fixed-api';
 import {
+  currentBusinessDate,
   managedHostActionRoute,
   managedHostBookingLabel,
   managedHostFixedLabel,
@@ -17,9 +18,9 @@ import './index.css';
 const PAGE_SIZE = 20;
 
 export default function ManagedHostsPage() {
-  const dates = useMemo(() => futureBookingDates(), []);
+  const bookingDate = useMemo(() => futureBookingDates()[0]?.date ?? '', []);
+  const relationDate = useMemo(() => currentBusinessDate(), []);
   const [token, setToken] = useState('');
-  const [date, setDate] = useState(dates[0]?.date ?? '');
   const [searchInput, setSearchInput] = useState('');
   const [activeSearch, setActiveSearch] = useState('');
   const [items, setItems] = useState<readonly ManagedHostSummary[]>([]);
@@ -48,7 +49,7 @@ export default function ManagedHostsPage() {
         return;
       }
       setToken(session.accessToken);
-      await load(session.accessToken, date, activeSearch, 1, false);
+      await load(session.accessToken, activeSearch, 1, false);
     } catch {
       setError('无法读取负责主播，请稍后重试。');
     } finally {
@@ -58,7 +59,6 @@ export default function ManagedHostsPage() {
 
   async function load(
     accessToken: string,
-    targetDate: string,
     search: string,
     nextPage: number,
     append: boolean,
@@ -68,7 +68,7 @@ export default function ManagedHostsPage() {
     setError(null);
     try {
       const result = await listManagedHostWorkspace(accessToken, {
-        asOf: targetDate,
+        asOf: relationDate,
         page: nextPage,
         pageSize: PAGE_SIZE,
         ...(search ? { search } : {}),
@@ -87,20 +87,14 @@ export default function ManagedHostsPage() {
     }
   }
 
-  function selectDate(nextDate: string): void {
-    if (nextDate === date || busy) return;
-    setDate(nextDate);
-    setItems([]);
-    void load(token, nextDate, activeSearch, 1, false);
-  }
-
   function search(): void {
     const query = searchInput.trim();
     setItems([]);
-    void load(token, date, query, 1, false);
+    void load(token, query, 1, false);
   }
 
   function openBusiness(action: 'booking' | 'fixed' | 'managed-host-detail', hostId: string): void {
+    const date = action === 'managed-host-detail' ? relationDate : bookingDate;
     void Taro.navigateTo({ url: managedHostActionRoute(action, hostId, date) });
   }
 
@@ -128,23 +122,7 @@ export default function ManagedHostsPage() {
     <View className="managed-page">
       <View className="managed-section">
         <Text className="managed-title">负责主播</Text>
-        <Text className="managed-note">按目标日期的有效负责关系显示，共 {total} 人。</Text>
-
-        <Text className="managed-field-label">目标日期</Text>
-        <View className="managed-date-row">
-          {dates.map((item) => (
-            <Button
-              className={item.date === date ? 'managed-date active' : 'managed-date'}
-              disabled={busy}
-              key={item.date}
-              onClick={() => selectDate(item.date)}
-              size="mini"
-            >
-              <Text>{item.label}</Text>
-              <Text>{item.date.slice(5)}</Text>
-            </Button>
-          ))}
-        </View>
+        <Text className="managed-note">当前由你负责的主播及其固定化妆师，共 {total} 人。</Text>
 
         <View className="managed-search">
           <Input
@@ -165,7 +143,7 @@ export default function ManagedHostsPage() {
       {busy && items.length === 0 ? <Text className="managed-state">正在查询负责主播…</Text> : null}
       {!busy && !error && items.length === 0 ? (
         <Text className="managed-state">
-          {activeSearch ? '没有匹配的负责主播。' : '该日期没有有效负责主播。'}
+          {activeSearch ? '没有匹配的负责主播。' : '当前没有负责主播。'}
         </Text>
       ) : null}
 
@@ -225,7 +203,7 @@ export default function ManagedHostsPage() {
       {!busy && !error && items.length < total ? (
         <Button
           className="managed-load-more"
-          onClick={() => void load(token, date, activeSearch, page + 1, true)}
+          onClick={() => void load(token, activeSearch, page + 1, true)}
         >
           加载更多
         </Button>

@@ -131,7 +131,7 @@ export default function BookingPage() {
         return;
       }
       if (session.role.roleCode === 'OPERATOR' && requestedHostId && !ownHost) {
-        setInitialError('该主播不在目标日期的负责范围内，请返回负责主播列表重新选择。');
+        setInitialError('预约日期不在你的负责关系有效期内，请返回负责主播列表重新选择。');
         return;
       }
       if (ownHost && ownHost.qualificationStatus !== 'ACTIVE') {
@@ -380,7 +380,7 @@ export default function BookingPage() {
           {rescheduleContext
             ? `${rescheduleContext.hostName} · ${rescheduleContext.hostCode} · ${siteName}`
             : roleCode === 'OPERATOR'
-              ? `${siteName} · 按目标日期选择负责主播`
+              ? `${siteName} · 按预约日期选择负责主播`
               : `${host?.hostCode} · ${siteName}`}
         </Text>
       </View>

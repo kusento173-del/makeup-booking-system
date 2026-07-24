@@ -48,6 +48,22 @@ export interface ManagedHostSummary {
   readonly siteName: string;
 }
 
+export interface MyFixedRelation {
+  readonly artistId: string;
+  readonly artistNickname: string;
+  readonly durationMinutes: number;
+  readonly hostCode: string;
+  readonly hostId: string;
+  readonly hostName: string;
+  readonly id: string;
+  readonly siteId: string;
+  readonly siteName: string;
+  readonly startMinute: number;
+  readonly validFrom: string;
+  readonly validUntil: string | null;
+  readonly weekdays: readonly number[];
+}
+
 export interface FixedAvailabilitySlot {
   readonly available: boolean;
   readonly earliestStartDate: string | null;
@@ -116,6 +132,10 @@ interface FixedScheduleInput {
 
 export function getFixedHostState(token: string, hostId: string): Promise<FixedHostState> {
   return apiRequest(`/fixed-appointments/hosts/${hostId}/state`, { token });
+}
+
+export function listMyFixedRelations(token: string): Promise<readonly MyFixedRelation[]> {
+  return apiRequest('/fixed-appointments/my-relations', { token });
 }
 
 export function listManagedHostWorkspace(

@@ -129,7 +129,7 @@ export default function FixedPage() {
       setSites(siteItems);
       setRequests(requestPage.items);
       if (requestedHostId && !managedHost) {
-        setError('该主播不在目标日期的负责范围内，请返回负责主播列表重新选择。');
+        setError('固定生效日不在你的负责关系有效期内，请返回负责主播列表重新选择。');
         return;
       }
       if (managedHost) {

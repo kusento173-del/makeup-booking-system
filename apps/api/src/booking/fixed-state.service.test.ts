@@ -61,9 +61,26 @@ const managedHost = {
   realName: '张三',
   site: { name: '松江', status: 'ACTIVE' },
 };
+const fixedRelation = {
+  artist: { nickname: '柔柔', realName: '王柔' },
+  artistId: 'artist-1',
+  durationMinutes: 30,
+  host: { hostCode: 'ZB01001', nickname: '小雨', realName: '张三' },
+  hostId: 'host-1',
+  id: 'rule-1',
+  site: { name: '松江' },
+  siteId: 'site-1',
+  startMinute: 540,
+  validFrom: new Date('2026-07-01T00:00:00.000Z'),
+  validUntil: null,
+  weekdays: [{ isoWeekday: 1 }, { isoWeekday: 3 }],
+};
 
 function createService(hostValue: object | null = host) {
   const client = {
+    fixedAppointmentRule: {
+      findMany: vi.fn().mockResolvedValue([fixedRelation]),
+    },
     hostProfile: {
       count: vi.fn().mockResolvedValue(1),
       findMany: vi.fn().mockResolvedValue([managedHost]),
@@ -190,6 +207,12 @@ describe('FixedStateService', () => {
     });
     expect(client.hostProfile.findMany.mock.calls[0]?.[0]).toMatchObject({
       select: {
+        fixedRules: {
+          where: {
+            OR: [{ validUntil: null }, { validUntil: { gt: asOf } }],
+            validFrom: { lte: asOf },
+          },
+        },
         leaveRecords: {
           where: {
             endDate: { gte: asOf },
@@ -252,5 +275,50 @@ describe('FixedStateService', () => {
         },
       ),
     ).toThrow(AuthorizationDeniedError);
+  });
+
+  it('lists only currently effective fixed relations for the signed-in host or artist', async () => {
+    const { client, service } = createService();
+
+    await expect(
+      service.listMyFixedRelations(
+        { ...context, roleCode: 'HOST', siteId: 'site-1', userId: 'host-user-1' },
+        now,
+      ),
+    ).resolves.toEqual([
+      {
+        artistId: 'artist-1',
+        artistNickname: '柔柔',
+        durationMinutes: 30,
+        hostCode: 'ZB01001',
+        hostId: 'host-1',
+        hostName: '小雨',
+        id: 'rule-1',
+        siteId: 'site-1',
+        siteName: '松江',
+        startMinute: 540,
+        validFrom: '2026-07-01',
+        validUntil: null,
+        weekdays: [1, 3],
+      },
+    ]);
+    expect(client.fixedAppointmentRule.findMany.mock.calls[0]?.[0]).toMatchObject({
+      where: {
+        host: { userId: 'host-user-1' },
+        OR: [{ validUntil: null }, { validUntil: { gt: new Date('2026-07-22') } }],
+        validFrom: { lte: new Date('2026-07-22') },
+      },
+    });
+
+    await service.listMyFixedRelations(
+      { ...context, roleCode: 'ARTIST', userId: 'artist-user-1' },
+      now,
+    );
+    expect(client.fixedAppointmentRule.findMany.mock.calls[1]?.[0]).toMatchObject({
+      where: { artist: { userId: 'artist-user-1' } },
+    });
+    expect(() => service.listMyFixedRelations({ ...context, roleCode: 'OPERATOR' }, now)).toThrow(
+      AuthorizationDeniedError,
+    );
   });
 });

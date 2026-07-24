@@ -56,3 +56,19 @@ export interface ManagedHostPage {
   readonly pageSize: number;
   readonly total: number;
 }
+
+export interface MyFixedRelationSummary {
+  readonly artistId: string;
+  readonly artistNickname: string;
+  readonly durationMinutes: number;
+  readonly hostCode: string;
+  readonly hostId: string;
+  readonly hostName: string;
+  readonly id: string;
+  readonly siteId: string;
+  readonly siteName: string;
+  readonly startMinute: number;
+  readonly validFrom: string;
+  readonly validUntil: string | null;
+  readonly weekdays: readonly number[];
+}

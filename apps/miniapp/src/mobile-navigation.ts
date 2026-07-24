@@ -4,6 +4,7 @@ export type MobileRoleCode = Extract<RoleCode, 'ARTIST' | 'HOST' | 'OPERATOR'>;
 export type MobileFeatureId =
   | 'booking'
   | 'fixed'
+  | 'fixed-relations'
   | 'leave'
   | 'managed-hosts'
   | 'overtime'
@@ -29,6 +30,7 @@ const HOME_BY_ROLE: Readonly<Record<MobileRoleCode, MobileHome>> = {
     description: '查看本人排班，预约或调整未来七日化妆安排。',
     features: [
       { description: '今日、明日、未来七日和历史记录', id: 'schedule', title: '我的排班' },
+      { description: '查看当前固定化妆师和固定时间', id: 'fixed-relations', title: '固定化妆师' },
       { description: '选择日期、化妆师和空闲时间', id: 'booking', title: '预约化妆' },
       { description: '固定主播可申请未来七日内请假', id: 'leave', title: '请假' },
     ],
@@ -49,6 +51,7 @@ const HOME_BY_ROLE: Readonly<Record<MobileRoleCode, MobileHome>> = {
     description: '查看个人排班，管理班次、请假和加班申请。',
     features: [
       { description: '今日、明日、未来七日和历史记录', id: 'schedule', title: '我的排班' },
+      { description: '查看当前固定主播名单和固定时间', id: 'fixed-relations', title: '固定主播' },
       { description: '设置、查看和申请修改固定班次', id: 'shift', title: '班次' },
       { description: '申请未来七日内请假', id: 'leave', title: '请假' },
       {
@@ -92,6 +95,9 @@ export function featureRoute(featureId: MobileFeatureId, roleCode?: RoleCode): s
   }
   if (featureId === 'managed-hosts' && roleCode === 'OPERATOR') {
     return '/pages/managed-hosts/index';
+  }
+  if (featureId === 'fixed-relations' && (roleCode === 'HOST' || roleCode === 'ARTIST')) {
+    return '/pages/fixed-relations/index';
   }
   if (featureId === 'fixed' && roleCode === 'OPERATOR') return '/pages/fixed/index';
   return `/pages/feature/index?feature=${featureId}`;

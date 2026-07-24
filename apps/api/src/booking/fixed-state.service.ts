@@ -17,6 +17,7 @@ import type {
   ManagedHostListInput,
   ManagedHostPage,
   ManagedHostSummary,
+  MyFixedRelationSummary,
   PendingFixedRequestSummary,
 } from './fixed-state.types';
 
@@ -75,6 +76,25 @@ const MANAGED_HOST_SELECT = {
 } satisfies Prisma.HostProfileSelect;
 
 type ManagedHostRecord = Prisma.HostProfileGetPayload<{ select: typeof MANAGED_HOST_SELECT }>;
+
+const MY_FIXED_RELATION_SELECT = {
+  artist: { select: { nickname: true, realName: true } },
+  artistId: true,
+  durationMinutes: true,
+  host: { select: { hostCode: true, nickname: true, realName: true } },
+  hostId: true,
+  id: true,
+  site: { select: { name: true } },
+  siteId: true,
+  startMinute: true,
+  validFrom: true,
+  validUntil: true,
+  weekdays: { orderBy: { isoWeekday: 'asc' as const }, select: { isoWeekday: true } },
+} satisfies Prisma.FixedAppointmentRuleSelect;
+
+type MyFixedRelationRecord = Prisma.FixedAppointmentRuleGetPayload<{
+  select: typeof MY_FIXED_RELATION_SELECT;
+}>;
 
 @Injectable()
 export class FixedStateService {
@@ -154,6 +174,7 @@ export class FixedStateService {
           orderBy: [{ siteId: 'asc' }, { hostCode: 'asc' }],
           select: {
             ...MANAGED_HOST_SELECT,
+            fixedRules: this.currentFixedRules(input.asOf),
             leaveRecords: {
               ...MANAGED_HOST_SELECT.leaveRecords,
               where: {
@@ -175,6 +196,33 @@ export class FixedStateService {
         pageSize: input.pageSize,
         total,
       };
+    });
+  }
+
+  listMyFixedRelations(
+    context: VerifiedAuthorizationContext,
+    now = new Date(),
+  ): Promise<readonly MyFixedRelationSummary[]> {
+    this.authorization.assertRole(context, ['HOST', 'ARTIST']);
+    const today = toBusinessDate(now);
+    const profileScope =
+      context.roleCode === 'HOST'
+        ? { host: { userId: context.userId } }
+        : { artist: { userId: context.userId } };
+
+    return this.database.read(async (client) => {
+      const records = await client.fixedAppointmentRule.findMany({
+        orderBy:
+          context.roleCode === 'HOST'
+            ? [{ artistId: 'asc' }, { startMinute: 'asc' }]
+            : [{ host: { hostCode: 'asc' } }, { startMinute: 'asc' }],
+        select: MY_FIXED_RELATION_SELECT,
+        where: {
+          ...profileScope,
+          ...this.currentRuleScope(today),
+        },
+      });
+      return records.map((record) => this.myFixedRelation(record));
     });
   }
 
@@ -243,5 +291,37 @@ export class FixedStateService {
     if (host.qualificationStatus !== 'ACTIVE') return 'QUALIFICATION_BLOCKED';
     if (host.site.status !== 'ACTIVE') return 'SITE_INACTIVE';
     return host.leaveRecords.length > 0 ? 'ON_LEAVE' : 'AVAILABLE';
+  }
+
+  private currentFixedRules(asOf: Date) {
+    return {
+      ...HOST_STATE_SELECT.fixedRules,
+      where: this.currentRuleScope(asOf),
+    };
+  }
+
+  private currentRuleScope(asOf: Date): Prisma.FixedAppointmentRuleWhereInput {
+    return {
+      validFrom: { lte: asOf },
+      OR: [{ validUntil: null }, { validUntil: { gt: asOf } }],
+    };
+  }
+
+  private myFixedRelation(record: MyFixedRelationRecord): MyFixedRelationSummary {
+    return {
+      artistId: record.artistId,
+      artistNickname: record.artist.nickname || record.artist.realName,
+      durationMinutes: record.durationMinutes,
+      hostCode: record.host.hostCode,
+      hostId: record.hostId,
+      hostName: record.host.nickname ?? record.host.realName,
+      id: record.id,
+      siteId: record.siteId,
+      siteName: record.site.name,
+      startMinute: record.startMinute,
+      validFrom: formatDateOnly(record.validFrom),
+      validUntil: record.validUntil ? formatDateOnly(record.validUntil) : null,
+      weekdays: record.weekdays.map(({ isoWeekday }) => isoWeekday),
+    };
   }
 }

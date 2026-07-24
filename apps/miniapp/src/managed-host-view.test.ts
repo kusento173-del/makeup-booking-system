@@ -4,6 +4,7 @@ import type { ManagedHostSummary } from './fixed-api';
 import {
   managedHostActionRoute,
   managedHostBookingLabel,
+  currentBusinessDate,
   managedHostDetailDates,
   managedHostFixedLabel,
   managedHostPendingLabel,
@@ -74,5 +75,9 @@ describe('managed host view', () => {
       '2026-07-30',
       '2026-07-31',
     ]);
+  });
+
+  it('使用上海业务日确定当前负责关系', () => {
+    expect(currentBusinessDate(new Date('2026-07-23T16:30:00.000Z'))).toBe('2026-07-24');
   });
 });

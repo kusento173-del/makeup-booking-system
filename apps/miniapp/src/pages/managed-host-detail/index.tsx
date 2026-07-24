@@ -68,7 +68,7 @@ export default function ManagedHostDetailPage() {
         }),
       ]);
       if (!managedHost) {
-        setError('该主播不在目标日期的负责范围内。');
+        setError('该主播当前不在你的负责范围内。');
         return;
       }
       setToken(session.accessToken);

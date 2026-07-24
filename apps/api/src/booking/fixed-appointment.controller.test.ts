@@ -197,6 +197,23 @@ describe('FixedAppointmentController', () => {
     });
   });
 
+  it('lists the signed-in host or artist current fixed relations', async () => {
+    const listMyFixedRelations = vi.fn().mockResolvedValue([]);
+    const controller = new FixedAppointmentController(
+      {} as FixedAvailabilityService,
+      {} as MasterDataCommandContextService,
+      {} as FixedRequestQueryService,
+      {} as FixedRequestReviewService,
+      {} as FixedRequestService,
+      { listMyFixedRelations } as unknown as FixedStateService,
+      {} as FixedRequestWithdrawService,
+    );
+
+    await controller.listMyFixedRelations(authorization);
+
+    expect(listMyFixedRelations).toHaveBeenCalledWith(authorization);
+  });
+
   it('submits fixed changes and cancellations through the operator context', async () => {
     const commandContext = { actorName: '运营小周', ...authorization };
     const resolve = vi.fn().mockResolvedValue(commandContext);

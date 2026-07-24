@@ -7,6 +7,7 @@ import {
   changeFixedRequest,
   getFixedAvailability,
   getManagedHostWorkspace,
+  listMyFixedRelations,
   listManagedHostWorkspace,
   listFixedRequests,
   withdrawFixedRequest,
@@ -37,6 +38,14 @@ describe('fixed appointment api', () => {
     request.mockResolvedValue({ items: [], page: 1, pageSize: 100, total: 0 });
     await listFixedRequests('token-1');
     expect(request).toHaveBeenCalledWith('/fixed-appointments/requests?page=1&pageSize=100', {
+      token: 'token-1',
+    });
+  });
+
+  it('读取本人当前固定关系', async () => {
+    request.mockResolvedValue([]);
+    await listMyFixedRelations('token-1');
+    expect(request).toHaveBeenCalledWith('/fixed-appointments/my-relations', {
       token: 'token-1',
     });
   });

@@ -38,6 +38,7 @@ import {
   FixedHostStateDto,
   FixedRulePageDto,
   ManagedHostPageDto,
+  MyFixedRelationSummaryDto,
   FixedRequestCreateResultDto,
   FixedRequestPageDto,
   FixedRequestReviewResultDto,
@@ -71,7 +72,7 @@ import type {
 } from './fixed-request.types';
 import { FixedStateService } from './fixed-state.service';
 import type { FixedHostState } from './fixed-state.types';
-import type { ManagedHostPage } from './fixed-state.types';
+import type { ManagedHostPage, MyFixedRelationSummary } from './fixed-state.types';
 
 @ApiTags('固定化妆预约')
 @ApiBearerAuth('access-token')
@@ -133,6 +134,15 @@ export class FixedAppointmentController {
     @CurrentAuth() authorization: AccessTokenClaims,
   ): Promise<ManagedHostPage> {
     return this.states.listManagedHosts(authorization, parseManagedHostList(query));
+  }
+
+  @Get('my-relations')
+  @ApiOperation({ summary: '查询当前主播或化妆师本人正在生效的固定关系' })
+  @ApiOkResponse({ isArray: true, type: MyFixedRelationSummaryDto })
+  listMyFixedRelations(
+    @CurrentAuth() authorization: AccessTokenClaims,
+  ): Promise<readonly MyFixedRelationSummary[]> {
+    return this.states.listMyFixedRelations(authorization);
   }
 
   @Get('rules')

@@ -49,6 +49,10 @@ export function managedHostActionRoute(
   return `/pages/${action}/index?hostId=${encodeURIComponent(hostId)}&date=${encodeURIComponent(date)}`;
 }
 
+export function currentBusinessDate(now = new Date()): string {
+  return BUSINESS_DATE.format(now);
+}
+
 export function managedHostDetailDates(now = new Date()): readonly {
   readonly date: string;
   readonly label: string;
