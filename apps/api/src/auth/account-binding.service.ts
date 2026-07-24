@@ -64,7 +64,11 @@ export class AccountBindingService {
       }
 
       const role = await transaction.userRole.create({
-        data: { roleCode: target.roleCode, userId: challenge.userId },
+        data: {
+          roleCode: target.roleCode,
+          siteId: target.siteId,
+          userId: challenge.userId,
+        },
         select: { id: true },
       });
       const userUpdated = await transaction.appUser.updateMany({

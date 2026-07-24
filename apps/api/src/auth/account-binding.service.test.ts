@@ -52,7 +52,9 @@ describe('AccountBindingService', () => {
       },
       userRole: {
         create: vi.fn().mockResolvedValue({ id: 'role-1' }),
-        findMany: vi.fn().mockResolvedValue([{ id: 'role-1', roleCode: 'HOST', siteId: null }]),
+        findMany: vi
+          .fn()
+          .mockResolvedValue([{ id: 'role-1', roleCode: 'HOST', siteId: 'site-songjiang' }]),
       },
     };
     const consumedCode = {
@@ -72,8 +74,12 @@ describe('AccountBindingService', () => {
       }),
     ).resolves.toEqual({
       requiresRoleSelection: false,
-      roles: [{ roleAssignmentId: 'role-1', roleCode: 'HOST', siteId: null }],
+      roles: [{ roleAssignmentId: 'role-1', roleCode: 'HOST', siteId: 'site-songjiang' }],
       userId: 'user-1',
+    });
+    expect(transaction.userRole.create).toHaveBeenCalledWith({
+      data: { roleCode: 'HOST', siteId: 'site-songjiang', userId: 'user-1' },
+      select: { id: true },
     });
     expect(updateProfile).toHaveBeenCalledWith({
       data: { rowVersion: { increment: 1 }, userId: 'user-1' },

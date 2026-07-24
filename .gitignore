@@ -15,6 +15,7 @@ test-results/
 .temp/
 .swc/
 apps/miniapp/project.private.config.json
+apps/miniapp/minitest/
 
 # Environment and secrets
 .env

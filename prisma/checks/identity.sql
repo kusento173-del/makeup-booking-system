@@ -114,8 +114,16 @@ BEGIN
         WHEN check_violation THEN NULL;
     END;
 
-    INSERT INTO "user_roles" ("user_id", "role_code")
-    VALUES (user_one_id, 'HOST');
+    BEGIN
+        INSERT INTO "user_roles" ("user_id", "role_code")
+        VALUES (user_one_id, 'HOST');
+        RAISE EXCEPTION 'Host role without a site was accepted';
+    EXCEPTION
+        WHEN check_violation THEN NULL;
+    END;
+
+    INSERT INTO "user_roles" ("user_id", "role_code", "site_id")
+    VALUES (user_one_id, 'HOST', site_id);
 
     BEGIN
         INSERT INTO "user_roles" ("user_id", "role_code")
