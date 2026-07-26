@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { HTTP_CODE_METADATA } from '@nestjs/common/constants';
 
 import type { AccessTokenClaims } from '../auth/auth-session.types';
 import type { MasterDataCommandContextService } from '../master-data/master-data-command-context.service';
@@ -23,6 +24,13 @@ const authorization: AccessTokenClaims = {
 const context: BookingCommandContext = { actorName: '小雨', ...authorization };
 
 describe('BookingController', () => {
+  it('returns OK when cancelling an existing appointment', () => {
+    const cancelHandler = Object.getOwnPropertyDescriptor(BookingController.prototype, 'cancel')
+      ?.value as BookingController['cancel'];
+
+    expect(Reflect.getMetadata(HTTP_CODE_METADATA, cancelHandler)).toBe(200);
+  });
+
   it('lists appointments using verified identity and a strict date range', async () => {
     const list = vi.fn().mockResolvedValue({ items: [], page: 1, pageSize: 50, total: 0 });
     const controller = new BookingController(

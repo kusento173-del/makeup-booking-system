@@ -1,4 +1,15 @@
-import { Body, Controller, Get, Headers, Ip, Param, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  HttpCode,
+  Ip,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -85,6 +96,7 @@ export class BookingController {
   }
 
   @Post('appointments/:appointmentId/cancel')
+  @HttpCode(200)
   @ApiOperation({ summary: '取消化妆预约' })
   @ApiBody({ type: CancelBookingRequestDto })
   @ApiOkResponse({ type: BookingCancellationResultDto })
