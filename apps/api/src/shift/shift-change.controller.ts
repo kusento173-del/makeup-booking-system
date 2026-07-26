@@ -89,6 +89,7 @@ export class ShiftChangeController {
   }
 
   @Post(':requestId/review')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: '客服或管理员审核班次修改申请' })
   @ApiBody({ type: ReviewShiftChangeRequestDto })
   @ApiOkResponse({

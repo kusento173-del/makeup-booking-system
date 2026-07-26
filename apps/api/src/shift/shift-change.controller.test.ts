@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { HTTP_CODE_METADATA } from '@nestjs/common/constants';
 
 import type { AccessTokenClaims } from '../auth/auth-session.types';
 import type { MasterDataCommandContextService } from '../master-data/master-data-command-context.service';
@@ -18,6 +19,13 @@ const authorization: AccessTokenClaims = {
 const context = { actorName: '松江客服', ...authorization };
 
 describe('ShiftChangeController', () => {
+  it('returns OK when reviewing a shift change', () => {
+    const reviewHandler = Object.getOwnPropertyDescriptor(ShiftChangeController.prototype, 'review')
+      ?.value as ShiftChangeController['review'];
+
+    expect(Reflect.getMetadata(HTTP_CODE_METADATA, reviewHandler)).toBe(200);
+  });
+
   it('passes a bounded list request without accepting a client site scope', async () => {
     const list = vi.fn().mockResolvedValue({ items: [], page: 1, pageSize: 50, total: 0 });
     const controller = new ShiftChangeController(
