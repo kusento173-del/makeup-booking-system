@@ -127,6 +127,11 @@ export class BookingSlotService {
                 ? { ruleId: { not: excludedAppointment.fixedRuleId } }
                 : {}),
               OR: [{ artistId: input.artistId }, { hostId: input.hostId }],
+              rule: {
+                appointments: {
+                  none: { appointmentDate: input.date, status: 'CANCELLED' },
+                },
+              },
               validFrom: { lte: input.date },
               AND: [{ OR: [{ validUntil: null }, { validUntil: { gt: input.date } }] }],
             },

@@ -8,6 +8,7 @@ import { AuthorizationDeniedError } from '../auth/authorization-policy.service';
 import type { DatabaseService } from '../database/database.service';
 import {
   LeaveDateRangeInvalidError,
+  LeaveFixedAppointmentRestoreConflictError,
   LeaveImpactChangedError,
   LeaveReasonInvalidError,
   LeaveStateConflictError,
@@ -201,6 +202,7 @@ describe('LeaveService', () => {
   it('cancels a future self leave with optimistic concurrency and audit', async () => {
     const updateMany = vi.fn().mockResolvedValue({ count: 1 });
     const client = {
+      appointment: { findMany: vi.fn().mockResolvedValue([]) },
       leaveRecord: {
         findUnique: vi.fn().mockResolvedValue({
           artist: null,
@@ -225,8 +227,154 @@ describe('LeaveService', () => {
     );
   });
 
+  it('restores fixed appointments cancelled by the leave while keeping single appointments cancelled', async () => {
+    const fixedAppointment = {
+      appointmentDate: range.startDate,
+      artistId: 'artist-1',
+      dailySequence: 1,
+      endAt: new Date('2026-07-23T09:30:00.000Z'),
+      fixedRule: {
+        durationMinutes: 30,
+        startMinute: 1020,
+        status: 'ACTIVE',
+        validFrom: new Date('2026-07-01T00:00:00.000Z'),
+        validUntil: null,
+        weekdays: [{ isoWeekday: 4 }],
+      },
+      hostId: 'host-1',
+      id: 'fixed-appointment-1',
+      rowVersion: 2,
+      siteId: 'site-songjiang',
+      startAt: new Date('2026-07-23T09:00:00.000Z'),
+    };
+    const appointmentUpdate = vi.fn().mockResolvedValue({ count: 1 });
+    const client = {
+      $queryRaw: vi.fn().mockResolvedValue([{ acquired: 1 }]),
+      appointment: {
+        findMany: vi.fn().mockResolvedValueOnce([fixedAppointment]).mockResolvedValueOnce([]),
+        updateMany: appointmentUpdate,
+      },
+      leaveRecord: {
+        findUnique: vi.fn().mockResolvedValue({
+          artist: { siteId: 'site-songjiang', userId: 'user-artist' },
+          host: null,
+          id: 'leave-1',
+          rowVersion: 1,
+          startDate: range.startDate,
+          status: 'ACTIVE',
+        }),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+    const { append, service } = createService(client);
+    const artistContext = {
+      ...context,
+      roleCode: 'ARTIST',
+      userId: 'user-artist',
+    } as const;
+
+    await service.cancel(artistContext, { expectedRowVersion: 1, leaveId: 'leave-1' }, now);
+
+    expect(client.appointment.findMany.mock.calls[0]?.[0]).toMatchObject({
+      where: {
+        cancellationSourceId: 'leave-1',
+        cancellationSourceType: 'LEAVE_RECORD',
+        fixedRuleId: { not: null },
+        status: 'CANCELLED',
+      },
+    });
+    const appointmentUpdateCall: unknown = appointmentUpdate.mock.calls[0]?.[0];
+    expect(appointmentUpdateCall).toMatchObject({
+      data: {
+        cancellationSourceId: null,
+        cancelledAt: null,
+        dailySequence: 1,
+        status: 'BOOKED',
+      },
+      where: {
+        cancellationSourceId: 'leave-1',
+        id: 'fixed-appointment-1',
+        status: 'CANCELLED',
+      },
+    });
+    const restoredAudit: unknown = append.mock.calls[0]?.[1];
+    expect(restoredAudit).toMatchObject({
+      action: 'FIXED_APPOINTMENT_RESTORED_AFTER_LEAVE_CANCEL',
+      objectId: 'fixed-appointment-1',
+    });
+    const leaveAudit: unknown = append.mock.calls[1]?.[1];
+    expect(leaveAudit).toMatchObject({
+      action: 'LEAVE_CANCELLED',
+      afterData: { restoredFixedAppointmentCount: 1 },
+    });
+  });
+
+  it('rejects leave cancellation when a released fixed slot has been occupied', async () => {
+    const fixedAppointment = {
+      appointmentDate: range.startDate,
+      artistId: 'artist-1',
+      dailySequence: 1,
+      endAt: new Date('2026-07-23T09:30:00.000Z'),
+      fixedRule: {
+        durationMinutes: 30,
+        startMinute: 1020,
+        status: 'ACTIVE',
+        validFrom: new Date('2026-07-01T00:00:00.000Z'),
+        validUntil: null,
+        weekdays: [{ isoWeekday: 4 }],
+      },
+      hostId: 'host-1',
+      id: 'fixed-appointment-1',
+      rowVersion: 2,
+      siteId: 'site-songjiang',
+      startAt: new Date('2026-07-23T09:00:00.000Z'),
+    };
+    const appointmentUpdate = vi.fn();
+    const client = {
+      $queryRaw: vi.fn().mockResolvedValue([{ acquired: 1 }]),
+      appointment: {
+        findMany: vi
+          .fn()
+          .mockResolvedValueOnce([fixedAppointment])
+          .mockResolvedValueOnce([
+            {
+              artistId: 'artist-1',
+              dailySequence: 1,
+              endAt: new Date('2026-07-23T09:30:00.000Z'),
+              hostId: 'another-host',
+              startAt: new Date('2026-07-23T09:00:00.000Z'),
+            },
+          ]),
+        updateMany: appointmentUpdate,
+      },
+      leaveRecord: {
+        findUnique: vi.fn().mockResolvedValue({
+          artist: { siteId: 'site-songjiang', userId: 'user-artist' },
+          host: null,
+          id: 'leave-1',
+          rowVersion: 1,
+          startDate: range.startDate,
+          status: 'ACTIVE',
+        }),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+    const { service } = createService(client);
+    const artistContext = {
+      ...context,
+      roleCode: 'ARTIST',
+      userId: 'user-artist',
+    } as const;
+
+    await expect(
+      service.cancel(artistContext, { expectedRowVersion: 1, leaveId: 'leave-1' }, now),
+    ).rejects.toBeInstanceOf(LeaveFixedAppointmentRestoreConflictError);
+    expect(appointmentUpdate).not.toHaveBeenCalled();
+  });
+
   it('requires an administrator correction reason and rejects stale or started leave', async () => {
     const client = {
+      appointment: { findMany: vi.fn().mockResolvedValue([]) },
       leaveRecord: {
         findUnique: vi.fn().mockResolvedValue({
           artist: null,

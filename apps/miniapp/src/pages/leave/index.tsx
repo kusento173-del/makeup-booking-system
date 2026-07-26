@@ -97,7 +97,7 @@ export default function LeavePage() {
       cancelText: '返回检查',
       confirmColor: '#9b342d',
       confirmText: '确认请假',
-      content: `请假日期：${preview.startDate} 至 ${preview.endDate}\n将取消 ${preview.affectedAppointmentCount} 条预约并释放档期。\n取消请假不会恢复这些预约。`,
+      content: `请假日期：${preview.startDate} 至 ${preview.endDate}\n将取消 ${preview.affectedAppointmentCount} 条预约并释放档期。\n取消请假时恢复仍有效的固定预约，单次预约不恢复。`,
       title: '确认请假影响',
     });
     if (!confirmed.confirm) return;
@@ -129,7 +129,7 @@ export default function LeavePage() {
     const confirmed = await Taro.showModal({
       cancelText: '保留请假',
       confirmText: '取消请假',
-      content: `${item.startDate} 至 ${item.endDate}\n取消后不会自动恢复此前已取消的预约。`,
+      content: `${item.startDate} 至 ${item.endDate}\n将恢复由本次请假取消且仍有效的固定预约，单次预约不恢复。若原档期已被占用，取消将失败。`,
       title: '确认取消请假',
     });
     if (!confirmed.confirm) return;
@@ -179,7 +179,7 @@ export default function LeavePage() {
           <View className="leave-impact">
             <Text className="impact-title">影响确认</Text>
             <Text>将取消 {preview.affectedAppointmentCount} 条预约</Text>
-            <Text>固定关系不会结束，取消请假也不会恢复预约</Text>
+            <Text>固定关系不会结束；取消请假时恢复有效固定预约，单次预约不恢复</Text>
           </View>
         ) : null}
         {error ? <View className="leave-error">{error}</View> : null}

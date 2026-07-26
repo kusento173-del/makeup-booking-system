@@ -257,13 +257,21 @@ describe('BookingCreateService', () => {
   });
 
   it('does not let a single booking bypass approved or pending fixed occupation', async () => {
-    await expect(
-      createService({ fixed: { ruleId: 'fixed-rule-1' } }).service.create(
-        hostContext,
-        command,
-        now,
-      ),
-    ).rejects.toBeInstanceOf(BookingSlotConflictError);
+    const fixed = createService({ fixed: { ruleId: 'fixed-rule-1' } });
+    await expect(fixed.service.create(hostContext, command, now)).rejects.toBeInstanceOf(
+      BookingSlotConflictError,
+    );
+    const fixedQuery: unknown =
+      fixed.transaction.fixedAppointmentRuleWeekday.findFirst.mock.calls[0]?.[0];
+    expect(fixedQuery).toMatchObject({
+      where: {
+        rule: {
+          appointments: {
+            none: { appointmentDate: command.date, status: 'CANCELLED' },
+          },
+        },
+      },
+    });
     await expect(
       createService({
         pending: [{ targetDurationMinutes: 30, targetStartMinute: 555 }],

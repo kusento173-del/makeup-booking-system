@@ -11,7 +11,11 @@ import {
   BookingSecondConfirmationRequiredError,
   BookingSlotConflictError,
 } from './booking/booking-create.errors';
-import { LeaveNotFoundError, LeaveStateConflictError } from './leave/leave.errors';
+import {
+  LeaveFixedAppointmentRestoreConflictError,
+  LeaveNotFoundError,
+  LeaveStateConflictError,
+} from './leave/leave.errors';
 import { LastAdministratorError } from './master-data/backoffice-account.errors';
 import {
   MasterDataNotFoundError,
@@ -160,6 +164,21 @@ describe('ApiExceptionFilter', () => {
     expect(conflict.response.status).toHaveBeenCalledWith(409);
     expect(conflict.send).toHaveBeenCalledWith({
       error: { code: 'LEAVE_STATE_CONFLICT', message: '数据状态冲突，请刷新后重试' },
+      statusCode: 409,
+    });
+  });
+
+  it('explains why a leave with an occupied fixed slot cannot be cancelled', () => {
+    const { host, response, send } = createHost();
+
+    new ApiExceptionFilter().catch(new LeaveFixedAppointmentRestoreConflictError(), host);
+
+    expect(response.status).toHaveBeenCalledWith(409);
+    expect(send).toHaveBeenCalledWith({
+      error: {
+        code: 'LEAVE_FIXED_APPOINTMENT_RESTORE_CONFLICT',
+        message: '取消请假失败：原固定时段已被占用，请先调整冲突预约',
+      },
       statusCode: 409,
     });
   });

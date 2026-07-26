@@ -186,7 +186,7 @@ describe('BookingSlotService', () => {
   });
 
   it('removes approved and pending recurring occupation before it becomes a daily instance', async () => {
-    const { service } = createService({
+    const { client, service } = createService({
       fixed: [{ endMinute: 570, startMinute: 540 }],
       pending: [{ targetDurationMinutes: 30, targetStartMinute: 780 }],
     });
@@ -196,6 +196,16 @@ describe('BookingSlotService', () => {
     expect(result.slots.map((slot) => slot.startMinute)).not.toEqual(
       expect.arrayContaining([540, 555, 780, 795]),
     );
+    const fixedQuery: unknown = client.fixedAppointmentRuleWeekday.findMany.mock.calls[0]?.[0];
+    expect(fixedQuery).toMatchObject({
+      where: {
+        rule: {
+          appointments: {
+            none: { appointmentDate: date, status: 'CANCELLED' },
+          },
+        },
+      },
+    });
   });
 
   it.each([

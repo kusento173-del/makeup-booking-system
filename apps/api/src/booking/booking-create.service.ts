@@ -218,6 +218,11 @@ export class BookingCreateService {
           ...(options.excludeFixedRuleId ? { ruleId: { not: options.excludeFixedRuleId } } : {}),
           isoWeekday: weekday,
           OR: [{ artistId: command.artistId }, { hostId: command.hostId }],
+          rule: {
+            appointments: {
+              none: { appointmentDate: command.date, status: 'CANCELLED' },
+            },
+          },
           startMinute: { lt: endMinute },
           validFrom: { lte: command.date },
           AND: [{ OR: [{ validUntil: null }, { validUntil: { gt: command.date } }] }],

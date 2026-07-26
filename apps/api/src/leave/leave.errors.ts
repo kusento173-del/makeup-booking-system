@@ -38,6 +38,14 @@ export class LeaveStateConflictError extends Error {
   }
 }
 
+export class LeaveFixedAppointmentRestoreConflictError extends Error {
+  readonly code = 'LEAVE_FIXED_APPOINTMENT_RESTORE_CONFLICT';
+  constructor() {
+    super('A fixed appointment affected by this leave can no longer be restored');
+    this.name = 'LeaveFixedAppointmentRestoreConflictError';
+  }
+}
+
 export class LeaveReasonInvalidError extends Error {
   readonly code = 'LEAVE_REASON_INVALID';
   constructor() {

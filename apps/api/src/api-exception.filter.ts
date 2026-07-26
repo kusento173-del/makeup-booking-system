@@ -87,6 +87,7 @@ import {
 } from './master-data/master-data.errors';
 import {
   LeaveDateRangeInvalidError,
+  LeaveFixedAppointmentRestoreConflictError,
   LeaveImpactChangedError,
   LeaveNotFoundError,
   LeaveReasonInvalidError,
@@ -252,6 +253,14 @@ export class ApiExceptionFilter implements ExceptionFilter {
 
     if (exception instanceof BookingCancellationCutoffError) {
       return this.response(HttpStatus.CONFLICT, exception.code, '预约当天 0 点后不能取消');
+    }
+
+    if (exception instanceof LeaveFixedAppointmentRestoreConflictError) {
+      return this.response(
+        HttpStatus.CONFLICT,
+        exception.code,
+        '取消请假失败：原固定时段已被占用，请先调整冲突预约',
+      );
     }
 
     if (
