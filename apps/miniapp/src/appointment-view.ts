@@ -85,13 +85,12 @@ export interface RescheduleContext {
   readonly appointmentId: string;
   readonly artistNickname: string;
   readonly date: string;
-  readonly endAt: string;
   readonly hostCode: string;
   readonly hostId: string;
   readonly hostName: string;
   readonly rowVersion: number;
   readonly siteName: string;
-  readonly startAt: string;
+  readonly timeLabel: string;
 }
 
 export function rescheduleRoute(item: AppointmentListItem): string {
@@ -99,13 +98,12 @@ export function rescheduleRoute(item: AppointmentListItem): string {
     appointmentId: item.id,
     artistNickname: item.artistNickname,
     date: item.date,
-    endAt: item.endAt,
     hostCode: item.hostCode,
     hostId: item.hostId,
     hostName: item.hostName,
     rowVersion: String(item.rowVersion),
     siteName: item.siteName,
-    startAt: item.startAt,
+    timeLabel: appointmentTime(item),
   });
   return `/pages/booking/index?${query.toString()}`;
 }
@@ -117,12 +115,11 @@ export function parseRescheduleContext(
   const required = [
     'artistNickname',
     'date',
-    'endAt',
     'hostCode',
     'hostId',
     'hostName',
     'siteName',
-    'startAt',
+    'timeLabel',
   ] as const;
   const rowVersion = Number(input['rowVersion']);
   if (required.some((key) => !input[key]) || !Number.isSafeInteger(rowVersion) || rowVersion < 1) {
@@ -132,12 +129,11 @@ export function parseRescheduleContext(
     appointmentId: input['appointmentId'],
     artistNickname: input['artistNickname']!,
     date: input['date']!,
-    endAt: input['endAt']!,
     hostCode: input['hostCode']!,
     hostId: input['hostId']!,
     hostName: input['hostName']!,
     rowVersion,
     siteName: input['siteName']!,
-    startAt: input['startAt']!,
+    timeLabel: input['timeLabel']!,
   };
 }

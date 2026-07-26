@@ -83,6 +83,7 @@ describe('appointment view', () => {
       appointmentId: 'appointment-1',
       hostId: 'host-1',
       rowVersion: 1,
+      timeLabel: '09:30–10:00',
     });
     expect(parseRescheduleContext({ appointmentId: 'appointment-1' })).toBeNull();
   });

@@ -242,10 +242,7 @@ export default function BookingPage() {
         ...(roleCode === 'OPERATOR' ? ['由运营代预约'] : []),
         ...(rescheduleContext
           ? [
-              `原安排：${rescheduleContext.date} ${slotTime({
-                startAt: rescheduleContext.startAt,
-                endAt: rescheduleContext.endAt,
-              })} · ${rescheduleContext.artistNickname}`,
+              `原安排：${rescheduleContext.date} ${rescheduleContext.timeLabel} · ${rescheduleContext.artistNickname}`,
             ]
           : []),
         ...(rescheduleContext ? ['新安排：'] : []),
