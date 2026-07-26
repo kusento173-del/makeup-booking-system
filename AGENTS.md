@@ -36,3 +36,9 @@
 - 提交前检查 `git diff --staged`，确保没有 `.env`、Excel人员名单或其他敏感数据。
 - 完成后向用户报告提交哈希和已运行的测试。
 - 如果测试失败或改动尚未完成，不要将其标记为完成版本提交。
+
+## 小程序编译规则
+
+- `pnpm --filter @makeup/miniapp dev` 与 `pnpm --filter @makeup/miniapp build` 会写入同一个 `apps/miniapp/dist`，严禁同时运行。
+- 开发联调期间只保留一个小程序 watch 进程；需要执行正式构建、全量检查或端到端测试前，必须先停止 watch，构建完成后再单独重启 watch。
+- 微信开发者工具只能在 Taro 构建完成后重新编译；不得在 `dist` 正在删除或生成文件时清理编译缓存、执行 `Ctrl+B` 或运行逐页冒烟。
