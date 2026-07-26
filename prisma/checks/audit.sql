@@ -2,6 +2,22 @@ BEGIN;
 
 DO $$
 DECLARE
+    original_search_path TEXT;
+BEGIN
+    original_search_path := current_setting('search_path');
+    PERFORM set_config('search_path', '', true);
+
+    IF NOT public.audit_snapshot_has_sensitive_key(
+        '{"nested":[{"passwordHash":"secret"}]}'::jsonb
+    ) THEN
+        RAISE EXCEPTION 'Sensitive audit recursion failed with an empty search_path';
+    END IF;
+
+    PERFORM set_config('search_path', original_search_path, true);
+END $$;
+
+DO $$
+DECLARE
     site_id UUID;
     actor_user_id UUID;
     log_id UUID;

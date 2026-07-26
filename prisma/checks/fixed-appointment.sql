@@ -165,7 +165,7 @@ BEGIN
             TIMESTAMPTZ '2026-08-03 09:30:00+08', 30, 1, 'FIXED', created_rule_id, 'SYSTEM'
         );
         RAISE EXCEPTION 'Duplicate fixed rule date was accepted';
-    EXCEPTION WHEN unique_violation THEN NULL;
+    EXCEPTION WHEN unique_violation OR exclusion_violation THEN NULL;
     END;
 
     BEGIN

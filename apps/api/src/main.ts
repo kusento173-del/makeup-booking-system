@@ -11,7 +11,18 @@ import { ApiExceptionFilter } from './api-exception.filter';
 config({ path: resolve(__dirname, '../../../.env'), quiet: true });
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter());
+  const adapter = new FastifyAdapter({ bodyLimit: 1024 * 1024 });
+  adapter.getInstance().addHook('onSend', (_request, reply, payload, done) => {
+    reply.headers({
+      'Cache-Control': 'no-store',
+      'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+      'Referrer-Policy': 'no-referrer',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+    });
+    done(null, payload);
+  });
+  const app = await NestFactory.create<NestFastifyApplication>(AppModule, adapter);
   const port = Number.parseInt(process.env.API_PORT ?? '3000', 10);
 
   app.enableShutdownHooks();
