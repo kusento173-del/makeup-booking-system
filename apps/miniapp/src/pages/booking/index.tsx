@@ -242,7 +242,7 @@ export default function BookingPage() {
     const second = slots.requiresSecondConfirmation;
     const confirmation = await Taro.showModal({
       cancelText: '返回检查',
-      confirmText: second ? '确认第二次' : '确认预约',
+      confirmText: second ? '继续预约' : '确认预约',
       content: [
         ...(roleCode === 'OPERATOR' ? ['由运营代预约'] : []),
         ...(rescheduleContext
