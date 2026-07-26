@@ -110,11 +110,13 @@ export function rescheduleRoute(item: AppointmentListItem): string {
 }
 
 export function parseRescheduleContext(
-  input: Readonly<Record<string, string | undefined>>,
+  input: Readonly<Record<string, unknown>>,
 ): RescheduleContext | null {
-  const routeValuesAreEncoded = Object.values(input).some((value) => value?.includes('%'));
-  const decode = (value: string | undefined): string | null => {
-    if (!value) return null;
+  const routeValuesAreEncoded = Object.values(input).some(
+    (value) => typeof value === 'string' && value.includes('%'),
+  );
+  const decode = (value: unknown): string | null => {
+    if (typeof value !== 'string' || !value) return null;
     if (!routeValuesAreEncoded) return value;
     try {
       return decodeURIComponent(value.replace(/\+/g, ' '));

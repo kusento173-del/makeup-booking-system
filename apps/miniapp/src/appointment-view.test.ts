@@ -107,4 +107,14 @@ describe('appointment view', () => {
       timeLabel: '09:30–10:00',
     });
   });
+
+  it('忽略微信路由附加的非字符串参数', () => {
+    expect(parseRescheduleContext({ $taroTimestamp: Date.now() })).toBeNull();
+    expect(
+      parseRescheduleContext({
+        appointmentId: ['invalid'],
+        $taroTimestamp: Date.now(),
+      }),
+    ).toBeNull();
+  });
 });
