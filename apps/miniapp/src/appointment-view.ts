@@ -112,7 +112,18 @@ export function rescheduleRoute(item: AppointmentListItem): string {
 export function parseRescheduleContext(
   input: Readonly<Record<string, string | undefined>>,
 ): RescheduleContext | null {
-  if (!input['appointmentId']) return null;
+  const routeValuesAreEncoded = Object.values(input).some((value) => value?.includes('%'));
+  const decode = (value: string | undefined): string | null => {
+    if (!value) return null;
+    if (!routeValuesAreEncoded) return value;
+    try {
+      return decodeURIComponent(value.replace(/\+/g, ' '));
+    } catch {
+      return null;
+    }
+  };
+  const appointmentId = decode(input['appointmentId']);
+  if (!appointmentId) return null;
   const required = [
     'artistNickname',
     'date',
@@ -122,24 +133,28 @@ export function parseRescheduleContext(
     'siteName',
     'timeLabel',
   ] as const;
-  const rowVersion = Number(input['rowVersion']);
+  const values = Object.fromEntries(required.map((key) => [key, decode(input[key])])) as Record<
+    (typeof required)[number],
+    string | null
+  >;
+  const rowVersion = Number(decode(input['rowVersion']));
   if (
-    required.some((key) => !input[key]) ||
-    !TIME_LABEL_PATTERN.test(input['timeLabel'] ?? '') ||
+    required.some((key) => !values[key]) ||
+    !TIME_LABEL_PATTERN.test(values.timeLabel ?? '') ||
     !Number.isSafeInteger(rowVersion) ||
     rowVersion < 1
   ) {
     return null;
   }
   return {
-    appointmentId: input['appointmentId'],
-    artistNickname: input['artistNickname']!,
-    date: input['date']!,
-    hostCode: input['hostCode']!,
-    hostId: input['hostId']!,
-    hostName: input['hostName']!,
+    appointmentId,
+    artistNickname: values.artistNickname!,
+    date: values.date!,
+    hostCode: values.hostCode!,
+    hostId: values.hostId!,
+    hostName: values.hostName!,
     rowVersion,
-    siteName: input['siteName']!,
-    timeLabel: input['timeLabel']!,
+    siteName: values.siteName!,
+    timeLabel: values.timeLabel!,
   };
 }

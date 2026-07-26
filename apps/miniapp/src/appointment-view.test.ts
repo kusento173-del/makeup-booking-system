@@ -88,4 +88,23 @@ describe('appointment view', () => {
     expect(parseRescheduleContext({ appointmentId: 'appointment-1' })).toBeNull();
     expect(parseRescheduleContext({ ...query, timeLabel: 'invalid' })).toBeNull();
   });
+
+  it('解析微信路由保留的百分号编码参数', () => {
+    const route = rescheduleRoute(appointment);
+    const encodedQuery = Object.fromEntries(
+      route
+        .split('?')[1]!
+        .split('&')
+        .map((part) => {
+          const [key, value] = part.split('=');
+          return [key!, value!];
+        }),
+    );
+
+    expect(parseRescheduleContext(encodedQuery)).toMatchObject({
+      artistNickname: '柔柔',
+      hostName: '小雨',
+      timeLabel: '09:30–10:00',
+    });
+  });
 });
