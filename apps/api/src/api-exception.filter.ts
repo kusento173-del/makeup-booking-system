@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 
 import { AuthRequestInvalidError } from './auth/auth-request.parser';
+import { AuditQueryInvalidError } from './audit/audit-query.parser';
 import { BackofficeLoginDeniedError } from './auth/backoffice-auth.errors';
 import {
   AuthRateLimitExceededError,
@@ -174,6 +175,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
 
     if (
       exception instanceof AuthRequestInvalidError ||
+      exception instanceof AuditQueryInvalidError ||
       exception instanceof BookingRequestInvalidError ||
       exception instanceof BookingDateInvalidError ||
       exception instanceof BookingDurationInvalidError ||

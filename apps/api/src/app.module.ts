@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 
 import { AvailabilityModule } from './availability/availability.module';
 import { AuditModule } from './audit/audit.module';
+import { AuditQueryModule } from './audit/audit-query.module';
 import { AuthModule } from './auth/auth.module';
 import { BookingModule } from './booking/booking.module';
 import { DatabaseModule } from './database/database.module';
@@ -19,6 +20,7 @@ import { ArtistUnavailabilityModule } from './unavailability/artist-unavailabili
   imports: [
     AvailabilityModule,
     AuditModule,
+    AuditQueryModule,
     AuthModule,
     BookingModule,
     DatabaseModule,

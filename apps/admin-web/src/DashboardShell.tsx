@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import { AuditPage } from './AuditPage';
 import type { SessionTokenPair } from './auth-session';
 import { BackofficeNavigation, type BackofficeView } from './BackofficeNavigation';
 import { ExportPage } from './ExportPage';
@@ -50,6 +51,8 @@ export function DashboardShell({ busy, onLogout, onUnauthorized, session }: Dash
           <FixedRequestApprovalPage onUnauthorized={onUnauthorized} session={session} />
         ) : view === 'fixed-rules' ? (
           <FixedRulePage onUnauthorized={onUnauthorized} session={session} />
+        ) : view === 'audit' ? (
+          <AuditPage onUnauthorized={onUnauthorized} session={session} />
         ) : (
           <ManagementPage
             key={view}

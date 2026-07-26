@@ -5,6 +5,7 @@ import type { ManagementView } from './master-data-api';
 
 export type BackofficeView =
   | 'approvals'
+  | 'audit'
   | 'exports'
   | 'fixed-approvals'
   | 'fixed-rules'
@@ -54,6 +55,7 @@ const NAV_GROUPS: readonly {
     items: [
       { id: 'sites', label: '场地' },
       { adminOnly: true, id: 'accounts', label: '账号与角色' },
+      { id: 'audit', label: '操作记录' },
     ],
     label: '系统设置',
   },

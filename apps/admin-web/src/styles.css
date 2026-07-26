@@ -1348,6 +1348,57 @@ tbody tr:hover {
   text-overflow: ellipsis;
 }
 
+.audit-filters {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+}
+
+.audit-main td small {
+  display: block;
+  max-width: 230px;
+  margin-top: 4px;
+  overflow: hidden;
+  color: #6b7280;
+  text-overflow: ellipsis;
+}
+
+.audit-main details {
+  min-width: 180px;
+}
+
+.audit-main summary {
+  color: #1f6073;
+  cursor: pointer;
+}
+
+.audit-snapshots {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.audit-snapshots pre {
+  max-width: 420px;
+  max-height: 220px;
+  margin: 0;
+  padding: 10px;
+  overflow: auto;
+  border-radius: 6px;
+  background: #f5f7f8;
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+.audit-pagination {
+  align-items: center;
+  border-top: 1px solid var(--line);
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding: 14px 18px;
+}
+
 @media (max-width: 560px) {
   .login-card {
     padding: 28px 22px;
