@@ -11,5 +11,11 @@ export function provideRedisClient(): RedisClient {
     throw new RateLimitConfigurationError();
   }
 
-  return createClient({ url });
+  return createClient({
+    disableOfflineQueue: true,
+    socket: {
+      reconnectStrategy: (retries: number) => Math.min(100 * 2 ** Math.min(retries, 5), 3_000),
+    },
+    url,
+  });
 }

@@ -1,11 +1,28 @@
-import { Inject, Injectable, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  Logger,
+  type OnModuleDestroy,
+  type OnModuleInit,
+} from '@nestjs/common';
 
 import { REDIS_CLIENT } from './redis.constants';
 import type { RedisClient } from './redis-client.provider';
 
 @Injectable()
 export class RedisService implements OnModuleInit, OnModuleDestroy {
-  constructor(@Inject(REDIS_CLIENT) private readonly client: RedisClient) {}
+  private lastErrorLoggedAt = 0;
+  private readonly logger = new Logger(RedisService.name);
+  private readonly onError = (error: Error): void => {
+    const now = Date.now();
+    if (now - this.lastErrorLoggedAt < 30_000) return;
+    this.lastErrorLoggedAt = now;
+    this.logger.warn(`Redis connection unavailable: ${error.message}`);
+  };
+
+  constructor(@Inject(REDIS_CLIENT) private readonly client: RedisClient) {
+    this.client.on('error', this.onError);
+  }
 
   async onModuleInit(): Promise<void> {
     if (!this.client.isOpen) {
@@ -17,6 +34,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     if (this.client.isOpen) {
       await this.client.quit();
     }
+    this.client.off('error', this.onError);
   }
 
   async assertHealthy(): Promise<void> {
