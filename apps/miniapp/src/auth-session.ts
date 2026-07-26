@@ -1,6 +1,6 @@
 import Taro from '@tarojs/taro';
 
-import { apiRequest } from './api-client';
+import { ApiError, apiRequest } from './api-client';
 
 export type RoleCode = 'HOST' | 'OPERATOR' | 'ARTIST' | 'CUSTOMER_SERVICE' | 'ADMIN';
 export type BindableRoleCode = 'HOST' | 'OPERATOR' | 'ARTIST';
@@ -61,7 +61,12 @@ export function loadSession(): SessionTokenPair | null {
     !value ||
     typeof value.accessToken !== 'string' ||
     typeof value.refreshToken !== 'string' ||
-    typeof value.accessTokenExpiresAt !== 'string'
+    typeof value.accessTokenExpiresAt !== 'string' ||
+    typeof value.refreshTokenExpiresAt !== 'string' ||
+    typeof value.sessionId !== 'string' ||
+    typeof value.userId !== 'string' ||
+    typeof value.role?.roleAssignmentId !== 'string' ||
+    !['ADMIN', 'ARTIST', 'CUSTOMER_SERVICE', 'HOST', 'OPERATOR'].includes(value.role.roleCode)
   ) {
     return null;
   }
@@ -129,8 +134,8 @@ export async function restoreSession(): Promise<SessionTokenPair | null> {
     });
     saveSession(refreshed);
     return refreshed;
-  } catch {
-    clearSession();
+  } catch (cause) {
+    if (cause instanceof ApiError && [401, 403].includes(cause.status)) clearSession();
     return null;
   }
 }

@@ -1,4 +1,4 @@
-import { apiRequest } from './api-client';
+import { ApiError, apiRequest } from './api-client';
 
 export type BackofficeRoleCode = 'ADMIN' | 'CUSTOMER_SERVICE';
 
@@ -36,12 +36,18 @@ function isSession(value: unknown): value is SessionTokenPair {
   const session = value as Partial<SessionTokenPair>;
   return (
     typeof session.accessToken === 'string' &&
+    typeof session.accessTokenExpiresAt === 'string' &&
     typeof session.refreshToken === 'string' &&
+    typeof session.refreshTokenExpiresAt === 'string' &&
     typeof session.sessionId === 'string' &&
     typeof session.userId === 'string' &&
     typeof session.role?.roleAssignmentId === 'string' &&
     (session.role.roleCode === 'ADMIN' || session.role.roleCode === 'CUSTOMER_SERVICE')
   );
+}
+
+export function isPermanentSessionError(cause: unknown): boolean {
+  return cause instanceof ApiError && [401, 403].includes(cause.status);
 }
 
 export function loadSession(

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { ApiError } from './api-client';
 import {
+  isPermanentSessionError,
   loadSession,
   login,
   logoutSession,
@@ -43,9 +44,14 @@ export function App() {
           saveSession(restored);
           setSession(restored);
         }
-      } catch {
+      } catch (cause) {
         if (active) {
-          saveSession(null);
+          if (isPermanentSessionError(cause)) {
+            saveSession(null);
+          } else {
+            setSession(stored);
+            setError('服务暂时不可用，登录状态已保留，恢复连接后会自动重试。');
+          }
         }
       } finally {
         if (active) {
@@ -65,13 +71,26 @@ export function App() {
       return;
     }
     const delay = Math.max(0, Date.parse(session.accessTokenExpiresAt) - Date.now() - 30_000);
-    const timer = window.setTimeout(
-      () => {
-        void refreshSession(session.refreshToken).then(acceptSession).catch(clearSession);
-      },
-      Math.min(delay, 2_147_483_647),
-    );
-    return () => window.clearTimeout(timer);
+    let timer: number;
+    let stopped = false;
+    const refresh = async () => {
+      try {
+        acceptSession(await refreshSession(session.refreshToken));
+        setError(null);
+      } catch (cause) {
+        if (isPermanentSessionError(cause)) {
+          clearSession();
+        } else if (!stopped) {
+          setError('服务暂时不可用，登录状态已保留，恢复连接后会自动重试。');
+          timer = window.setTimeout(() => void refresh(), 5_000);
+        }
+      }
+    };
+    timer = window.setTimeout(() => void refresh(), Math.min(delay, 2_147_483_647));
+    return () => {
+      stopped = true;
+      window.clearTimeout(timer);
+    };
   }, [session]);
 
   function acceptSession(next: SessionTokenPair) {

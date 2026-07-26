@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { loadSession, saveSession, type SessionTokenPair } from './auth-session';
+import { ApiError } from './api-client';
+import {
+  isPermanentSessionError,
+  loadSession,
+  saveSession,
+  type SessionTokenPair,
+} from './auth-session';
 
 const session: SessionTokenPair = {
   accessToken: 'access-token',
@@ -38,5 +44,19 @@ describe('backoffice session storage', () => {
   it('rejects malformed stored values', () => {
     expect(loadSession({ getItem: () => '{bad json' })).toBeNull();
     expect(loadSession({ getItem: () => JSON.stringify({ accessToken: 'partial' }) })).toBeNull();
+    expect(
+      loadSession({
+        getItem: () => JSON.stringify({ ...session, refreshTokenExpiresAt: undefined }),
+      }),
+    ).toBeNull();
+  });
+
+  it('only treats authorization failures as permanent session errors', () => {
+    expect(isPermanentSessionError(new ApiError(401, 'AUTH_SESSION_INVALID', 'invalid'))).toBe(
+      true,
+    );
+    expect(isPermanentSessionError(new ApiError(403, 'AUTHORIZATION_DENIED', 'denied'))).toBe(true);
+    expect(isPermanentSessionError(new ApiError(500, 'INTERNAL_ERROR', 'failed'))).toBe(false);
+    expect(isPermanentSessionError(new TypeError('Failed to fetch'))).toBe(false);
   });
 });
