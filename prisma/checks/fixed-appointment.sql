@@ -15,6 +15,7 @@ DECLARE
     second_request_id UUID;
     cancel_request_id UUID;
     withdraw_request_id UUID;
+    overlap_request_id UUID;
     created_rule_id UUID;
     suffix TEXT := txid_current()::text;
 BEGIN
@@ -223,6 +224,30 @@ BEGIN
     WHERE "id" = created_rule_id;
     UPDATE "fixed_appointment_rule_weekdays" SET "valid_until" = DATE '2026-08-10'
     WHERE "rule_id" = created_rule_id;
+
+    INSERT INTO "fixed_appointment_requests" (
+        "request_type", "host_id", "site_id", "target_artist_id", "target_weekdays",
+        "target_start_minute", "target_duration_minutes", "effective_from", "reason",
+        "submitted_by_operator_id", "submitted_by_user_id"
+    ) VALUES (
+        'CREATE', host_one_id, site_id, artist_two_id, ARRAY[2]::SMALLINT[],
+        600, 30, DATE '2026-08-05', '重叠日期保护', operator_id, operator_user_id
+    ) RETURNING "id" INTO overlap_request_id;
+    UPDATE "fixed_appointment_requests" SET
+        "status" = 'APPROVED', "reviewed_by_user_id" = reviewer_user_id,
+        "reviewed_at" = CURRENT_TIMESTAMP, "row_version" = 2
+    WHERE "id" = overlap_request_id;
+    BEGIN
+        INSERT INTO "fixed_appointment_rules" (
+            "source_request_id", "host_id", "artist_id", "site_id",
+            "start_minute", "duration_minutes", "valid_from"
+        ) VALUES (
+            overlap_request_id, host_one_id, artist_two_id, site_id,
+            600, 30, DATE '2026-08-05'
+        );
+        RAISE EXCEPTION 'Overlapping host fixed date range was accepted';
+    EXCEPTION WHEN exclusion_violation THEN NULL;
+    END;
 
     BEGIN
         DELETE FROM "fixed_appointment_rules" WHERE "id" = created_rule_id;

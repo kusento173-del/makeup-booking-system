@@ -222,10 +222,37 @@ describe('FixedAvailabilityService', () => {
     );
 
     expect(client.hostProfile.findUnique.mock.calls[0]?.[0]).toMatchObject({
-      select: { fixedRules: { where: { id: { not: 'rule-1' }, status: 'ACTIVE' } } },
+      select: {
+        fixedRules: {
+          where: {
+            id: { not: 'rule-1' },
+            OR: [{ validUntil: null }, { validUntil: { gt: requestedStartDate } }],
+          },
+        },
+      },
     });
     expect(client.fixedAppointmentRuleWeekday.findMany.mock.calls[0]?.[0]).toMatchObject({
       where: { ruleId: { not: 'rule-1' } },
+    });
+  });
+
+  it('blocks a new fixed relation when an ended rule still overlaps the requested dates', async () => {
+    const { client, service } = createService({
+      host: { ...host, fixedRules: [{ id: 'ended-rule-with-overlapping-dates' }] },
+    });
+
+    await expect(service.getAvailability(context, input, now)).resolves.toMatchObject({
+      slots: [],
+      unavailableReason: 'HOST_HAS_ACTIVE_FIXED_RULE',
+    });
+    expect(client.hostProfile.findUnique.mock.calls[0]?.[0]).toMatchObject({
+      select: {
+        fixedRules: {
+          where: {
+            OR: [{ validUntil: null }, { validUntil: { gt: requestedStartDate } }],
+          },
+        },
+      },
     });
   });
 

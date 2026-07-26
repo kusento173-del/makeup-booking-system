@@ -186,8 +186,8 @@ export class FixedAvailabilityService {
             select: { id: true },
             take: 1,
             where: {
-              status: 'ACTIVE',
               ...(options.excludeRuleId ? { id: { not: options.excludeRuleId } } : {}),
+              OR: [{ validUntil: null }, { validUntil: { gt: input.requestedStartDate } }],
             },
           },
           id: true,

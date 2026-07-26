@@ -550,6 +550,7 @@ model FixedAppointmentRule {
   durationMinutes  Int       @map("duration_minutes") @db.SmallInt
   validFrom        DateTime  @map("valid_from") @db.Date
   validUntil       DateTime? @map("valid_until") @db.Date
+  activeRange      Unsupported("daterange")? @default(dbgenerated("daterange(valid_from, valid_until, '[)'::text)")) @map("active_range")
   status           String    @default("ACTIVE") @db.VarChar(16)
   endedByRequestId String?   @unique(map: "fixed_rules_ended_by_request_uq") @map("ended_by_request_id") @db.Uuid
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
