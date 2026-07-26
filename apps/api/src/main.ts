@@ -11,7 +11,10 @@ import { ApiExceptionFilter } from './api-exception.filter';
 config({ path: resolve(__dirname, '../../../.env'), quiet: true });
 
 async function bootstrap(): Promise<void> {
-  const adapter = new FastifyAdapter({ bodyLimit: 1024 * 1024 });
+  const adapter = new FastifyAdapter({
+    bodyLimit: 1024 * 1024,
+    trustProxy: process.env.TRUST_PROXY === 'true',
+  });
   adapter.getInstance().addHook('onSend', (_request, reply, payload, done) => {
     reply.headers({
       'Cache-Control': 'no-store',

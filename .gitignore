@@ -21,6 +21,7 @@ apps/miniapp/minitest/
 .env
 .env.*
 !.env.example
+deploy/production.env
 *.pem
 *.key
 

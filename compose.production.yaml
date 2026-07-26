@@ -1,0 +1,125 @@
+name: makeup-booking-production
+
+services:
+  migrate:
+    image: makeup-booking-migrate:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      target: migrate
+    env_file:
+      - ${PRODUCTION_ENV_FILE:-deploy/production.env}
+    restart: 'no'
+    profiles: [migration]
+
+  api:
+    image: makeup-booking-api:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      target: api
+    env_file:
+      - ${PRODUCTION_ENV_FILE:-deploy/production.env}
+    environment:
+      API_PORT: 3000
+      EXPORT_STORAGE_DIR: /var/lib/makeup-booking/exports
+      NODE_ENV: production
+      TRUST_PROXY: 'true'
+    restart: unless-stopped
+    volumes:
+      - export-data:/var/lib/makeup-booking/exports
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 20s
+    stop_grace_period: 30s
+    mem_limit: 1g
+    cpus: 1.5
+
+  worker:
+    image: makeup-booking-worker:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      target: worker
+    env_file:
+      - ${PRODUCTION_ENV_FILE:-deploy/production.env}
+    environment:
+      INTERNAL_API_URL: http://api:3000
+      NODE_ENV: production
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://api:3000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    stop_grace_period: 20s
+    mem_limit: 256m
+    cpus: 0.5
+
+  gateway:
+    image: makeup-booking-gateway:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      target: gateway
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    ports:
+      - '${HTTP_PORT:-80}:80'
+      - '${HTTPS_PORT:-443}:443'
+    volumes:
+      - ${PRODUCTION_TLS_DIR:-./deploy/tls}:/etc/nginx/certs:ro
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'wget --quiet --no-check-certificate --spider https://127.0.0.1/healthz || exit 1',
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 10s
+    stop_grace_period: 15s
+    mem_limit: 256m
+    cpus: 0.5
+
+  backup:
+    image: postgres:18.4-alpine3.23
+    env_file:
+      - ${PRODUCTION_ENV_FILE:-deploy/production.env}
+    entrypoint: ['/bin/sh', '-ec']
+    command:
+      - |
+        test -n "$${BACKUP_DATABASE_URL:-}" || { echo "BACKUP_DATABASE_URL is required" >&2; exit 1; }
+        umask 077
+        stamp="$$(date -u +%Y%m%dT%H%M%SZ)"
+        target="/backups/makeup-booking-$${stamp}.dump"
+        pg_dump "$${BACKUP_DATABASE_URL}" --format=custom --compress=6 --no-owner --no-acl --file="$${target}"
+        pg_restore --list "$${target}" >/dev/null
+        find /backups -type f -name 'makeup-booking-*.dump' -mtime +35 -delete
+        echo "Backup verified: $${target}"
+    profiles: [backup]
+    restart: 'no'
+    volumes:
+      - backup-data:/backups
+
+volumes:
+  backup-data:
+  export-data:

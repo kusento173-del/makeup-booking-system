@@ -18,6 +18,7 @@
     "db:generate": "prisma generate",
     "db:status": "prisma migrate status",
     "db:validate": "prisma validate",
+    "deploy:check": "node scripts/check-production-environment.mjs",
     "dev:admin": "pnpm --parallel --filter @makeup/api --filter @makeup/admin-web --filter @makeup/worker run dev",
     "env:setup": "node scripts/ensure-local-auth-secrets.mjs",
     "e2e": "pnpm build && pnpm e2e:test",
