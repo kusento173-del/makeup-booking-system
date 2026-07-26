@@ -3,7 +3,7 @@ import Taro, { useDidShow } from '@tarojs/taro';
 import { useState } from 'react';
 
 import { ApiError } from '../../api-client';
-import { restoreSession } from '../../auth-session';
+import { restoreSession, type RoleCode } from '../../auth-session';
 import { PageState } from '../../components/PageState';
 import {
   cancelLeave,
@@ -28,6 +28,7 @@ function errorMessage(cause: unknown): string {
 
 export default function LeavePage() {
   const [token, setToken] = useState('');
+  const [roleCode, setRoleCode] = useState<Extract<RoleCode, 'HOST' | 'ARTIST'> | null>(null);
   const [leaves, setLeaves] = useState<readonly LeaveSummary[]>([]);
   const [startDate, setStartDate] = useState(() => futureDateValue(1));
   const [endDate, setEndDate] = useState(() => futureDateValue(1));
@@ -50,10 +51,11 @@ export default function LeavePage() {
         await Taro.reLaunch({ url: '/pages/index/index' });
         return;
       }
-      if (!['HOST', 'ARTIST'].includes(session.role.roleCode)) {
+      if (session.role.roleCode !== 'HOST' && session.role.roleCode !== 'ARTIST') {
         setError('当前身份不能申请本人请假。');
         return;
       }
+      setRoleCode(session.role.roleCode);
       setToken(session.accessToken);
       setLeaves(await listOwnLeaves(session.accessToken));
     } catch (cause) {
@@ -97,7 +99,11 @@ export default function LeavePage() {
       cancelText: '返回检查',
       confirmColor: '#9b342d',
       confirmText: '确认请假',
-      content: `请假日期：${preview.startDate} 至 ${preview.endDate}\n将取消 ${preview.affectedAppointmentCount} 条预约并释放档期。\n取消请假时恢复仍有效的固定预约，单次预约不恢复。`,
+      content: `请假日期：${preview.startDate} 至 ${preview.endDate}\n将取消 ${preview.affectedAppointmentCount} 条预约并释放档期。\n${
+        roleCode === 'ARTIST'
+          ? '撤销化妆师请假时恢复由本次请假取消的固定预约，单次预约不恢复。'
+          : '取消主播请假不会自动恢复预约。'
+      }`,
       title: '确认请假影响',
     });
     if (!confirmed.confirm) return;
@@ -129,7 +135,11 @@ export default function LeavePage() {
     const confirmed = await Taro.showModal({
       cancelText: '保留请假',
       confirmText: '取消请假',
-      content: `${item.startDate} 至 ${item.endDate}\n将恢复由本次请假取消且仍有效的固定预约，单次预约不恢复。若原档期已被占用，取消将失败。`,
+      content: `${item.startDate} 至 ${item.endDate}\n${
+        roleCode === 'ARTIST'
+          ? '将恢复由本次请假取消且仍有效的固定预约，单次预约不恢复。'
+          : '取消后不会自动恢复此前已取消的预约。'
+      }`,
       title: '确认取消请假',
     });
     if (!confirmed.confirm) return;
@@ -179,7 +189,11 @@ export default function LeavePage() {
           <View className="leave-impact">
             <Text className="impact-title">影响确认</Text>
             <Text>将取消 {preview.affectedAppointmentCount} 条预约</Text>
-            <Text>固定关系不会结束；取消请假时恢复有效固定预约，单次预约不恢复</Text>
+            <Text>
+              {roleCode === 'ARTIST'
+                ? '固定关系不会结束；撤销请假时恢复被本次请假取消的固定预约'
+                : '固定关系不会结束；取消主播请假不会自动恢复预约'}
+            </Text>
           </View>
         ) : null}
         {error ? <View className="leave-error">{error}</View> : null}

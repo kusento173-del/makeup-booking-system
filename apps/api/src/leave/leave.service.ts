@@ -236,7 +236,9 @@ export class LeaveService {
       }
       if (leave.startDate <= toBusinessDate(now)) throw new LeaveDateRangeInvalidError();
 
-      const restorableAppointments = await this.restorableFixedAppointments(transaction, leave.id);
+      const restorableAppointments = leave.artist
+        ? await this.restorableFixedAppointments(transaction, leave.id)
+        : [];
       await this.lockFixedAppointmentRestorations(transaction, restorableAppointments);
       const updated = await transaction.leaveRecord.updateMany({
         data: {
@@ -321,6 +323,7 @@ export class LeaveService {
       orderBy: [{ appointmentDate: 'asc' }, { startAt: 'asc' }],
       select: RESTORABLE_FIXED_APPOINTMENT_SELECT,
       where: {
+        cancellationReasonCode: 'ARTIST_LEAVE',
         cancellationSourceId: leaveId,
         cancellationSourceType: 'LEAVE_RECORD',
         fixedRuleId: { not: null },

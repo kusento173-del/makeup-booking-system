@@ -218,6 +218,7 @@ describe('LeaveService', () => {
     const { append, service } = createService(client);
 
     await service.cancel(context, { expectedRowVersion: 1, leaveId: 'leave-1' }, now);
+    expect(client.appointment.findMany).not.toHaveBeenCalled();
     expect(updateMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: 'leave-1', rowVersion: 1, status: 'ACTIVE' } }),
     );
@@ -277,6 +278,7 @@ describe('LeaveService', () => {
 
     expect(client.appointment.findMany.mock.calls[0]?.[0]).toMatchObject({
       where: {
+        cancellationReasonCode: 'ARTIST_LEAVE',
         cancellationSourceId: 'leave-1',
         cancellationSourceType: 'LEAVE_RECORD',
         fixedRuleId: { not: null },
