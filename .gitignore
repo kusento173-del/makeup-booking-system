@@ -3,8 +3,6 @@ node_modules/
 packages/database/generated/
 dist/
 build/
-!prototype/build/
-!prototype/build/sites-vite-plugin.ts
 coverage/
 playwright-report/
 test-results/

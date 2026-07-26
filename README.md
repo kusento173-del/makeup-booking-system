@@ -12,8 +12,6 @@
 - [部署与运维手册](docs/部署与运维手册.md)：生产配置、发布、回滚、备份恢复和监控要求。
 - [上线评估与剩余风险](docs/上线评估与剩余风险.md)：生产候选结论、上线阻断项和最终放行标准。
 - [项目协作规范](AGENTS.md)：代码质量、业务依据、测试和 Git 规则。
-- [交互原型说明](prototype/README.md)：原型范围和本地运行方式。
-- [私有交互原型](https://zhuangxu-makeup-booking.kusento173.chatgpt.site)：模拟数据，不连接真实名单、数据库或微信通知。
 
 ## 目录
 
@@ -31,7 +29,6 @@
 │  └─ database/          # 生成型 Prisma Client 与 PostgreSQL 连接工厂
 ├─ prisma/               # 数据模型、迁移和数据库约束检查
 ├─ docs/                 # 权威产品、业务和技术文档
-├─ prototype/            # 可点击交互原型
 └─ data/
    ├─ README.md          # 本地数据安全说明
    └─ source/            # 真实 Excel 源文件，Git 忽略

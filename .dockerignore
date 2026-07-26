@@ -19,7 +19,6 @@ logs
 node_modules
 playwright-report
 private-data
-prototype
 test-results
 tmp
 uploads

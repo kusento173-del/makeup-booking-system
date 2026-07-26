@@ -13,7 +13,7 @@ const sourceFiles = [
 
 export default tseslint.config(
   {
-    ignores: ['**/dist/**', '**/node_modules/**', '**/.taro/**', '**/.temp/**', 'prototype/**'],
+    ignores: ['**/dist/**', '**/node_modules/**', '**/.taro/**', '**/.temp/**'],
   },
   {
     ...js.configs.recommended,
