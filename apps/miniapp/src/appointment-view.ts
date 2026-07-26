@@ -15,6 +15,7 @@ const TIME_FORMATTER = new Intl.DateTimeFormat('zh-CN', {
   minute: '2-digit',
   timeZone: 'Asia/Shanghai',
 });
+const TIME_LABEL_PATTERN = /^\d{2}:\d{2}–\d{2}:\d{2}$/;
 
 export const RANGE_OPTIONS: readonly { readonly id: ScheduleRange; readonly label: string }[] = [
   { id: 'TODAY', label: '今日' },
@@ -122,7 +123,12 @@ export function parseRescheduleContext(
     'timeLabel',
   ] as const;
   const rowVersion = Number(input['rowVersion']);
-  if (required.some((key) => !input[key]) || !Number.isSafeInteger(rowVersion) || rowVersion < 1) {
+  if (
+    required.some((key) => !input[key]) ||
+    !TIME_LABEL_PATTERN.test(input['timeLabel'] ?? '') ||
+    !Number.isSafeInteger(rowVersion) ||
+    rowVersion < 1
+  ) {
     return null;
   }
   return {

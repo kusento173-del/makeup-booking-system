@@ -58,6 +58,7 @@ function errorMessage(cause: unknown): string {
 export default function BookingPage() {
   const routeParams = Taro.getCurrentInstance().router?.params ?? {};
   const rescheduleContext = parseRescheduleContext(routeParams);
+  const rescheduleRequested = typeof routeParams.appointmentId === 'string';
   const dates = useMemo(() => futureBookingDates(), []);
   const [token, setToken] = useState('');
   const [roleCode, setRoleCode] = useState<RoleCode | null>(null);
@@ -93,6 +94,10 @@ export default function BookingPage() {
       }
       if (!['HOST', 'OPERATOR'].includes(session.role.roleCode)) {
         setInitialError('当前身份不能使用预约入口。');
+        return;
+      }
+      if (rescheduleRequested && !rescheduleContext) {
+        setInitialError('改期信息已失效，请返回排班重新进入。');
         return;
       }
       const firstDate = dates[0]?.date;

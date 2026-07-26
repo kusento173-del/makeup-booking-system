@@ -86,5 +86,6 @@ describe('appointment view', () => {
       timeLabel: '09:30–10:00',
     });
     expect(parseRescheduleContext({ appointmentId: 'appointment-1' })).toBeNull();
+    expect(parseRescheduleContext({ ...query, timeLabel: 'invalid' })).toBeNull();
   });
 });
