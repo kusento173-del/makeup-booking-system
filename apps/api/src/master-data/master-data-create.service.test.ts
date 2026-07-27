@@ -55,7 +55,7 @@ describe('MasterDataCreateService', () => {
     });
     const createQualificationHistory = vi.fn().mockResolvedValue({ id: 'history-1' });
     const transaction = {
-      hostProfile: { create },
+      hostProfile: { create, findUnique: vi.fn().mockResolvedValue(null) },
       hostQualificationHistory: { create: createQualificationHistory },
       site: { findUnique: vi.fn().mockResolvedValue({ status: 'ACTIVE' }) },
     };
@@ -100,6 +100,94 @@ describe('MasterDataCreateService', () => {
         objectId: 'host-1',
         siteId: 'site-songjiang',
       }),
+    );
+  });
+
+  it('restores a deleted host when the same business code is added again', async () => {
+    const deletedAt = new Date('2026-07-27T01:00:00.000Z');
+    const restoredAt = new Date('2026-07-28T02:00:00.000Z');
+    vi.useFakeTimers({ now: restoredAt });
+    const updateMany = vi.fn().mockResolvedValue({ count: 1 });
+    const createQualificationHistory = vi.fn().mockResolvedValue({ id: 'history-2' });
+    const transaction = {
+      appUser: { update: vi.fn().mockResolvedValue({}) },
+      hostProfile: {
+        create: vi.fn(),
+        findUnique: vi.fn().mockResolvedValue({
+          deletedAt,
+          hostCode: '10141',
+          id: 'host-1',
+          nickname: null,
+          qualificationStatus: 'CANCELLED',
+          realName: '熊澳',
+          rowVersion: 4,
+          siteId: 'site-songjiang',
+          userId: 'host-user',
+        }),
+        updateMany,
+      },
+      hostQualificationHistory: { create: createQualificationHistory },
+      site: { findUnique: vi.fn().mockResolvedValue({ status: 'ACTIVE' }) },
+      userRole: {
+        create: vi.fn().mockResolvedValue({ id: 'new-host-role' }),
+        findFirst: vi.fn().mockResolvedValue(null),
+      },
+    };
+    const { append, service } = createService(transaction);
+
+    try {
+      await expect(
+        service.createHost(context, {
+          hostCode: '10141',
+          nickname: '小熊',
+          realName: '熊澳',
+          siteId: 'site-songjiang',
+        }),
+      ).resolves.toBe('host-1');
+    } finally {
+      vi.useRealTimers();
+    }
+
+    expect(updateMany).toHaveBeenCalledWith({
+      data: {
+        deletedAt: null,
+        hostCode: '10141',
+        nickname: '小熊',
+        qualificationEffectiveAt: restoredAt,
+        qualificationStatus: 'ACTIVE',
+        qualificationValidUntil: null,
+        realName: '熊澳',
+        rowVersion: { increment: 1 },
+        siteId: 'site-songjiang',
+      },
+      where: { deletedAt: { not: null }, id: 'host-1', rowVersion: 4 },
+    });
+    expect(transaction.appUser.update).toHaveBeenCalledWith({
+      data: { rowVersion: { increment: 1 }, status: 'ACTIVE' },
+      where: { id: 'host-user' },
+    });
+    expect(transaction.userRole.create).toHaveBeenCalledWith({
+      data: {
+        assignedByUserId: 'user-1',
+        roleCode: 'HOST',
+        siteId: 'site-songjiang',
+        userId: 'host-user',
+      },
+    });
+    expect(createQualificationHistory).toHaveBeenCalledWith({
+      data: {
+        changedByUserId: 'user-1',
+        effectiveAt: restoredAt,
+        fromStatus: 'CANCELLED',
+        hostId: 'host-1',
+        reason: '人员重新新增',
+        toStatus: 'ACTIVE',
+      },
+    });
+    expect(transaction.hostProfile.create).not.toHaveBeenCalled();
+    expect(append).toHaveBeenCalledWith(
+      transaction,
+      expect.objectContaining({ action: 'HOST_RESTORED', objectId: 'host-1' }),
     );
   });
 

@@ -16,6 +16,7 @@ import {
   MasterDataInactiveSiteError,
   MasterDataNotFoundError,
   MasterDataSiteMismatchError,
+  MasterDataVersionConflictError,
 } from './master-data.errors';
 import { MasterDataNormalizationService } from './master-data-normalization.service';
 import { optionalMasterDataText, requiredMasterDataText } from './master-data-text';
@@ -57,16 +58,91 @@ export class MasterDataCreateService {
 
   createHost(context: MasterDataCommandContext, command: CreateHostCommand): Promise<string> {
     this.authorization.assertSiteScope(context, command.siteId);
+    const hostCode = requiredMasterDataText(command.hostCode, 'hostCode').toLocaleUpperCase(
+      'en-US',
+    );
+    const nickname = optionalMasterDataText(command.nickname) ?? null;
+    const realName = requiredMasterDataText(command.realName, 'realName');
 
     return this.database.transaction(async (transaction) => {
       await this.assertActiveSite(transaction, command.siteId);
       const qualificationEffectiveAt = new Date();
+      const existing = await transaction.hostProfile.findUnique({
+        select: {
+          deletedAt: true,
+          hostCode: true,
+          id: true,
+          nickname: true,
+          qualificationStatus: true,
+          realName: true,
+          rowVersion: true,
+          siteId: true,
+          userId: true,
+        },
+        where: { hostCode },
+      });
+      if (existing?.deletedAt) {
+        const restored = await transaction.hostProfile.updateMany({
+          data: {
+            deletedAt: null,
+            hostCode,
+            nickname,
+            qualificationEffectiveAt,
+            qualificationStatus: 'ACTIVE',
+            qualificationValidUntil: null,
+            realName,
+            rowVersion: { increment: 1 },
+            siteId: command.siteId,
+          },
+          where: { deletedAt: { not: null }, id: existing.id, rowVersion: existing.rowVersion },
+        });
+        if (restored.count !== 1) throw new MasterDataVersionConflictError();
+        await this.restoreProfileUser(
+          transaction,
+          context,
+          existing.userId,
+          command.siteId,
+          'HOST',
+        );
+        await transaction.hostQualificationHistory.create({
+          data: {
+            changedByUserId: context.userId,
+            effectiveAt: qualificationEffectiveAt,
+            fromStatus: existing.qualificationStatus,
+            hostId: existing.id,
+            reason: '人员重新新增',
+            toStatus: 'ACTIVE',
+          },
+        });
+        const after = {
+          deletedAt: null,
+          hostCode,
+          id: existing.id,
+          nickname,
+          qualificationStatus: 'ACTIVE',
+          realName,
+          siteId: command.siteId,
+        };
+        await this.audit.append(transaction, context, {
+          action: 'HOST_RESTORED',
+          afterData: after,
+          beforeData: {
+            ...existing,
+            deletedAt: existing.deletedAt.toISOString(),
+          },
+          objectId: existing.id,
+          objectType: 'HOST',
+          reason: '重新新增已删除的主播编号',
+          siteId: command.siteId,
+        });
+        return existing.id;
+      }
       const host = await transaction.hostProfile.create({
         data: {
-          hostCode: requiredMasterDataText(command.hostCode, 'hostCode').toLocaleUpperCase('en-US'),
-          nickname: optionalMasterDataText(command.nickname) ?? null,
+          hostCode,
+          nickname,
           qualificationEffectiveAt,
-          realName: requiredMasterDataText(command.realName, 'realName'),
+          realName,
           siteId: command.siteId,
         },
         select: {
@@ -246,6 +322,29 @@ export class MasterDataCreateService {
 
     if (site.status !== 'ACTIVE') {
       throw new MasterDataInactiveSiteError();
+    }
+  }
+
+  private async restoreProfileUser(
+    transaction: Prisma.TransactionClient,
+    context: MasterDataCommandContext,
+    userId: string | null,
+    siteId: string,
+    roleCode: 'HOST',
+  ): Promise<void> {
+    if (!userId) return;
+    await transaction.appUser.update({
+      data: { rowVersion: { increment: 1 }, status: 'ACTIVE' },
+      where: { id: userId },
+    });
+    const activeRole = await transaction.userRole.findFirst({
+      select: { id: true },
+      where: { revokedAt: null, roleCode, userId },
+    });
+    if (!activeRole) {
+      await transaction.userRole.create({
+        data: { assignedByUserId: context.userId, roleCode, siteId, userId },
+      });
     }
   }
 }

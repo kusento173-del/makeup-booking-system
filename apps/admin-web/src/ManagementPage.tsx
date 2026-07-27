@@ -209,9 +209,13 @@ export function ManagementPage({ onUnauthorized, session, view }: ManagementPage
   const [draftSearch, setDraftSearch] = useState('');
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<AccountRoleCode | ''>('');
-  const [personnelStatusFilter, setPersonnelStatusFilter] = useState<'ACTIVE' | 'DELETED' | ''>('');
+  const [personnelStatusFilter, setPersonnelStatusFilter] = useState<'ACTIVE' | 'DELETED' | ''>(
+    'ACTIVE',
+  );
   const [qualificationFilter, setQualificationFilter] = useState<'ACTIVE' | 'CANCELLED' | ''>('');
-  const [accountStatusFilter, setAccountStatusFilter] = useState<'ACTIVE' | 'DISABLED' | ''>('');
+  const [accountStatusFilter, setAccountStatusFilter] = useState<'ACTIVE' | 'DISABLED' | ''>(
+    'ACTIVE',
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
