@@ -80,6 +80,7 @@ CMD ["pnpm", "db:migrate"]
 FROM nginx:1.29.5-alpine3.23 AS gateway
 
 COPY deploy/nginx.conf /etc/nginx/nginx.conf
+COPY deploy/security-headers.conf /etc/nginx/security-headers.conf
 COPY --from=build /workspace/apps/admin-web/dist/ /usr/share/nginx/html/
 
 EXPOSE 80 443
