@@ -1,9 +1,0 @@
-{
-  "extends": "../../packages/config/tsconfig/react.json",
-  "compilerOptions": {
-    "allowJs": false,
-    "composite": true,
-    "types": ["@tarojs/taro", "vitest/globals"]
-  },
-  "include": ["config", "src"]
-}

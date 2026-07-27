@@ -3,7 +3,6 @@
   "references": [
     { "path": "./apps/api" },
     { "path": "./apps/worker" },
-    { "path": "./apps/admin-web" },
-    { "path": "./apps/miniapp" }
+    { "path": "./apps/admin-web" }
   ]
 }

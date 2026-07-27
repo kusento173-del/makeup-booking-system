@@ -51,7 +51,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['apps/{admin-web,miniapp}/**/*.{ts,tsx}'],
+    files: ['apps/admin-web/**/*.{ts,tsx}'],
     languageOptions: {
       globals: {
         ...globals.browser,

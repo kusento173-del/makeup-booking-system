@@ -31,7 +31,6 @@
     "infra:status": "docker compose ps",
     "infra:up": "docker compose up --detach --wait",
     "lint": "eslint .",
-    "miniapp:smoke": "pnpm --filter @makeup/miniapp smoke:devtools",
     "prepare": "node .husky/install.mjs",
     "security:audit": "pnpm audit --prod --audit-level high",
     "security:audit:all": "pnpm audit --audit-level high",

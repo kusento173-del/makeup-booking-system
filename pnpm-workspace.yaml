@@ -8,9 +8,6 @@ allowBuilds:
   '@parcel/watcher': true
   '@prisma/engines': true
   '@scarf/scarf': false
-  '@swc/core': true
-  '@tarojs/binding': true
-  '@tarojs/cli': true
   core-js: false
   core-js-pure: false
   esbuild: true
@@ -59,10 +56,6 @@ overrides:
 
 preferWorkspacePackages: true
 
-peerDependencyRules:
-  allowedVersions:
-    '@tarojs/plugin-framework-react@4.2.1>vite': 8.1.5
-
 saveExact: true
 
 strictPeerDependencies: true
@@ -80,7 +73,6 @@ catalog:
   husky: 9.1.7
   jose: 5.10.0
   lint-staged: 17.1.0
-  miniprogram-automator: 0.12.1
   pg: 8.22.0
   prisma: 7.9.0
   redis: 6.1.0

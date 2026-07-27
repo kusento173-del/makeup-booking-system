@@ -15,7 +15,6 @@ RUN apt-get update \
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/admin-web/package.json apps/admin-web/package.json
 COPY apps/api/package.json apps/api/package.json
-COPY apps/miniapp/package.json apps/miniapp/package.json
 COPY apps/worker/package.json apps/worker/package.json
 COPY packages/config/package.json packages/config/package.json
 COPY packages/database/package.json packages/database/package.json
