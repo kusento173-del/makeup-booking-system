@@ -1,4 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { MasterDataListQueryDto } from './master-data-openapi.dto';
+
+const ACCOUNT_ROLE_CODES = ['ADMIN', 'CUSTOMER_SERVICE', 'HOST', 'ARTIST', 'OPERATOR'] as const;
+
+export class BackofficeAccountListQueryDto extends MasterDataListQueryDto {
+  @ApiPropertyOptional({ enum: ACCOUNT_ROLE_CODES })
+  roleCode?: string;
+}
 
 export class CreateBackofficeAccountRequestDto {
   @ApiProperty({ maxLength: 64 })
@@ -7,7 +15,7 @@ export class CreateBackofficeAccountRequestDto {
   loginName!: string;
   @ApiProperty({ maxLength: 128, minLength: 12, writeOnly: true })
   password!: string;
-  @ApiProperty({ enum: ['ADMIN', 'CUSTOMER_SERVICE'] })
+  @ApiProperty({ enum: ACCOUNT_ROLE_CODES })
   roleCode!: string;
   @ApiPropertyOptional({ format: 'uuid', nullable: true })
   siteId?: string | null;

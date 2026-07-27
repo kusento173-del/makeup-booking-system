@@ -58,9 +58,12 @@ export interface RelationSummary {
   readonly validUntil: string | null;
 }
 
+export type AccountRoleCode = 'ADMIN' | 'CUSTOMER_SERVICE' | 'HOST' | 'ARTIST' | 'OPERATOR';
+export type BackofficeRoleCode = Extract<AccountRoleCode, 'ADMIN' | 'CUSTOMER_SERVICE'>;
+
 export interface BackofficeRoleSummary {
   readonly id: string;
-  readonly roleCode: 'ADMIN' | 'CUSTOMER_SERVICE';
+  readonly roleCode: AccountRoleCode;
   readonly rowVersion: number;
   readonly siteId: string | null;
 }
@@ -102,10 +105,14 @@ export function listManagementItems(
   token: string,
   page: number,
   search?: string,
+  roleCode?: AccountRoleCode,
 ): Promise<Page<ManagementItem>> {
   const query = new URLSearchParams({ page: String(page), pageSize: '50' });
   if (search) {
     query.set('search', search);
+  }
+  if (view === 'accounts' && roleCode) {
+    query.set('roleCode', roleCode);
   }
   return apiRequest(`${PATHS[view]}?${query.toString()}`, { token });
 }
@@ -157,7 +164,7 @@ export function endRelation(
 export function assignBackofficeRole(
   token: string,
   userId: string,
-  body: { readonly roleCode: 'ADMIN' | 'CUSTOMER_SERVICE'; readonly siteId?: string },
+  body: { readonly roleCode: BackofficeRoleCode; readonly siteId?: string },
 ): Promise<{ readonly id: string }> {
   return apiRequest(`/backoffice/accounts/${userId}/roles`, { body, method: 'POST', token });
 }

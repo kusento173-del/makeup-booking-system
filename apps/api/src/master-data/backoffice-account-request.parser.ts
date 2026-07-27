@@ -1,12 +1,26 @@
 import { normalizeBackofficeLoginName } from '../auth/backoffice-login-name';
 import type {
+  AccountRoleCode,
   AssignBackofficeRoleCommand,
+  BackofficeAccountPageInput,
   BackofficeRoleCode,
   CreateBackofficeAccountCommand,
   RevokeBackofficeRoleCommand,
   UpdateBackofficeAccountCommand,
 } from './backoffice-account.types';
-import { MasterDataRequestInvalidError, parseMasterDataId } from './master-data-request.parser';
+import {
+  MasterDataRequestInvalidError,
+  parseMasterDataId,
+  parseMasterDataListRequest,
+} from './master-data-request.parser';
+
+const ACCOUNT_ROLE_CODES: readonly AccountRoleCode[] = [
+  'ADMIN',
+  'CUSTOMER_SERVICE',
+  'HOST',
+  'ARTIST',
+  'OPERATOR',
+];
 
 function record(value: unknown): Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
@@ -46,6 +60,24 @@ function role(value: Record<string, unknown>): BackofficeRoleCode {
     throw new MasterDataRequestInvalidError();
   }
   return value['roleCode'];
+}
+
+export function parseBackofficeAccountListRequest(query: unknown): BackofficeAccountPageInput {
+  const value = record(query);
+  exactKeys(value, ['page', 'pageSize', 'search', 'roleCode']);
+  const roleCode = value['roleCode'];
+  if (
+    roleCode !== undefined &&
+    (typeof roleCode !== 'string' || !ACCOUNT_ROLE_CODES.includes(roleCode as AccountRoleCode))
+  ) {
+    throw new MasterDataRequestInvalidError();
+  }
+  const pageQuery = { ...value };
+  delete pageQuery['roleCode'];
+  return {
+    ...parseMasterDataListRequest(pageQuery).page,
+    ...(roleCode ? { roleCode: roleCode as AccountRoleCode } : {}),
+  };
 }
 
 function optionalSiteId(value: Record<string, unknown>, roleCode: BackofficeRoleCode) {

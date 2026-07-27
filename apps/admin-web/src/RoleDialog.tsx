@@ -4,6 +4,7 @@ import { ApiError } from './api-client';
 import type { SessionTokenPair } from './auth-session';
 import {
   type AccountSummary,
+  type AccountRoleCode,
   assignBackofficeRole,
   type BackofficeRoleSummary,
   revokeBackofficeRole,
@@ -20,10 +21,22 @@ interface RoleDialogProps {
 }
 
 function roleName(role: BackofficeRoleSummary, siteNames: ReadonlyMap<string, string>): string {
-  if (role.roleCode === 'ADMIN') {
-    return '管理员';
+  switch (role.roleCode) {
+    case 'ADMIN':
+      return '管理员';
+    case 'CUSTOMER_SERVICE':
+      return `客服 · ${role.siteId ? (siteNames.get(role.siteId) ?? '未知场地') : '未指定场地'}`;
+    case 'HOST':
+      return '主播';
+    case 'ARTIST':
+      return '化妆师';
+    case 'OPERATOR':
+      return '运营';
   }
-  return `客服 · ${role.siteId ? (siteNames.get(role.siteId) ?? '未知场地') : '未指定场地'}`;
+}
+
+function isManagedRole(roleCode: AccountRoleCode): roleCode is 'ADMIN' | 'CUSTOMER_SERVICE' {
+  return roleCode === 'ADMIN' || roleCode === 'CUSTOMER_SERVICE';
 }
 
 export function RoleDialog({
@@ -69,7 +82,7 @@ export function RoleDialog({
 
   async function revoke(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!revokeTarget) {
+    if (!revokeTarget || !isManagedRole(revokeTarget.roleCode)) {
       return;
     }
     const form = new FormData(event.currentTarget);
@@ -120,9 +133,13 @@ export function RoleDialog({
           {account.roles.map((role) => (
             <div className="role-management-item" key={role.id}>
               <span>{roleName(role, siteNames)}</span>
-              <button disabled={busy} onClick={() => setRevokeTarget(role)} type="button">
-                撤销
-              </button>
+              {isManagedRole(role.roleCode) ? (
+                <button disabled={busy} onClick={() => setRevokeTarget(role)} type="button">
+                  撤销
+                </button>
+              ) : (
+                <small>由人员档案管理</small>
+              )}
             </div>
           ))}
         </div>
@@ -149,6 +166,9 @@ export function RoleDialog({
         ) : (
           <form className="record-form separated-form" onSubmit={(event) => void assign(event)}>
             <strong>添加角色</strong>
+            <p className="dialog-note">
+              主播、化妆师和运营角色由对应人员档案决定；此处只添加客服或管理员角色。
+            </p>
             <label htmlFor="assign-role-code">角色</label>
             <select
               id="assign-role-code"

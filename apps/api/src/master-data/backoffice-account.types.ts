@@ -1,10 +1,11 @@
 import type { MasterDataCommandContext } from './master-data-command.types';
 
 export type BackofficeRoleCode = 'ADMIN' | 'CUSTOMER_SERVICE';
+export type AccountRoleCode = BackofficeRoleCode | 'HOST' | 'ARTIST' | 'OPERATOR';
 
 export interface BackofficeRoleSummary {
   readonly id: string;
-  readonly roleCode: BackofficeRoleCode;
+  readonly roleCode: AccountRoleCode;
   readonly rowVersion: number;
   readonly siteId: string | null;
 }
@@ -28,6 +29,7 @@ export interface BackofficeAccountPage {
 export interface BackofficeAccountPageInput {
   readonly page: number;
   readonly pageSize: number;
+  readonly roleCode?: AccountRoleCode;
   readonly search?: string;
 }
 

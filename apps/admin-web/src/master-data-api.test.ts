@@ -21,6 +21,22 @@ describe('master-data API client', () => {
     expect((init.headers as Record<string, string>)['Authorization']).toBe('Bearer access-token');
   });
 
+  it('filters the account list by profile or backoffice role', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ items: [], page: 1, pageSize: 50, total: 0 }), {
+        headers: { 'Content-Type': 'application/json' },
+        status: 200,
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await listManagementItems('accounts', 'access-token', 1, undefined, 'OPERATOR');
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      '/api/backoffice/accounts?page=1&pageSize=50&roleCode=OPERATOR',
+    );
+  });
+
   it('sends row-version protected updates to the selected resource', async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
     vi.stubGlobal('fetch', fetchMock);

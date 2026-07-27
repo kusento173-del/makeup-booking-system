@@ -14,6 +14,7 @@ import {
 } from './backoffice-account.errors';
 import type {
   AssignBackofficeRoleCommand,
+  AccountRoleCode,
   BackofficeAccountContext,
   BackofficeAccountPage,
   BackofficeAccountPageInput,
@@ -55,27 +56,30 @@ export class BackofficeAccountService {
           },
         ],
       };
-      const where: Prisma.AppUserWhereInput = input.search
-        ? {
-            AND: [
-              backofficeScope,
-              {
-                OR: [
-                  { displayName: { contains: input.search, mode: 'insensitive' } },
-                  {
-                    identities: {
-                      some: {
-                        externalSubject: { contains: input.search, mode: 'insensitive' },
-                        provider: 'PASSWORD',
-                        providerAppId: 'BACKOFFICE',
-                      },
-                    },
-                  },
-                ],
+      const conditions: Prisma.AppUserWhereInput[] = [backofficeScope];
+      if (input.search) {
+        conditions.push({
+          OR: [
+            { displayName: { contains: input.search, mode: 'insensitive' } },
+            {
+              identities: {
+                some: {
+                  externalSubject: { contains: input.search, mode: 'insensitive' },
+                  provider: 'PASSWORD',
+                  providerAppId: 'BACKOFFICE',
+                },
               },
-            ],
-          }
-        : backofficeScope;
+            },
+          ],
+        });
+      }
+      if (input.roleCode) {
+        conditions.push({
+          roles: { some: { revokedAt: null, roleCode: input.roleCode } },
+        });
+      }
+      const where: Prisma.AppUserWhereInput =
+        conditions.length === 1 ? backofficeScope : { AND: conditions };
       const [accounts, total] = await Promise.all([
         client.appUser.findMany({
           orderBy: [{ status: 'asc' }, { displayName: 'asc' }],
@@ -88,7 +92,7 @@ export class BackofficeAccountService {
             },
             roles: {
               select: { id: true, roleCode: true, rowVersion: true, siteId: true },
-              where: { revokedAt: null, roleCode: { in: ['ADMIN', 'CUSTOMER_SERVICE'] } },
+              where: { revokedAt: null },
             },
             rowVersion: true,
             status: true,
@@ -107,7 +111,7 @@ export class BackofficeAccountService {
           loginName: account.identities[0]?.externalSubject ?? null,
           roles: account.roles.map((role) => ({
             id: role.id,
-            roleCode: role.roleCode as BackofficeRoleCode,
+            roleCode: role.roleCode as AccountRoleCode,
             rowVersion: role.rowVersion,
             siteId: role.siteId,
           })),

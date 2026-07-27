@@ -23,6 +23,7 @@ function service(transaction: object) {
   const append = vi.fn().mockResolvedValue('audit-1');
   const hash = vi.fn().mockResolvedValue('secret-password-hash');
   const database = {
+    read: vi.fn((operation: (value: object) => unknown) => operation(transaction)),
     transaction: vi.fn((operation: (value: object) => unknown) => operation(transaction)),
   };
   return {
@@ -38,6 +39,51 @@ function service(transaction: object) {
 }
 
 describe('BackofficeAccountService', () => {
+  it('returns profile roles and filters accounts by any effective role', async () => {
+    let receivedQuery: unknown;
+    const transaction = {
+      appUser: {
+        count: vi.fn().mockResolvedValue(1),
+        findMany: vi.fn((query: unknown) => {
+          receivedQuery = query;
+          return Promise.resolve([
+            {
+              displayName: '阿伟',
+              id: 'user-host',
+              identities: [{ externalSubject: '000001' }],
+              roles: [
+                {
+                  id: 'role-host',
+                  roleCode: 'HOST',
+                  rowVersion: 1,
+                  siteId: 'site-songjiang',
+                },
+              ],
+              rowVersion: 1,
+              status: 'ACTIVE',
+            },
+          ]);
+        }),
+      },
+    };
+    const { value } = service(transaction);
+
+    await expect(
+      value.list(context, { page: 1, pageSize: 50, roleCode: 'HOST' }),
+    ).resolves.toMatchObject({
+      items: [{ loginName: '000001', roles: [{ roleCode: 'HOST' }] }],
+      total: 1,
+    });
+    const query = receivedQuery as {
+      readonly select: { readonly roles: { readonly where: unknown } };
+      readonly where: { readonly AND: readonly unknown[] };
+    };
+    expect(query.select.roles.where).toEqual({ revokedAt: null });
+    expect(query.where.AND).toContainEqual({
+      roles: { some: { revokedAt: null, roleCode: 'HOST' } },
+    });
+  });
+
   it('creates a scoped password account and never audits credential material', async () => {
     const transaction = {
       appUser: { create: vi.fn().mockResolvedValue({ id: 'user-2' }) },

@@ -384,6 +384,11 @@ button:disabled {
   width: 240px;
 }
 
+.role-filter {
+  min-width: 136px;
+  min-height: 40px;
+}
+
 .search-form button,
 .pagination button {
   min-height: 40px;
@@ -989,6 +994,10 @@ tbody tr:hover {
   color: #a12b22;
   cursor: pointer;
   font-weight: 600;
+}
+
+.role-management-item small {
+  color: #6b7884;
 }
 
 .dialog-note {

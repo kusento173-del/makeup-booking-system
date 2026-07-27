@@ -32,6 +32,7 @@ import type { AccessTokenClaims } from '../auth/auth-session.types';
 import { CurrentAuth } from '../auth/current-auth.decorator';
 import {
   AssignBackofficeRoleRequestDto,
+  BackofficeAccountListQueryDto,
   BackofficeAccountPageDto,
   CreateBackofficeAccountRequestDto,
   RevokeBackofficeRoleRequestDto,
@@ -39,6 +40,7 @@ import {
 } from './backoffice-account-openapi.dto';
 import {
   parseAssignBackofficeRoleRequest,
+  parseBackofficeAccountListRequest,
   parseCreateBackofficeAccountRequest,
   parseRevokeBackofficeRoleRequest,
   parseUpdateBackofficeAccountRequest,
@@ -47,8 +49,7 @@ import { BackofficeAccountService } from './backoffice-account.service';
 import type { BackofficeAccountPage } from './backoffice-account.types';
 import { MasterDataCommandContextService } from './master-data-command-context.service';
 import type { MasterDataCommandContext } from './master-data-command.types';
-import { CreatedMasterDataDto, MasterDataListQueryDto } from './master-data-openapi.dto';
-import { parseMasterDataListRequest } from './master-data-request.parser';
+import { CreatedMasterDataDto } from './master-data-openapi.dto';
 import {
   ProvisionedProfileAccountDto,
   ProvisionProfileAccountRequestDto,
@@ -75,16 +76,16 @@ export class BackofficeIdentityController {
   ) {}
 
   @Get('accounts')
-  @ApiOperation({ summary: '分页查询账号及有效后台角色（仅管理员）' })
-  @ApiQuery({ type: MasterDataListQueryDto })
+  @ApiOperation({ summary: '分页查询账号及全部有效角色（仅管理员）' })
+  @ApiQuery({ type: BackofficeAccountListQueryDto })
   @ApiOkResponse({ type: BackofficeAccountPageDto })
   async listAccounts(
     @CurrentAuth() authorization: AccessTokenClaims,
     @Query() query: unknown,
   ): Promise<BackofficeAccountPage> {
-    const request = parseMasterDataListRequest(query);
+    const request = parseBackofficeAccountListRequest(query);
     const context = await this.contexts.resolve(authorization, { clientType: 'ADMIN_WEB' });
-    return this.accounts.list(context, request.page);
+    return this.accounts.list(context, request);
   }
 
   @Post('profile-accounts')

@@ -8,6 +8,7 @@ import { EditRecordDialog } from './EditRecordDialog';
 import { EndRelationDialog } from './EndRelationDialog';
 import {
   type AccountSummary,
+  type AccountRoleCode,
   type ArtistSummary,
   createManagementItem,
   endRelation,
@@ -60,11 +61,20 @@ function personName(realName: string, nickname: string | null): string {
 
 function roleNames(account: AccountSummary, siteNames: ReadonlyMap<string, string>): string {
   return account.roles
-    .map((role) =>
-      role.roleCode === 'ADMIN'
-        ? '管理员'
-        : `客服（${role.siteId ? (siteNames.get(role.siteId) ?? '未知场地') : '未指定场地'}）`,
-    )
+    .map((role) => {
+      switch (role.roleCode) {
+        case 'ADMIN':
+          return '管理员';
+        case 'CUSTOMER_SERVICE':
+          return `客服（${role.siteId ? (siteNames.get(role.siteId) ?? '未知场地') : '未指定场地'}）`;
+        case 'HOST':
+          return '主播';
+        case 'ARTIST':
+          return '化妆师';
+        case 'OPERATOR':
+          return '运营';
+      }
+    })
     .join('、');
 }
 
@@ -186,6 +196,7 @@ export function ManagementPage({ onUnauthorized, session, view }: ManagementPage
   const [page, setPage] = useState(1);
   const [draftSearch, setDraftSearch] = useState('');
   const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState<AccountRoleCode | ''>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -222,7 +233,13 @@ export function ManagementPage({ onUnauthorized, session, view }: ManagementPage
     const request =
       view === 'sites'
         ? listSites(session.accessToken).then((result) => ({ items: result, total: result.length }))
-        : listManagementItems(view, session.accessToken, page, search);
+        : listManagementItems(
+            view,
+            session.accessToken,
+            page,
+            search,
+            view === 'accounts' && roleFilter ? roleFilter : undefined,
+          );
 
     void request
       .then((result) => {
@@ -245,7 +262,7 @@ export function ManagementPage({ onUnauthorized, session, view }: ManagementPage
     return () => {
       active = false;
     };
-  }, [onUnauthorized, page, reloadVersion, search, session.accessToken, view]);
+  }, [onUnauthorized, page, reloadVersion, roleFilter, search, session.accessToken, view]);
 
   function submitSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -336,6 +353,29 @@ export function ManagementPage({ onUnauthorized, session, view }: ManagementPage
             <h1>{title}</h1>
           </div>
           <div className="header-actions">
+            {view === 'accounts' ? (
+              <>
+                <label className="sr-only" htmlFor="account-role-filter">
+                  按角色筛选
+                </label>
+                <select
+                  className="role-filter"
+                  id="account-role-filter"
+                  onChange={(event) => {
+                    setPage(1);
+                    setRoleFilter(event.target.value as AccountRoleCode | '');
+                  }}
+                  value={roleFilter}
+                >
+                  <option value="">全部角色</option>
+                  <option value="HOST">主播</option>
+                  <option value="ARTIST">化妆师</option>
+                  <option value="OPERATOR">运营</option>
+                  <option value="CUSTOMER_SERVICE">客服</option>
+                  <option value="ADMIN">管理员</option>
+                </select>
+              </>
+            ) : null}
             {view === 'sites' ? null : (
               <form className="search-form" onSubmit={submitSearch}>
                 <label className="sr-only" htmlFor="management-search">
