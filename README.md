@@ -2,7 +2,7 @@
 
 用于替代现有 Excel 人工排班流程，从预约源头生成结构化、无冲突、可追溯的化妆排班。
 
-当前阶段：**M9 上线准备**。第一阶段业务代码和本地上线前验收已完成，当前是生产候选版本；等待正式云服务器、域名证书、微信合法域名、生产数据库与 Redis、外部监控和正式名单后执行目标环境部署验收。
+当前阶段：**M10 全网页端迁移**。五类角色已确定统一使用响应式网页；正在把主播、运营和化妆师功能迁入 React Web，完成对等验收并删除小程序后重新进入生产部署。
 
 ## 快速入口
 
@@ -23,7 +23,7 @@
 │  ├─ api/               # NestJS API
 │  ├─ worker/            # NestJS 后台任务进程
 │  ├─ admin-web/         # React 管理后台
-│  └─ miniapp/           # Taro＋React 微信小程序
+│  └─ miniapp/           # 迁移期间保留的旧手机端，功能对等后删除
 ├─ packages/
 │  ├─ config/            # 共享 TypeScript 配置
 │  └─ database/          # 生成型 Prisma Client 与 PostgreSQL 连接工厂
@@ -34,11 +34,11 @@
    └─ source/            # 真实 Excel 源文件，Git 忽略
 ```
 
-第一期采用 TypeScript 全栈、微信小程序与 Web 管理后台、NestJS 模块化单体、PostgreSQL、Redis 和 Docker Compose。共享包、数据库和测试目录按实际实现维护，不保留无意义的空目录。
+第一期最终形态采用 TypeScript 全栈、单一响应式 React Web、NestJS 模块化单体、PostgreSQL、Redis 和 Docker Compose。共享包、数据库和测试目录按实际实现维护，不保留无意义的空目录。
 
 ## 本地工程
 
-要求：Node.js 24 LTS、pnpm 11、Docker Desktop 和 Chrome。微信开发者工具在小程序联调任务前安装。
+要求：Node.js 24 LTS、pnpm 11、Docker Desktop 和 Chrome。迁移完成前仅在旧手机功能回归时使用微信开发者工具。
 
 ```powershell
 pnpm install --frozen-lockfile
@@ -111,4 +111,4 @@ GitHub Actions 会在每次推送和拉取请求中，从空数据库执行迁�
 
 ## 下一步
 
-按[当前迭代](docs/当前迭代.md)进入 `M9-PRODUCTION-01`：取得生产资源后配置正式环境，在目标服务器复跑迁移、备份恢复、600 并发、真机 UAT 和最终放行。
+按[当前迭代](docs/当前迭代.md)执行 `M10-WEB-01`：先完成五类角色统一网页登录和手机功能迁移，再删除小程序并恢复生产部署任务。
