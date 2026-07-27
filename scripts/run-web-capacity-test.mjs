@@ -1,5 +1,6 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { rm } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { createServer } from 'node:net';
 import { resolve } from 'node:path';
@@ -22,6 +23,7 @@ const requestedApiPort = process.env.CAPACITY_API_PORT
   : null;
 const concurrency = Number(process.env.CAPACITY_CONCURRENCY || 600);
 const durationSeconds = Number(process.env.CAPACITY_DURATION_SECONDS || 900);
+const exportStorageDirectory = resolve(root, 'tmp', 'capacity-exports');
 let apiPort;
 let baseUrl;
 const requireDatabase = createRequire(resolve(root, 'packages/database/package.json'));
@@ -164,7 +166,13 @@ async function loadFixtures(client, date) {
   );
   const [boardDate] = await query(
     client,
-    `SELECT MAX(appointment_date)::text AS value FROM appointments`,
+    `
+      SELECT appointment_date::text AS value
+      FROM appointments
+      GROUP BY appointment_date
+      ORDER BY COUNT(*) DESC, appointment_date DESC
+      LIMIT 1
+    `,
   );
   const pairs = await query(
     client,
@@ -307,6 +315,71 @@ async function runSameSlotRace(getToken, fixtures, date) {
       responses.map((response) => response.duration),
       0.95,
     ).toFixed(0)}ms`,
+  );
+}
+
+async function runWorkerAndExport(getToken, fixtures) {
+  const workerToken = process.env.INTERNAL_WORKER_TOKEN;
+  if (!workerToken || Buffer.byteLength(workerToken) < 32) {
+    throw new Error('INTERNAL_WORKER_TOKEN must contain at least 32 bytes');
+  }
+  const workerHeaders = { 'X-Worker-Token': workerToken };
+  const generationStartedAt = performance.now();
+  const generation = await request('/internal/jobs/fixed-generation', getToken(), {
+    headers: workerHeaders,
+    method: 'POST',
+  });
+  const generationMilliseconds = performance.now() - generationStartedAt;
+  if (generation.status !== 200) {
+    throw new Error(`Fixed generation failed with HTTP ${generation.status}`);
+  }
+
+  const exportCreation = await request('/export-jobs', getToken(), {
+    body: JSON.stringify({
+      scheduleDate: fixtures.boardDate,
+      scope: 'ALL_SITES',
+    }),
+    headers: {
+      'Content-Type': 'application/json',
+      'Idempotency-Key': randomUUID(),
+    },
+    method: 'POST',
+  });
+  if (exportCreation.status !== 201) {
+    throw new Error(`Export creation failed with HTTP ${exportCreation.status}`);
+  }
+  const exportJob = JSON.parse(exportCreation.body);
+  const exportStartedAt = performance.now();
+  let processed;
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const result = await request('/internal/jobs/schedule-export', getToken(), {
+      headers: workerHeaders,
+      method: 'POST',
+    });
+    if (result.status !== 200) {
+      throw new Error(`Export worker failed with HTTP ${result.status}`);
+    }
+    const current = JSON.parse(result.body);
+    if (current.exportJobId === exportJob.id) {
+      processed = current;
+      break;
+    }
+  }
+  const exportMilliseconds = performance.now() - exportStartedAt;
+  if (!processed || processed.status !== 'SUCCEEDED') {
+    throw new Error('The production-scale export job was not completed');
+  }
+  const download = await fetch(`${baseUrl}/export-jobs/${exportJob.id}/download`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  const workbook = Buffer.from(await download.arrayBuffer());
+  if (download.status !== 200 || workbook.subarray(0, 2).toString('ascii') !== 'PK') {
+    throw new Error(`Export download validation failed with HTTP ${download.status}`);
+  }
+  console.log(
+    `[capacity] worker/export passed: fixed-generation=${generationMilliseconds.toFixed(
+      0,
+    )}ms, export=${exportMilliseconds.toFixed(0)}ms, xlsx-bytes=${workbook.byteLength}`,
   );
 }
 
@@ -476,6 +549,7 @@ try {
       ...process.env,
       API_PORT: String(apiPort),
       DATABASE_URL: databaseUrl.toString(),
+      EXPORT_STORAGE_DIR: exportStorageDirectory,
       NODE_ENV: 'test',
     },
     stdio: ['ignore', 'inherit', 'inherit'],
@@ -485,6 +559,7 @@ try {
     `[capacity] fixtures ready: sites=${fixtures.sites.length}, pairs=${fixtures.pairs.length}, boardDate=${fixtures.boardDate}, bookingDate=${targetDate}`,
   );
 
+  await runWorkerAndExport(getToken, fixtures);
   await runSameSlotRace(getToken, fixtures, targetDate);
   const refreshTimer = setInterval(() => {
     void session.issue().then((issued) => {
@@ -528,4 +603,5 @@ try {
     ]);
     if (api.exitCode === null) api.kill('SIGKILL');
   }
+  await rm(exportStorageDirectory, { force: true, recursive: true }).catch(() => undefined);
 }
