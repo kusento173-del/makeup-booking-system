@@ -6,13 +6,8 @@ DECLARE
     site_id UUID;
     user_one_id UUID;
     user_two_id UUID;
-    binding_host_id UUID;
-    binding_code_id UUID;
-    binding_challenge_id UUID;
     role_selection_challenge_id UUID;
     role_id UUID;
-    binding_hash TEXT;
-    challenge_hash TEXT;
     role_selection_hash TEXT;
     mobile_hash TEXT;
     refresh_hash TEXT;
@@ -25,8 +20,6 @@ BEGIN
 
     mobile_hash := lpad(test_suffix, 64, 'a');
     refresh_hash := lpad(test_suffix, 64, 'c');
-    binding_hash := lpad(test_suffix, 64, 'e');
-    challenge_hash := lpad(test_suffix, 64, '9');
     role_selection_hash := lpad(test_suffix, 64, '6');
 
     INSERT INTO "app_users" (
@@ -74,7 +67,7 @@ BEGIN
         "provider",
         "provider_app_id",
         "external_subject"
-    ) VALUES (user_one_id, 'WECHAT', 'wx-app-check', 'openid-' || test_suffix);
+    ) VALUES (user_one_id, 'PASSWORD', 'BACKOFFICE', 'identity-' || test_suffix);
 
     BEGIN
         INSERT INTO "user_identities" (
@@ -82,7 +75,7 @@ BEGIN
             "provider",
             "provider_app_id",
             "external_subject"
-        ) VALUES (user_two_id, 'WECHAT', 'wx-app-check', 'openid-' || test_suffix);
+        ) VALUES (user_two_id, 'PASSWORD', 'BACKOFFICE', 'identity-' || test_suffix);
         RAISE EXCEPTION 'Duplicate external identity was accepted';
     EXCEPTION
         WHEN unique_violation THEN NULL;
@@ -94,7 +87,7 @@ BEGIN
             "provider",
             "provider_app_id",
             "external_subject"
-        ) VALUES (user_two_id, 'WECHAT', '', 'another-openid-' || test_suffix);
+        ) VALUES (user_two_id, 'PASSWORD', '', 'another-identity-' || test_suffix);
         RAISE EXCEPTION 'Blank provider app ID was accepted';
     EXCEPTION
         WHEN check_violation THEN NULL;
@@ -235,131 +228,6 @@ BEGIN
         RAISE EXCEPTION 'One user was bound to multiple host profiles';
     EXCEPTION
         WHEN unique_violation THEN NULL;
-    END;
-
-    INSERT INTO "host_profiles" ("host_code", "real_name", "site_id")
-    VALUES ('IDENTITY-BIND-HOST-' || test_suffix, 'Binding Host', site_id)
-    RETURNING "id" INTO binding_host_id;
-
-    INSERT INTO "account_binding_codes" (
-        "role_code",
-        "site_id",
-        "host_profile_id",
-        "code_hash",
-        "expires_at",
-        "created_by_user_id"
-    ) VALUES (
-        'HOST',
-        site_id,
-        binding_host_id,
-        binding_hash,
-        CURRENT_TIMESTAMP + INTERVAL '1 day',
-        user_one_id
-    ) RETURNING "id" INTO binding_code_id;
-
-    BEGIN
-        INSERT INTO "account_binding_codes" (
-            "role_code",
-            "site_id",
-            "host_profile_id",
-            "code_hash",
-            "expires_at",
-            "created_by_user_id"
-        ) VALUES (
-            'HOST',
-            site_id,
-            binding_host_id,
-            lpad(test_suffix, 64, 'f'),
-            CURRENT_TIMESTAMP + INTERVAL '1 day',
-            user_one_id
-        );
-        RAISE EXCEPTION 'Multiple active binding codes for one host were accepted';
-    EXCEPTION
-        WHEN unique_violation THEN NULL;
-    END;
-
-    BEGIN
-        INSERT INTO "account_binding_codes" (
-            "role_code",
-            "site_id",
-            "host_profile_id",
-            "code_hash",
-            "expires_at",
-            "created_by_user_id"
-        ) VALUES (
-            'ARTIST',
-            site_id,
-            binding_host_id,
-            lpad(test_suffix, 64, 'b'),
-            CURRENT_TIMESTAMP + INTERVAL '1 day',
-            user_one_id
-        );
-        RAISE EXCEPTION 'Binding role and profile mismatch was accepted';
-    EXCEPTION
-        WHEN check_violation THEN NULL;
-    END;
-
-    BEGIN
-        UPDATE "account_binding_codes"
-        SET "failed_attempt_count" = 6
-        WHERE "id" = binding_code_id;
-        RAISE EXCEPTION 'Binding-code attempts above the maximum were accepted';
-    EXCEPTION
-        WHEN check_violation THEN NULL;
-    END;
-
-    UPDATE "account_binding_codes"
-    SET
-        "consumed_at" = CURRENT_TIMESTAMP,
-        "consumed_by_user_id" = user_two_id,
-        "row_version" = "row_version" + 1
-    WHERE "id" = binding_code_id;
-
-    BEGIN
-        DELETE FROM "account_binding_codes" WHERE "id" = binding_code_id;
-        RAISE EXCEPTION 'Binding-code history was deleted';
-    EXCEPTION
-        WHEN SQLSTATE '55000' THEN NULL;
-    END;
-
-    UPDATE "app_users"
-    SET "status" = 'PENDING_BINDING'
-    WHERE "id" = user_two_id;
-
-    INSERT INTO "auth_binding_challenges" (
-        "user_id",
-        "token_hash",
-        "expires_at"
-    ) VALUES (
-        user_two_id,
-        challenge_hash,
-        CURRENT_TIMESTAMP + INTERVAL '10 minutes'
-    ) RETURNING "id" INTO binding_challenge_id;
-
-    BEGIN
-        INSERT INTO "auth_binding_challenges" (
-            "user_id",
-            "token_hash",
-            "expires_at"
-        ) VALUES (
-            user_two_id,
-            lpad(test_suffix, 64, '8'),
-            CURRENT_TIMESTAMP + INTERVAL '10 minutes'
-        );
-        RAISE EXCEPTION 'Multiple active binding challenges for one user were accepted';
-    EXCEPTION
-        WHEN unique_violation THEN NULL;
-    END;
-
-    UPDATE "auth_binding_challenges"
-    SET "consumed_at" = CURRENT_TIMESTAMP
-    WHERE "id" = binding_challenge_id;
-
-    BEGIN
-        DELETE FROM "auth_binding_challenges" WHERE "id" = binding_challenge_id;
-        RAISE EXCEPTION 'Binding challenge history was deleted';
-    EXCEPTION
-        WHEN SQLSTATE '55000' THEN NULL;
     END;
 
     INSERT INTO "auth_role_selection_challenges" (

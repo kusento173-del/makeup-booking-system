@@ -11,12 +11,12 @@ describe('AuthRateLimitService', () => {
       .mockResolvedValue([3, 240]);
     const service = new AuthRateLimitService({ evaluate } as unknown as RedisService);
 
-    await expect(service.assertAllowed('wechat-login-ip', '203.0.113.8', 600, 300)).resolves.toBe(
+    await expect(service.assertAllowed('password-login-ip', '203.0.113.8', 600, 300)).resolves.toBe(
       undefined,
     );
     const call = evaluate.mock.calls[0];
     expect(call?.[0]).toContain("redis.call('INCR'");
-    expect(call?.[1][0]).toMatch(/^auth-rate:wechat-login-ip:[0-9a-f]{64}$/);
+    expect(call?.[1][0]).toMatch(/^auth-rate:password-login-ip:[0-9a-f]{64}$/);
     expect(call?.[2]).toEqual(['300']);
     expect(JSON.stringify(evaluate.mock.calls)).not.toContain('203.0.113.8');
   });
@@ -25,9 +25,9 @@ describe('AuthRateLimitService', () => {
     const evaluate = vi.fn().mockResolvedValue([601, 173]);
     const service = new AuthRateLimitService({ evaluate } as unknown as RedisService);
 
-    await expect(service.assertAllowed('wechat-login-ip', '203.0.113.8', 600, 300)).rejects.toEqual(
-      new AuthRateLimitExceededError(173),
-    );
+    await expect(
+      service.assertAllowed('password-login-ip', '203.0.113.8', 600, 300),
+    ).rejects.toEqual(new AuthRateLimitExceededError(173));
   });
 
   it('fails closed when Redis cannot enforce a consistent limit', async () => {
@@ -35,7 +35,7 @@ describe('AuthRateLimitService', () => {
     const service = new AuthRateLimitService({ evaluate } as unknown as RedisService);
 
     await expect(
-      service.assertAllowed('wechat-login-ip', '203.0.113.8', 600, 300),
+      service.assertAllowed('password-login-ip', '203.0.113.8', 600, 300),
     ).rejects.toBeInstanceOf(RateLimitUnavailableError);
   });
 });

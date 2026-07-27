@@ -84,15 +84,15 @@ describe('FixedAppointmentController', () => {
       'fixed-key-0001',
       authorization,
       '127.0.0.1',
-      'miniapp',
+      'mobile-web',
       'request-trace-1',
     );
 
     expect(resolve).toHaveBeenCalledWith(authorization, {
-      clientType: 'WECHAT_MINI_PROGRAM',
+      clientType: 'MOBILE_WEB',
       ipAddress: '127.0.0.1',
       requestId: 'request-trace-1',
-      userAgent: 'miniapp',
+      userAgent: 'mobile-web',
     });
     expect(create).toHaveBeenCalledWith(commandContext, {
       artistId,
@@ -328,16 +328,16 @@ describe('FixedAppointmentController', () => {
       { expectedRowVersion: 1 },
       authorization,
       '127.0.0.1',
-      'miniapp',
+      'mobile-web',
       'trace-2',
     );
 
     expect(get).toHaveBeenCalledWith(authorization, hostId);
     expect(resolve).toHaveBeenCalledWith(authorization, {
-      clientType: 'WECHAT_MINI_PROGRAM',
+      clientType: 'MOBILE_WEB',
       ipAddress: '127.0.0.1',
       requestId: 'trace-2',
-      userAgent: 'miniapp',
+      userAgent: 'mobile-web',
     });
     expect(withdraw).toHaveBeenCalledWith(commandContext, {
       expectedRowVersion: 1,

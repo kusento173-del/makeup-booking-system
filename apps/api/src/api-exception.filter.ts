@@ -9,6 +9,7 @@ import {
 
 import { AuthRequestInvalidError } from './auth/auth-request.parser';
 import { AuditQueryInvalidError } from './audit/audit-query.parser';
+import { AccountLoginDeniedError } from './auth/account-login.errors';
 import { BackofficeLoginDeniedError } from './auth/backoffice-auth.errors';
 import {
   AuthRateLimitExceededError,
@@ -17,18 +18,6 @@ import {
 } from './auth/auth-rate-limit.errors';
 import { AuthSessionInvalidError, AuthConfigurationError } from './auth/auth-session.errors';
 import { AuthorizationDeniedError } from './auth/authorization-policy.service';
-import {
-  BindingCodeConfigurationError,
-  BindingCodeInvalidError,
-  BindingTargetNotFoundError,
-  BindingTargetUnavailableError,
-} from './auth/binding-code.errors';
-import {
-  AccountLoginDeniedError,
-  BindingChallengeInvalidError,
-  WechatLoginConfigurationError,
-  WechatLoginFailedError,
-} from './auth/wechat-login.errors';
 import { AvailabilityArtistNotFoundError } from './availability/artist-availability.errors';
 import {
   BookingArtistUnavailableError,
@@ -229,10 +218,6 @@ export class ApiExceptionFilter implements ExceptionFilter {
       return this.response(HttpStatus.NOT_FOUND, exception.code, '目标数据不存在');
     }
 
-    if (exception instanceof BindingTargetNotFoundError) {
-      return this.response(HttpStatus.NOT_FOUND, exception.code, '绑定目标不存在');
-    }
-
     if (exception instanceof BookingSecondConfirmationRequiredError) {
       return this.response(HttpStatus.CONFLICT, exception.code, '这是当天第二次预约，请确认后重试');
     }
@@ -317,10 +302,6 @@ export class ApiExceptionFilter implements ExceptionFilter {
       return this.response(HttpStatus.CONFLICT, exception.code, '账号或角色状态冲突');
     }
 
-    if (exception instanceof BindingTargetUnavailableError) {
-      return this.response(HttpStatus.CONFLICT, exception.code, '目标当前不能签发绑定码');
-    }
-
     if (
       exception instanceof Prisma.PrismaClientKnownRequestError &&
       ['P2002', 'P2003', 'P2004'].includes(exception.code)
@@ -329,27 +310,17 @@ export class ApiExceptionFilter implements ExceptionFilter {
     }
 
     if (
-      exception instanceof BindingCodeInvalidError ||
-      exception instanceof BindingChallengeInvalidError
-    ) {
-      return this.response(HttpStatus.BAD_REQUEST, exception.code, '绑定凭证无效或已失效');
-    }
-
-    if (
       exception instanceof AuthSessionInvalidError ||
       exception instanceof AccountLoginDeniedError ||
-      exception instanceof BackofficeLoginDeniedError ||
-      exception instanceof WechatLoginFailedError
+      exception instanceof BackofficeLoginDeniedError
     ) {
       return this.response(HttpStatus.UNAUTHORIZED, exception.code, '登录状态无效或账号不可用');
     }
 
     if (
       exception instanceof AuthConfigurationError ||
-      exception instanceof BindingCodeConfigurationError ||
       exception instanceof RateLimitConfigurationError ||
-      exception instanceof RateLimitUnavailableError ||
-      exception instanceof WechatLoginConfigurationError
+      exception instanceof RateLimitUnavailableError
     ) {
       return this.response(HttpStatus.SERVICE_UNAVAILABLE, exception.code, '登录服务暂不可用');
     }

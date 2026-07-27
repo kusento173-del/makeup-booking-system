@@ -5,8 +5,8 @@ import { acquireTransactionLock } from '../database/transaction-lock';
 import { toLoginRoles } from './auth-role.mapper';
 import { BackofficeLoginDeniedError } from './backoffice-auth.errors';
 import { normalizeBackofficeLoginName } from './backoffice-login-name';
+import type { LoginRole } from './login-role.types';
 import { PasswordHasherService } from './password-hasher.service';
-import type { LoginRole } from './wechat-login.types';
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_DURATION_MS = 15 * 60 * 1000;

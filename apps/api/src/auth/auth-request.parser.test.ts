@@ -2,20 +2,14 @@ import { describe, expect, it } from 'vitest';
 
 import {
   AuthRequestInvalidError,
-  parseAccountBindingRequest,
   parseBackofficeLoginRequest,
   parseBackofficePasswordChangeRequest,
   parseRefreshRequest,
   parseRoleSelectionRequest,
-  parseWechatLoginRequest,
 } from './auth-request.parser';
 
 describe('auth request parsers', () => {
-  it('normalizes a strict WeChat login request', () => {
-    expect(parseWechatLoginRequest({ code: '  wx-code  ' })).toBe('wx-code');
-  });
-
-  it('keeps the password exact while normalizing the backoffice login name later', () => {
+  it('keeps the password exact while normalizing the login name', () => {
     expect(
       parseBackofficeLoginRequest({ loginName: ' Admin.User ', password: '  pass phrase  ' }),
     ).toEqual({ loginName: 'Admin.User', password: '  pass phrase  ' });
@@ -51,34 +45,5 @@ describe('auth request parsers', () => {
         roleSelectionChallenge: 'challenge-1',
       }),
     ).toEqual({ roleAssignmentId: 'role-1', roleSelectionChallenge: 'challenge-1' });
-  });
-
-  it('parses only the fields required by each binding role', () => {
-    expect(
-      parseAccountBindingRequest(
-        {
-          bindingChallenge: 'challenge-1',
-          bindingCode: 'ABCD-EFGH',
-          target: { hostCode: ' ZB01842 ', roleCode: 'HOST' },
-        },
-        { clientType: 'WECHAT_MINIPROGRAM' },
-      ),
-    ).toEqual({
-      bindingChallenge: 'challenge-1',
-      bindingCode: 'ABCD-EFGH',
-      clientType: 'WECHAT_MINIPROGRAM',
-      target: { hostCode: 'ZB01842', roleCode: 'HOST' },
-    });
-
-    expect(() =>
-      parseAccountBindingRequest(
-        {
-          bindingChallenge: 'challenge-1',
-          bindingCode: 'ABCD-EFGH',
-          target: { nickname: '柔柔', roleCode: 'HOST' },
-        },
-        {},
-      ),
-    ).toThrow(AuthRequestInvalidError);
   });
 });

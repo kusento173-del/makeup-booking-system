@@ -1,14 +1,11 @@
 import { Injectable } from '@nestjs/common';
 
-import { AccountBindingService } from './account-binding.service';
-import type { BindWechatAccountCommand } from './account-binding.types';
 import { AuthSessionInvalidError } from './auth-session.errors';
 import { AuthSessionService } from './auth-session.service';
 import type { AuthFlowResult } from './auth-flow.types';
+import type { LoginRole } from './login-role.types';
 import { PasswordChangeChallengeService } from './password-change-challenge.service';
 import { RoleSelectionChallengeService } from './role-selection-challenge.service';
-import { WechatLoginService } from './wechat-login.service';
-import type { LoginRole } from './wechat-login.types';
 
 interface VerifiedAccount {
   readonly mustChangePassword?: boolean;
@@ -19,21 +16,10 @@ interface VerifiedAccount {
 @Injectable()
 export class AuthFlowService {
   constructor(
-    private readonly bindings: AccountBindingService,
     private readonly roleSelections: RoleSelectionChallengeService,
     private readonly sessions: AuthSessionService,
-    private readonly wechatLogin: WechatLoginService,
     private readonly passwordChanges: PasswordChangeChallengeService,
   ) {}
-
-  async login(jsCode: string): Promise<AuthFlowResult> {
-    const result = await this.wechatLogin.login(jsCode);
-    return result.kind === 'BINDING_REQUIRED' ? result : this.completeVerifiedAccount(result);
-  }
-
-  async bind(command: BindWechatAccountCommand): Promise<AuthFlowResult> {
-    return this.completeVerifiedAccount(await this.bindings.bind(command));
-  }
 
   async selectRole(
     roleSelectionChallenge: string,

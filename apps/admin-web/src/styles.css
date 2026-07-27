@@ -998,18 +998,6 @@ tbody tr:hover {
   line-height: 1.6;
 }
 
-.binding-code {
-  display: block;
-  padding: 18px;
-  border: 1px dashed #7993a2;
-  border-radius: 8px;
-  background: #f4f8fa;
-  color: #173f52;
-  font-size: 28px;
-  letter-spacing: 3px;
-  text-align: center;
-}
-
 .schedule-main {
   display: grid;
   align-content: start;

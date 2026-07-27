@@ -1,8 +1,7 @@
 import type { SessionTokenPair } from './auth-session.types';
-import type { LoginRole, WechatAccountRequiresBinding } from './wechat-login.types';
+import type { LoginRole } from './login-role.types';
 
 export type AuthFlowResult =
-  | WechatAccountRequiresBinding
   | {
       readonly expiresAt: Date;
       readonly kind: 'PASSWORD_CHANGE_REQUIRED';

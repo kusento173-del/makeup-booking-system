@@ -3,8 +3,8 @@ import { expect, test } from '@playwright/test';
 const apiUrl = 'http://127.0.0.1:3000';
 
 test('认证接口拒绝未知字段并返回统一错误结构', async ({ request }) => {
-  const response = await request.post(`${apiUrl}/auth/wechat/login`, {
-    data: { code: 'wx-code', userId: 'forged-user' },
+  const response = await request.post(`${apiUrl}/auth/password/login`, {
+    data: { loginName: 'missing.admin', password: 'not-the-password', userId: 'forged-user' },
   });
 
   expect(response.status()).toBe(400);
@@ -62,14 +62,16 @@ test('OpenAPI 契约包含认证、主数据路径和分页查询参数', async 
     expect.arrayContaining([
       '/auth/backoffice/login',
       '/auth/backoffice/password',
-      '/auth/wechat/login',
-      '/auth/wechat/bind',
+      '/auth/password/login',
+      '/auth/password',
+      '/auth/password/complete',
       '/auth/role-selection',
       '/auth/refresh',
       '/auth/me',
       '/auth/logout',
       '/auth/logout-all',
-      '/backoffice/binding-codes',
+      '/backoffice/profile-accounts',
+      '/backoffice/profile-accounts/password-reset',
       '/backoffice/accounts',
       '/backoffice/accounts/{id}',
       '/backoffice/accounts/{id}/roles',
@@ -87,7 +89,7 @@ test('OpenAPI 契约包含认证、主数据路径和分页查询参数', async 
     ]),
   );
   expect(document.components?.securitySchemes).toHaveProperty('access-token');
-  expect(document.paths?.['/backoffice/binding-codes']).toHaveProperty('post');
+  expect(document.paths?.['/backoffice/profile-accounts']).toHaveProperty('post');
   expect(document.paths?.['/backoffice/accounts']).toHaveProperty('get');
   expect(document.paths?.['/backoffice/accounts']).toHaveProperty('post');
   expect(document.paths?.['/backoffice/accounts/{id}']).toHaveProperty('patch');

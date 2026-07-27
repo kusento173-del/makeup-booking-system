@@ -24,7 +24,6 @@ model Site {
   operators           OperatorProfile[]
   userRoles           UserRole[]
   operationLogs       OperationLog[]
-  bindingCodes        AccountBindingCode[]
   shiftChangeRequests ArtistShiftChangeRequest[]
   artistOvertimes     ArtistOvertime[]
   unavailablePeriods  ArtistUnavailablePeriod[]
@@ -61,10 +60,6 @@ model AppUser {
   qualificationChanges        HostQualificationHistory[]    @relation("HostQualificationChangedBy")
   uploadedImportBatches       ImportBatch[]                 @relation("ImportBatchUploader")
   confirmedImportBatches      ImportBatch[]                 @relation("ImportBatchConfirmer")
-  createdBindingCodes         AccountBindingCode[]          @relation("BindingCodeCreator")
-  consumedBindingCodes        AccountBindingCode[]          @relation("BindingCodeConsumer")
-  revokedBindingCodes         AccountBindingCode[]          @relation("BindingCodeRevoker")
-  bindingChallenges           AuthBindingChallenge[]
   roleSelectionChallenges     AuthRoleSelectionChallenge[]
   passwordChangeChallenges    AuthPasswordChangeChallenge[]
   createdShiftTemplates       ArtistShiftTemplate[]         @relation("ArtistShiftCreatedBy")
@@ -182,22 +177,6 @@ model AuthSession {
   @@map("auth_sessions")
 }
 
-model AuthBindingChallenge {
-  id         String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  userId     String    @map("user_id") @db.Uuid
-  tokenHash  String    @unique(map: "auth_binding_challenges_token_hash_uq") @map("token_hash") @db.Char(64)
-  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(3)
-  consumedAt DateTime? @map("consumed_at") @db.Timestamptz(3)
-  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(3)
-  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-
-  user AppUser @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-
-  @@unique([userId], map: "auth_binding_challenges_active_user_uq", where: raw("(consumed_at IS NULL AND revoked_at IS NULL)"))
-  @@index([expiresAt], map: "auth_binding_challenges_expires_idx")
-  @@map("auth_binding_challenges")
-}
-
 model AuthRoleSelectionChallenge {
   id         String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
   userId     String    @map("user_id") @db.Uuid
@@ -233,7 +212,6 @@ model HostProfile {
   sourceImportBatch      ImportBatch?               @relation("HostSourceImportBatch", fields: [sourceImportBatchId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   operatorRelations      HostOperatorRelation[]
   qualificationHistories HostQualificationHistory[]
-  bindingCodes           AccountBindingCode[]
   leaveRecords           LeaveRecord[]
   appointments           Appointment[]
   fixedRequests          FixedAppointmentRequest[]
@@ -281,7 +259,6 @@ model ArtistProfile {
   site                Site                       @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   user                AppUser?                   @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   sourceImportBatch   ImportBatch?               @relation("ArtistSourceImportBatch", fields: [sourceImportBatchId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  bindingCodes        AccountBindingCode[]
   shiftTemplates      ArtistShiftTemplate[]
   shiftChangeRequests ArtistShiftChangeRequest[]
   overtimes           ArtistOvertime[]
@@ -672,7 +649,6 @@ model OperatorProfile {
   user                   AppUser?                  @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   sourceImportBatch      ImportBatch?              @relation("OperatorSourceImportBatch", fields: [sourceImportBatchId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   hostRelations          HostOperatorRelation[]
-  bindingCodes           AccountBindingCode[]
   bookedAppointments     Appointment[]
   submittedFixedRequests FixedAppointmentRequest[]
 
@@ -824,42 +800,4 @@ model ExportJob {
   @@index([expiresAt], map: "export_jobs_expires_at_idx")
   @@index([status, storageDeletedAt, expiresAt], map: "export_jobs_cleanup_idx")
   @@map("export_jobs")
-}
-
-model AccountBindingCode {
-  id                 String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  roleCode           String    @map("role_code") @db.VarChar(32)
-  siteId             String    @map("site_id") @db.Uuid
-  hostProfileId      String?   @map("host_profile_id") @db.Uuid
-  artistProfileId    String?   @map("artist_profile_id") @db.Uuid
-  operatorProfileId  String?   @map("operator_profile_id") @db.Uuid
-  codeHash           String    @unique(map: "account_binding_codes_code_hash_uq") @map("code_hash") @db.Char(64)
-  expiresAt          DateTime  @map("expires_at") @db.Timestamptz(3)
-  failedAttemptCount Int       @default(0) @map("failed_attempt_count")
-  maxAttempts        Int       @default(5) @map("max_attempts")
-  consumedAt         DateTime? @map("consumed_at") @db.Timestamptz(3)
-  consumedByUserId   String?   @map("consumed_by_user_id") @db.Uuid
-  revokedAt          DateTime? @map("revoked_at") @db.Timestamptz(3)
-  revokedByUserId    String?   @map("revoked_by_user_id") @db.Uuid
-  revokeReason       String?   @map("revoke_reason") @db.VarChar(500)
-  createdByUserId    String    @map("created_by_user_id") @db.Uuid
-  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
-  rowVersion         Int       @default(1) @map("row_version")
-
-  site            Site             @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  hostProfile     HostProfile?     @relation(fields: [hostProfileId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  artistProfile   ArtistProfile?   @relation(fields: [artistProfileId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  operatorProfile OperatorProfile? @relation(fields: [operatorProfileId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  createdBy       AppUser          @relation("BindingCodeCreator", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  consumedBy      AppUser?         @relation("BindingCodeConsumer", fields: [consumedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  revokedBy       AppUser?         @relation("BindingCodeRevoker", fields: [revokedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-
-  @@unique([hostProfileId], map: "account_binding_codes_active_host_uq", where: raw("(host_profile_id IS NOT NULL AND consumed_at IS NULL AND revoked_at IS NULL)"))
-  @@unique([artistProfileId], map: "account_binding_codes_active_artist_uq", where: raw("(artist_profile_id IS NOT NULL AND consumed_at IS NULL AND revoked_at IS NULL)"))
-  @@unique([operatorProfileId], map: "account_binding_codes_active_operator_uq", where: raw("(operator_profile_id IS NOT NULL AND consumed_at IS NULL AND revoked_at IS NULL)"))
-  @@index([siteId, roleCode, createdAt(sort: Desc)], map: "account_binding_codes_site_role_created_idx")
-  @@index([expiresAt], map: "account_binding_codes_expires_idx")
-  @@index([createdByUserId, createdAt(sort: Desc)], map: "account_binding_codes_creator_created_idx")
-  @@map("account_binding_codes")
 }

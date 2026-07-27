@@ -96,15 +96,15 @@ describe('BookingController', () => {
       'booking-key-0001',
       authorization,
       '127.0.0.1',
-      'miniapp',
+      'mobile-web',
       'request-1',
     );
 
     expect(resolve).toHaveBeenCalledWith(authorization, {
-      clientType: 'WECHAT_MINI_PROGRAM',
+      clientType: 'MOBILE_WEB',
       ipAddress: '127.0.0.1',
       requestId: 'request-1',
-      userAgent: 'miniapp',
+      userAgent: 'mobile-web',
     });
     expect(create).toHaveBeenCalledWith(context, {
       artistId,

@@ -1,6 +1,6 @@
 import { ROLE_CODES, type RoleCode } from './authorization.types';
-import { AccountLoginDeniedError } from './wechat-login.errors';
-import type { LoginRole } from './wechat-login.types';
+import { AccountLoginDeniedError } from './account-login.errors';
+import type { LoginRole } from './login-role.types';
 
 export function isRoleCode(value: string): value is RoleCode {
   return ROLE_CODES.some((roleCode) => roleCode === value);

@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { toLoginRoles } from './auth-role.mapper';
 import { AuthSessionInvalidError } from './auth-session.errors';
-import type { LoginRole } from './wechat-login.types';
+import type { LoginRole } from './login-role.types';
 import { OpaqueTokenService } from './opaque-token.service';
 
 const ROLE_SELECTION_LIFETIME_MS = 5 * 60 * 1000;

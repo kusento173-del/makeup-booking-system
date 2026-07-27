@@ -2,13 +2,8 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 import { ROLE_CODES } from './authorization.types';
 
-export class WechatLoginRequestDto {
-  @ApiProperty({ description: 'wx.login 返回的一次性临时代码', maxLength: 256 })
-  code!: string;
-}
-
 export class BackofficeLoginRequestDto {
-  @ApiProperty({ description: '客服或管理员登录名', maxLength: 64 })
+  @ApiProperty({ description: '网页账号登录名', maxLength: 64 })
   loginName!: string;
 
   @ApiProperty({ format: 'password', maxLength: 128 })
@@ -42,34 +37,6 @@ export class SelectRoleRequestDto {
 
   @ApiProperty({ maxLength: 256 })
   roleSelectionChallenge!: string;
-}
-
-export class AccountBindingTargetDto {
-  @ApiProperty({ enum: ['HOST', 'ARTIST', 'OPERATOR'] })
-  roleCode!: string;
-
-  @ApiPropertyOptional({ description: '主播角色必填' })
-  hostCode?: string;
-
-  @ApiPropertyOptional({ description: '化妆师角色必填' })
-  nickname?: string;
-
-  @ApiPropertyOptional({ description: '运营角色必填' })
-  realName?: string;
-
-  @ApiPropertyOptional({ description: '运营角色必填' })
-  siteCode?: string;
-}
-
-export class BindWechatAccountRequestDto {
-  @ApiProperty({ maxLength: 256 })
-  bindingChallenge!: string;
-
-  @ApiProperty({ example: 'ABCD-EFGH', maxLength: 32 })
-  bindingCode!: string;
-
-  @ApiProperty({ type: AccountBindingTargetDto })
-  target!: AccountBindingTargetDto;
 }
 
 export class LoginRoleDto {
@@ -108,20 +75,9 @@ export class SessionTokenPairDto {
 
 export class AuthFlowResponseDto {
   @ApiProperty({
-    enum: [
-      'BINDING_REQUIRED',
-      'PASSWORD_CHANGE_REQUIRED',
-      'ROLE_SELECTION_REQUIRED',
-      'SESSION_CREATED',
-    ],
+    enum: ['PASSWORD_CHANGE_REQUIRED', 'ROLE_SELECTION_REQUIRED', 'SESSION_CREATED'],
   })
   kind!: string;
-
-  @ApiPropertyOptional()
-  bindingChallenge?: string;
-
-  @ApiPropertyOptional({ format: 'date-time' })
-  bindingChallengeExpiresAt?: string;
 
   @ApiPropertyOptional()
   passwordChangeChallenge?: string;

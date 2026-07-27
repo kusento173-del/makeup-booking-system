@@ -221,7 +221,7 @@ export class FixedAppointmentController {
   ): Promise<FixedRequestCreateResult> {
     const command = parseCreateFixedRequest(body, idempotencyKey);
     const context = await this.contexts.resolve(authorization, {
-      clientType: 'WECHAT_MINI_PROGRAM',
+      clientType: 'MOBILE_WEB',
       ipAddress,
       ...(requestId ? { requestId } : {}),
       ...(userAgent ? { userAgent } : {}),
@@ -244,7 +244,7 @@ export class FixedAppointmentController {
   ): Promise<FixedRequestCreateResult> {
     const command = parseChangeFixedRequest(body, idempotencyKey);
     const context = await this.contexts.resolve(authorization, {
-      clientType: 'WECHAT_MINI_PROGRAM',
+      clientType: 'MOBILE_WEB',
       ipAddress,
       ...(requestId ? { requestId } : {}),
       ...(userAgent ? { userAgent } : {}),
@@ -267,7 +267,7 @@ export class FixedAppointmentController {
   ): Promise<FixedRequestCreateResult> {
     const command = parseCancelFixedRequest(body, idempotencyKey);
     const context = await this.contexts.resolve(authorization, {
-      clientType: 'WECHAT_MINI_PROGRAM',
+      clientType: 'MOBILE_WEB',
       ipAddress,
       ...(requestId ? { requestId } : {}),
       ...(userAgent ? { userAgent } : {}),
@@ -291,7 +291,7 @@ export class FixedAppointmentController {
   ): Promise<FixedRequestWithdrawResult> {
     const command = parseWithdrawFixedRequest(requestId, body);
     const context = await this.contexts.resolve(authorization, {
-      clientType: 'WECHAT_MINI_PROGRAM',
+      clientType: 'MOBILE_WEB',
       ipAddress,
       ...(traceId ? { requestId: traceId } : {}),
       ...(userAgent ? { userAgent } : {}),

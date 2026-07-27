@@ -132,9 +132,7 @@ export class LeaveController {
     requestId?: string,
   ): Promise<LeaveCommandContext> {
     return this.contexts.resolve(authorization, {
-      clientType: ['HOST', 'ARTIST'].includes(authorization.roleCode)
-        ? 'WECHAT_MINI_PROGRAM'
-        : 'ADMIN_WEB',
+      clientType: ['HOST', 'ARTIST'].includes(authorization.roleCode) ? 'MOBILE_WEB' : 'ADMIN_WEB',
       ipAddress,
       ...(requestId ? { requestId } : {}),
       ...(userAgent ? { userAgent } : {}),

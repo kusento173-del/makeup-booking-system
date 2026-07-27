@@ -6,13 +6,10 @@ const path = resolve(process.argv[2] ?? 'deploy/production.env');
 const environment = parseEnv(readFileSync(path, 'utf8'));
 const required = [
   'APP_TIME_ZONE',
-  'AUTH_BINDING_CODE_PEPPER',
   'AUTH_ACCESS_TOKEN_SECRET',
   'AUTH_ACCESS_TOKEN_ISSUER',
   'AUTH_ACCESS_TOKEN_AUDIENCE',
   'INTERNAL_WORKER_TOKEN',
-  'WECHAT_MINI_PROGRAM_APP_ID',
-  'WECHAT_MINI_PROGRAM_APP_SECRET',
   'DATABASE_URL',
   'BACKUP_DATABASE_URL',
   'REDIS_URL',
@@ -25,12 +22,7 @@ for (const name of required) {
     throw new Error(`${name} still contains a template value`);
 }
 
-const secretNames = [
-  'AUTH_BINDING_CODE_PEPPER',
-  'AUTH_ACCESS_TOKEN_SECRET',
-  'INTERNAL_WORKER_TOKEN',
-  'WECHAT_MINI_PROGRAM_APP_SECRET',
-];
+const secretNames = ['AUTH_ACCESS_TOKEN_SECRET', 'INTERNAL_WORKER_TOKEN'];
 for (const name of secretNames) {
   if ((environment[name]?.length ?? 0) < 32)
     throw new Error(`${name} must contain at least 32 characters`);

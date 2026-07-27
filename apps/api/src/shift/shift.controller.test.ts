@@ -41,15 +41,15 @@ describe('ShiftController', () => {
         },
         authorization,
         '127.0.0.1',
-        'miniapp',
+        'mobile-web',
         'request-1',
       ),
     ).resolves.toEqual({ id: 'shift-1' });
     expect(resolve).toHaveBeenCalledWith(authorization, {
-      clientType: 'WECHAT_MINI_PROGRAM',
+      clientType: 'MOBILE_WEB',
       ipAddress: '127.0.0.1',
       requestId: 'request-1',
-      userAgent: 'miniapp',
+      userAgent: 'mobile-web',
     });
     expect(setInitialShift).toHaveBeenCalledWith(context, {
       artistId,

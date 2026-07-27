@@ -164,7 +164,7 @@ export class OvertimeController {
     requestId?: string,
   ): Promise<OvertimeCommandContext> {
     return this.contexts.resolve(authorization, {
-      clientType: authorization.roleCode === 'ARTIST' ? 'WECHAT_MINI_PROGRAM' : 'ADMIN_WEB',
+      clientType: authorization.roleCode === 'ARTIST' ? 'MOBILE_WEB' : 'ADMIN_WEB',
       ipAddress,
       ...(requestId ? { requestId } : {}),
       ...(userAgent ? { userAgent } : {}),

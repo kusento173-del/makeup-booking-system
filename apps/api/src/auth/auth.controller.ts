@@ -21,28 +21,24 @@ import {
   AuthFlowResponseDto,
   BackofficeLoginRequestDto,
   BackofficePasswordChangeRequestDto,
-  BindWechatAccountRequestDto,
-  RefreshSessionRequestDto,
   InitialPasswordChangeRequestDto,
+  RefreshSessionRequestDto,
   SelectRoleRequestDto,
   SessionTokenPairDto,
-  WechatLoginRequestDto,
 } from './auth-openapi.dto';
 import { AuthRateLimitService } from './auth-rate-limit.service';
 import {
-  parseAccountBindingRequest,
   parseBackofficeLoginRequest,
   parseBackofficePasswordChangeRequest,
   parseInitialPasswordChangeRequest,
   parseRefreshRequest,
   parseRoleSelectionRequest,
-  parseWechatLoginRequest,
 } from './auth-request.parser';
 import { AuthSessionService } from './auth-session.service';
 import type { AccessTokenClaims, SessionTokenPair } from './auth-session.types';
-import { CurrentAuth } from './current-auth.decorator';
 import { BackofficeLoginService } from './backoffice-login.service';
 import { BackofficePasswordService } from './backoffice-password.service';
+import { CurrentAuth } from './current-auth.decorator';
 
 @ApiTags('认证')
 @ApiBadRequestResponse({ type: ApiErrorResponseDto })
@@ -62,11 +58,11 @@ export class AuthController {
   @HttpCode(204)
   @UseGuards(AccessTokenGuard)
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: '客服或管理员修改自己的登录密码' })
+  @ApiOperation({ summary: '修改当前网页账号密码' })
   @ApiBody({ type: BackofficePasswordChangeRequestDto })
   @ApiNoContentResponse({ description: '密码修改成功，当前账号全部会话已注销' })
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
-  async changeBackofficePassword(
+  async changePassword(
     @Body() body: unknown,
     @CurrentAuth() authorization: AccessTokenClaims,
     @Ip() ipAddress: string,
@@ -74,15 +70,10 @@ export class AuthController {
     @Headers('x-request-id') requestId?: string,
   ): Promise<void> {
     const request = parseBackofficePasswordChangeRequest(body);
-    await this.rateLimits.assertAllowed(
-      'backoffice-password-user',
-      authorization.userId,
-      5,
-      15 * 60,
-    );
+    await this.rateLimits.assertAllowed('password-change-user', authorization.userId, 5, 15 * 60);
     await this.backofficePasswords.change({
       authorization,
-      clientType: 'ADMIN_WEB',
+      clientType: 'WEB',
       currentPassword: request.currentPassword,
       ipAddress,
       newPassword: request.newPassword,
@@ -93,11 +84,11 @@ export class AuthController {
 
   @Post(['password/login', 'backoffice/login'])
   @HttpCode(200)
-  @ApiOperation({ summary: '客服或管理员密码登录' })
+  @ApiOperation({ summary: '网页账号密码登录' })
   @ApiBody({ type: BackofficeLoginRequestDto })
   @ApiOkResponse({ type: AuthFlowResponseDto })
-  async loginBackoffice(@Body() body: unknown, @Ip() ipAddress: string): Promise<AuthFlowResult> {
-    await this.rateLimits.assertAllowed('backoffice-login-ip', ipAddress, 120, 10 * 60);
+  async login(@Body() body: unknown, @Ip() ipAddress: string): Promise<AuthFlowResult> {
+    await this.rateLimits.assertAllowed('password-login-ip', ipAddress, 120, 10 * 60);
     const request = parseBackofficeLoginRequest(body);
     return this.flow.completeVerifiedAccount(
       await this.backofficeLogin.verify(request.loginName, request.password),
@@ -106,7 +97,7 @@ export class AuthController {
 
   @Post('password/complete')
   @HttpCode(200)
-  @ApiOperation({ summary: '使用一次性改密凭证完成首次密码修改' })
+  @ApiOperation({ summary: '使用一次性凭证完成首次密码修改' })
   @ApiBody({ type: InitialPasswordChangeRequestDto })
   @ApiOkResponse({ type: AuthFlowResponseDto })
   async completeInitialPasswordChange(
@@ -123,38 +114,6 @@ export class AuthController {
         ipAddress,
         newPassword: request.newPassword,
         passwordChangeChallenge: request.passwordChangeChallenge,
-        ...(requestId ? { requestId } : {}),
-        ...(userAgent ? { userAgent } : {}),
-      }),
-    );
-  }
-
-  @Post('wechat/login')
-  @HttpCode(200)
-  @ApiOperation({ summary: '微信小程序登录' })
-  @ApiBody({ type: WechatLoginRequestDto })
-  @ApiOkResponse({ type: AuthFlowResponseDto })
-  async login(@Body() body: unknown, @Ip() ipAddress: string): Promise<AuthFlowResult> {
-    await this.rateLimits.assertAllowed('wechat-login-ip', ipAddress, 600, 5 * 60);
-    return this.flow.login(parseWechatLoginRequest(body));
-  }
-
-  @Post('wechat/bind')
-  @HttpCode(200)
-  @ApiOperation({ summary: '使用一次性绑定码绑定人员档案' })
-  @ApiBody({ type: BindWechatAccountRequestDto })
-  @ApiOkResponse({ type: AuthFlowResponseDto })
-  async bind(
-    @Body() body: unknown,
-    @Ip() ipAddress: string,
-    @Headers('user-agent') userAgent?: string,
-    @Headers('x-request-id') requestId?: string,
-  ): Promise<AuthFlowResult> {
-    await this.rateLimits.assertAllowed('wechat-bind-ip', ipAddress, 120, 10 * 60);
-    return this.flow.bind(
-      parseAccountBindingRequest(body, {
-        clientType: 'WECHAT_MINIPROGRAM',
-        ipAddress,
         ...(requestId ? { requestId } : {}),
         ...(userAgent ? { userAgent } : {}),
       }),

@@ -2,11 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
-const SECRET_KEYS = [
-  'AUTH_BINDING_CODE_PEPPER',
-  'AUTH_ACCESS_TOKEN_SECRET',
-  'INTERNAL_WORKER_TOKEN',
-];
+const SECRET_KEYS = ['AUTH_ACCESS_TOKEN_SECRET', 'INTERNAL_WORKER_TOKEN'];
 const TEMPLATE_MARKERS = ['change-me', 'example', 'replace-with'];
 const envPath = resolve('.env');
 

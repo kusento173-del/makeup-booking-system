@@ -67,7 +67,7 @@ export class ShiftController {
   ): Promise<ArtistShiftSummary> {
     const command = parseInitialShiftRequest(artistId, body);
     const context = await this.contexts.resolve(authorization, {
-      clientType: authorization.roleCode === 'ARTIST' ? 'WECHAT_MINI_PROGRAM' : 'ADMIN_WEB',
+      clientType: authorization.roleCode === 'ARTIST' ? 'MOBILE_WEB' : 'ADMIN_WEB',
       ipAddress,
       ...(requestId ? { requestId } : {}),
       ...(userAgent ? { userAgent } : {}),
@@ -115,7 +115,7 @@ export class ShiftController {
   ): Promise<ShiftChangeSummary> {
     const command = parseSubmitShiftChangeRequest(artistId, body);
     const context = await this.contexts.resolve(authorization, {
-      clientType: 'WECHAT_MINI_PROGRAM',
+      clientType: 'MOBILE_WEB',
       ipAddress,
       ...(requestId ? { requestId } : {}),
       ...(userAgent ? { userAgent } : {}),

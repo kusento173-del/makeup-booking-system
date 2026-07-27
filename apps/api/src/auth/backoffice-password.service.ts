@@ -7,9 +7,9 @@ import { toLoginRoles } from './auth-role.mapper';
 import type { AccessTokenClaims } from './auth-session.types';
 import { AuthRequestInvalidError } from './auth-request.parser';
 import { BackofficeLoginDeniedError } from './backoffice-auth.errors';
+import type { LoginRole } from './login-role.types';
 import { OpaqueTokenService } from './opaque-token.service';
 import { PasswordHasherService } from './password-hasher.service';
-import type { LoginRole } from './wechat-login.types';
 
 export interface ChangeBackofficePasswordCommand {
   readonly authorization: AccessTokenClaims;

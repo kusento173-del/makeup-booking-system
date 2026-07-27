@@ -175,27 +175,6 @@ export function revokeBackofficeRole(
   });
 }
 
-export interface IssuedBindingCode {
-  readonly bindingCodeId: string;
-  readonly code: string;
-  readonly expiresAt: string;
-  readonly profileId: string;
-  readonly roleCode: 'HOST' | 'ARTIST' | 'OPERATOR';
-  readonly siteId: string;
-}
-
-export function issueBindingCode(
-  token: string,
-  profileId: string,
-  roleCode: IssuedBindingCode['roleCode'],
-): Promise<IssuedBindingCode> {
-  return apiRequest('/backoffice/binding-codes', {
-    body: { profileId, roleCode },
-    method: 'POST',
-    token,
-  });
-}
-
 export function provisionProfileAccount(
   token: string,
   body: {

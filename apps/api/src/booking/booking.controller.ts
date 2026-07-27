@@ -189,7 +189,7 @@ export class BookingController {
   ): Promise<BookingCommandContext> {
     return this.contexts.resolve(authorization, {
       clientType: ['HOST', 'OPERATOR'].includes(authorization.roleCode)
-        ? 'WECHAT_MINI_PROGRAM'
+        ? 'MOBILE_WEB'
         : 'ADMIN_WEB',
       ipAddress,
       ...(requestId ? { requestId } : {}),

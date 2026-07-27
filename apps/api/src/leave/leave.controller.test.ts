@@ -48,7 +48,7 @@ describe('LeaveController', () => {
       ),
     ).resolves.toEqual({ affectedAppointmentCount: 0 });
     expect(resolve).toHaveBeenCalledWith(authorization, {
-      clientType: 'WECHAT_MINI_PROGRAM',
+      clientType: 'MOBILE_WEB',
       ipAddress: '127.0.0.1',
     });
     expect(preview).toHaveBeenCalledWith(context, {
@@ -74,15 +74,15 @@ describe('LeaveController', () => {
       },
       authorization,
       '127.0.0.1',
-      'miniapp',
+      'mobile-web',
       'request-1',
     );
 
     expect(resolve).toHaveBeenCalledWith(authorization, {
-      clientType: 'WECHAT_MINI_PROGRAM',
+      clientType: 'MOBILE_WEB',
       ipAddress: '127.0.0.1',
       requestId: 'request-1',
-      userAgent: 'miniapp',
+      userAgent: 'mobile-web',
     });
     expect(create).toHaveBeenCalledWith(context, {
       confirmedAffectedAppointmentCount: 0,

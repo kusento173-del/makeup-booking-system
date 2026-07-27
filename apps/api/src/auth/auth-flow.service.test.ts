@@ -1,11 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { AccountBindingService } from './account-binding.service';
 import { AuthFlowService } from './auth-flow.service';
 import type { AuthSessionService } from './auth-session.service';
 import type { PasswordChangeChallengeService } from './password-change-challenge.service';
 import type { RoleSelectionChallengeService } from './role-selection-challenge.service';
-import type { WechatLoginService } from './wechat-login.service';
 
 const role = { roleAssignmentId: 'role-1', roleCode: 'HOST', siteId: null } as const;
 const session = {
@@ -19,26 +17,23 @@ const session = {
 };
 
 function createService() {
-  const bind = vi.fn();
-  const issue = vi.fn();
+  const issuePasswordChange = vi.fn();
+  const issueRoleSelection = vi.fn();
   const consume = vi.fn();
   const create = vi.fn().mockResolvedValue(session);
-  const login = vi.fn();
   const service = new AuthFlowService(
-    { bind } as unknown as AccountBindingService,
-    { consume, issue } as unknown as RoleSelectionChallengeService,
+    { consume, issue: issueRoleSelection } as unknown as RoleSelectionChallengeService,
     { create } as unknown as AuthSessionService,
-    { login } as unknown as WechatLoginService,
-    { issue } as unknown as PasswordChangeChallengeService,
+    { issue: issuePasswordChange } as unknown as PasswordChangeChallengeService,
   );
 
-  return { bind, consume, create, issue, login, service };
+  return { consume, create, issuePasswordChange, issueRoleSelection, service };
 }
 
 describe('AuthFlowService', () => {
   it('requires a one-time password change before creating a session', async () => {
-    const { create, issue, service } = createService();
-    issue.mockResolvedValue({
+    const { create, issuePasswordChange, service } = createService();
+    issuePasswordChange.mockResolvedValue({
       expiresAt: new Date('2026-07-22T04:05:00.000Z'),
       token: 'password-change-challenge',
     });
@@ -57,59 +52,36 @@ describe('AuthFlowService', () => {
     expect(create).not.toHaveBeenCalled();
   });
 
-  it('returns the binding challenge without creating a formal session', async () => {
-    const { create, login, service } = createService();
-    login.mockResolvedValue({
-      bindingChallenge: 'binding-challenge',
-      bindingChallengeExpiresAt: new Date('2026-07-22T04:10:00.000Z'),
-      kind: 'BINDING_REQUIRED',
-    });
-
-    await expect(service.login('wx-code')).resolves.toMatchObject({
-      bindingChallenge: 'binding-challenge',
-      kind: 'BINDING_REQUIRED',
-    });
-    expect(create).not.toHaveBeenCalled();
-  });
-
   it('creates a formal session immediately for a verified single-role account', async () => {
-    const { create, login, service } = createService();
-    login.mockResolvedValue({
-      kind: 'ACCOUNT_RECOGNIZED',
-      requiresRoleSelection: false,
-      roles: [role],
-      userId: 'user-1',
-    });
+    const { create, service } = createService();
 
-    await expect(service.login('wx-code')).resolves.toEqual({
+    await expect(
+      service.completeVerifiedAccount({ roles: [role], userId: 'user-1' }),
+    ).resolves.toEqual({
       kind: 'SESSION_CREATED',
       session,
     });
     expect(create).toHaveBeenCalledWith('user-1', 'role-1');
   });
 
-  it('returns a one-time selection challenge instead of trusting a client user ID', async () => {
+  it('returns a one-time selection challenge for a verified multi-role account', async () => {
     const secondRole = { roleAssignmentId: 'role-2', roleCode: 'OPERATOR', siteId: null } as const;
-    const { issue, login, service } = createService();
-    login.mockResolvedValue({
-      kind: 'ACCOUNT_RECOGNIZED',
-      requiresRoleSelection: true,
-      roles: [role, secondRole],
-      userId: 'user-1',
-    });
-    issue.mockResolvedValue({
+    const { issueRoleSelection, service } = createService();
+    issueRoleSelection.mockResolvedValue({
       expiresAt: new Date('2026-07-22T04:05:00.000Z'),
       roles: [role, secondRole],
       token: 'selection-challenge',
     });
 
-    await expect(service.login('wx-code')).resolves.toEqual({
+    await expect(
+      service.completeVerifiedAccount({ roles: [role, secondRole], userId: 'user-1' }),
+    ).resolves.toEqual({
       expiresAt: new Date('2026-07-22T04:05:00.000Z'),
       kind: 'ROLE_SELECTION_REQUIRED',
       roles: [role, secondRole],
       roleSelectionChallenge: 'selection-challenge',
     });
-    expect(issue).toHaveBeenCalledWith('user-1');
+    expect(issueRoleSelection).toHaveBeenCalledWith('user-1');
   });
 
   it('consumes the selection challenge before creating the selected session', async () => {
