@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
 
-test('管理后台可访问并显示真实登录入口', async ({ page }) => {
+test('统一网页可访问并显示账号登录入口', async ({ page }) => {
   await page.goto('/');
 
-  await expect(page.getByRole('heading', { name: '管理后台登录' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '账号登录' })).toBeVisible();
   await expect(page.getByLabel('登录名')).toBeVisible();
   await expect(page.getByLabel('密码')).toBeVisible();
 });
