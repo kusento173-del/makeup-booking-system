@@ -23,6 +23,7 @@
     "env:setup": "node scripts/ensure-local-auth-secrets.mjs",
     "e2e": "pnpm build && pnpm e2e:test",
     "e2e:test": "playwright test",
+    "e2e:web-roles": "node scripts/run-web-role-e2e.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "infra:check": "node scripts/check-infrastructure.mjs",

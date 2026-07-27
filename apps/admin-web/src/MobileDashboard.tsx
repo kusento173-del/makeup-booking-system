@@ -3,6 +3,7 @@ import { useState } from 'react';
 import type { SessionTokenPair } from './auth-session';
 import { MobileArtistTools, type ArtistTool } from './MobileArtistTools';
 import { MobileBooking } from './MobileBooking';
+import { MobileFixedRelations } from './MobileFixedRelations';
 import { MobileLeave } from './MobileLeave';
 import { MobileOperator } from './MobileOperator';
 import { MobileSchedule } from './MobileSchedule';
@@ -131,6 +132,7 @@ export function MobileDashboard({
                 : '查看排班并管理班次、请假和加班。'}
           </p>
         </div>
+        <MobileFixedRelations roleCode={roleCode} session={session} />
         <div className="mobile-feature-grid">
           {FEATURES[roleCode].map((feature) => (
             <button key={feature.id} onClick={() => open(feature.id)} type="button">

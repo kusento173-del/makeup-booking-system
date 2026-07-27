@@ -117,6 +117,22 @@ export interface FixedRule {
   readonly weekdays: readonly number[];
 }
 
+export interface MyFixedRelation {
+  readonly artistId: string;
+  readonly artistNickname: string;
+  readonly durationMinutes: number;
+  readonly hostCode: string;
+  readonly hostId: string;
+  readonly hostName: string;
+  readonly id: string;
+  readonly siteId: string;
+  readonly siteName: string;
+  readonly startMinute: number;
+  readonly validFrom: string;
+  readonly validUntil: string | null;
+  readonly weekdays: readonly number[];
+}
+
 export interface ManagedHost {
   readonly activeRule: FixedRule | null;
   readonly bookingAvailability:
@@ -417,6 +433,10 @@ export function cancelUnavailablePeriod(
 export function listManagedHosts(token: string, date: string): Promise<Page<ManagedHost>> {
   const query = new URLSearchParams({ asOf: date, page: '1', pageSize: '100' });
   return apiRequest(`/fixed-appointments/managed-hosts?${query.toString()}`, { token });
+}
+
+export function listMyFixedRelations(token: string): Promise<readonly MyFixedRelation[]> {
+  return apiRequest('/fixed-appointments/my-relations', { token });
 }
 
 export function listFixedRequests(token: string): Promise<Page<FixedRequest>> {

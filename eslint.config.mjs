@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint';
 const sourceFiles = [
   'apps/**/*.{ts,tsx}',
   'packages/**/*.ts',
-  'playwright.config.ts',
+  'playwright*.config.ts',
   'prisma.config.ts',
   'tests/**/*.ts',
 ];
@@ -28,7 +28,12 @@ export default tseslint.config(
     languageOptions: {
       parserOptions: {
         projectService: {
-          allowDefaultProject: ['playwright.config.ts', 'prisma.config.ts', 'tests/e2e/*.ts'],
+          allowDefaultProject: [
+            'playwright.config.ts',
+            'playwright.web-roles.config.ts',
+            'prisma.config.ts',
+            'tests/e2e/*.ts',
+          ],
         },
         tsconfigRootDir: import.meta.dirname,
       },
@@ -45,7 +50,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['playwright.config.ts', 'tests/**/*.ts'],
+    files: ['playwright*.config.ts', 'tests/**/*.ts'],
     languageOptions: {
       globals: globals.node,
     },
