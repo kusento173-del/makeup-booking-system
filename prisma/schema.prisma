@@ -194,18 +194,20 @@ model AuthRoleSelectionChallenge {
 }
 
 model HostProfile {
-  id                       String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  userId                   String?  @unique(map: "host_profiles_user_id_uq") @map("user_id") @db.Uuid
-  hostCode                 String   @unique(map: "host_profiles_host_code_uq") @map("host_code") @db.VarChar(32)
-  realName                 String   @map("real_name") @db.VarChar(64)
-  nickname                 String?  @db.VarChar(64)
-  siteId                   String   @map("site_id") @db.Uuid
-  qualificationStatus      String   @default("ACTIVE") @map("qualification_status") @db.VarChar(16)
-  qualificationEffectiveAt DateTime @default(now()) @map("qualification_effective_at") @db.Timestamptz(3)
-  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt                DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
-  rowVersion               Int      @default(1) @map("row_version")
-  sourceImportBatchId      String?  @map("source_import_batch_id") @db.Uuid
+  id                       String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId                   String?   @unique(map: "host_profiles_user_id_uq") @map("user_id") @db.Uuid
+  hostCode                 String    @unique(map: "host_profiles_host_code_uq") @map("host_code") @db.VarChar(32)
+  realName                 String    @map("real_name") @db.VarChar(64)
+  nickname                 String?   @db.VarChar(64)
+  siteId                   String    @map("site_id") @db.Uuid
+  qualificationStatus      String    @default("ACTIVE") @map("qualification_status") @db.VarChar(16)
+  qualificationEffectiveAt DateTime  @default(now()) @map("qualification_effective_at") @db.Timestamptz(3)
+  qualificationValidUntil  DateTime? @map("qualification_valid_until") @db.Date
+  deletedAt                DateTime? @map("deleted_at") @db.Timestamptz(3)
+  createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  rowVersion               Int       @default(1) @map("row_version")
+  sourceImportBatchId      String?   @map("source_import_batch_id") @db.Uuid
 
   site                   Site                       @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   user                   AppUser?                   @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
@@ -250,6 +252,7 @@ model ArtistProfile {
   nicknameNormalized       String    @unique(map: "artist_profiles_active_nickname_uq", where: raw("((employment_status)::text = 'ACTIVE'::text)")) @map("nickname_normalized") @db.VarChar(64)
   siteId                   String    @map("site_id") @db.Uuid
   employmentStatus         String    @default("ACTIVE") @map("employment_status") @db.VarChar(16)
+  deletedAt                DateTime? @map("deleted_at") @db.Timestamptz(3)
   initialShiftConfiguredAt DateTime? @map("initial_shift_configured_at") @db.Timestamptz(3)
   createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt                DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -634,16 +637,17 @@ model OutboxEvent {
 }
 
 model OperatorProfile {
-  id                  String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  userId              String?  @unique(map: "operator_profiles_user_id_uq") @map("user_id") @db.Uuid
-  realName            String   @map("real_name") @db.VarChar(64)
-  nameNormalized      String   @map("name_normalized") @db.VarChar(64)
-  siteId              String   @map("site_id") @db.Uuid
-  employmentStatus    String   @default("ACTIVE") @map("employment_status") @db.VarChar(16)
-  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
-  rowVersion          Int      @default(1) @map("row_version")
-  sourceImportBatchId String?  @map("source_import_batch_id") @db.Uuid
+  id                  String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId              String?   @unique(map: "operator_profiles_user_id_uq") @map("user_id") @db.Uuid
+  realName            String    @map("real_name") @db.VarChar(64)
+  nameNormalized      String    @map("name_normalized") @db.VarChar(64)
+  siteId              String    @map("site_id") @db.Uuid
+  employmentStatus    String    @default("ACTIVE") @map("employment_status") @db.VarChar(16)
+  deletedAt           DateTime? @map("deleted_at") @db.Timestamptz(3)
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  rowVersion          Int       @default(1) @map("row_version")
+  sourceImportBatchId String?   @map("source_import_batch_id") @db.Uuid
 
   site                   Site                      @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   user                   AppUser?                  @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)

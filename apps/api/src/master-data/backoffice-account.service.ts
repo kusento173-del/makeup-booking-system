@@ -20,6 +20,7 @@ import type {
   BackofficeAccountPageInput,
   BackofficeRoleCode,
   CreateBackofficeAccountCommand,
+  DeleteBackofficeAccountCommand,
   RevokeBackofficeRoleCommand,
   UpdateBackofficeAccountCommand,
 } from './backoffice-account.types';
@@ -77,6 +78,9 @@ export class BackofficeAccountService {
         conditions.push({
           roles: { some: { revokedAt: null, roleCode: input.roleCode } },
         });
+      }
+      if (input.status) {
+        conditions.push({ status: input.status });
       }
       const where: Prisma.AppUserWhereInput =
         conditions.length === 1 ? backofficeScope : { AND: conditions };
@@ -191,12 +195,10 @@ export class BackofficeAccountService {
     const reason = requiredMasterDataText(command.reason, 'reason');
 
     return this.database.transaction(async (transaction) => {
-      await acquireTransactionLock(transaction, 'BACKOFFICE_ADMIN_ROLES');
       const before = await transaction.appUser.findUnique({
         select: {
           displayName: true,
           id: true,
-          roles: { select: { roleCode: true }, where: { revokedAt: null } },
           rowVersion: true,
           status: true,
         },
@@ -205,45 +207,83 @@ export class BackofficeAccountService {
       if (!before) {
         throw new BackofficeAccountNotFoundError();
       }
-      if (command.status === 'DISABLED' && before.status === 'ACTIVE') {
-        await this.assertNotLastAdministrator(
-          transaction,
-          before.roles.some((role) => role.roleCode === 'ADMIN'),
-        );
-      }
       const updated = await transaction.appUser.updateMany({
         data: {
           displayName,
           rowVersion: { increment: 1 },
-          status: command.status,
         },
         where: { id: command.id, rowVersion: command.expectedRowVersion },
       });
       this.assertUpdated(updated.count);
-      const revoked =
-        command.status === 'DISABLED'
-          ? await transaction.authSession.updateMany({
-              data: {
-                revokeReason: 'ACCOUNT_DISABLED',
-                revokedAt: new Date(),
-                rowVersion: { increment: 1 },
-              },
-              where: { revokedAt: null, userId: command.id },
-            })
-          : { count: 0 };
       await this.audit.append(transaction, context, {
         action: 'BACKOFFICE_ACCOUNT_UPDATED',
         afterData: {
           displayName,
           rowVersion: before.rowVersion + 1,
-          status: command.status,
-          revokedSessionCount: revoked.count,
+          status: before.status,
         },
         beforeData: {
           displayName: before.displayName,
           rowVersion: before.rowVersion,
           status: before.status,
         },
+        objectId: before.id,
+        objectType: 'APP_USER',
+        reason,
+      });
+    });
+  }
+
+  delete(
+    context: BackofficeAccountContext,
+    command: DeleteBackofficeAccountCommand,
+  ): Promise<void> {
+    this.authorization.assertRole(context, ['ADMIN']);
+    const reason = requiredMasterDataText(command.reason, 'reason');
+    return this.database.transaction(async (transaction) => {
+      await acquireTransactionLock(transaction, 'BACKOFFICE_ADMIN_ROLES');
+      const before = await transaction.appUser.findUnique({
+        select: {
+          displayName: true,
+          id: true,
+          roles: {
+            select: { roleCode: true },
+            where: { revokedAt: null },
+          },
+          rowVersion: true,
+          status: true,
+        },
+        where: { id: command.id },
+      });
+      if (!before || before.status !== 'ACTIVE') throw new BackofficeAccountNotFoundError();
+      if (
+        before.roles.some((role) => role.roleCode === 'ADMIN') ||
+        before.roles.some((role) => ['HOST', 'ARTIST', 'OPERATOR'].includes(role.roleCode))
+      ) {
+        throw new BackofficeAccountConflictError();
+      }
+      const now = new Date();
+      const updated = await transaction.appUser.updateMany({
+        data: { rowVersion: { increment: 1 }, status: 'DISABLED' },
+        where: { id: before.id, rowVersion: command.expectedRowVersion, status: 'ACTIVE' },
+      });
+      this.assertUpdated(updated.count);
+      const sessions = await transaction.authSession.updateMany({
+        data: {
+          revokeReason: 'ACCOUNT_DELETED',
+          revokedAt: now,
+          rowVersion: { increment: 1 },
+        },
+        where: { revokedAt: null, userId: before.id },
+      });
+      await this.audit.append(transaction, context, {
+        action: 'BACKOFFICE_ACCOUNT_DELETED',
+        afterData: {
+          deletedAt: now.toISOString(),
+          revokedSessionCount: sessions.count,
+          status: 'DISABLED',
+        },
+        beforeData: before,
         objectId: before.id,
         objectType: 'APP_USER',
         reason,

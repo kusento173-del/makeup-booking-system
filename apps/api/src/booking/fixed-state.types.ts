@@ -45,7 +45,7 @@ export interface ManagedHostSummary {
   readonly hostId: string;
   readonly hostName: string;
   readonly pendingRequest: PendingFixedRequestSummary | null;
-  readonly qualificationStatus: 'ACTIVE' | 'CANCELLED' | 'SUSPENDED';
+  readonly qualificationStatus: 'ACTIVE' | 'CANCELLED';
   readonly siteId: string;
   readonly siteName: string;
 }

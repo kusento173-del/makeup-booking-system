@@ -8,6 +8,7 @@ import {
   parseCreateSiteRequest,
   parseEndOperatorAssignmentRequest,
   parseMasterDataListRequest,
+  parseUpdateArtistRequest,
   parseUpdateHostRequest,
   parseUpdateSiteRequest,
 } from './master-data-request.parser';
@@ -115,22 +116,28 @@ describe('master-data request parser', () => {
 
   it('strictly parses optimistic-concurrency update requests', () => {
     expect(
-      parseUpdateHostRequest('019F7A17-6845-7A90-94CB-E5F5CAABD5F6', {
-        expectedRowVersion: 3,
-        hostCode: ' 000001 ',
-        nickname: null,
-        qualificationStatus: 'SUSPENDED',
-        realName: ' 主播一 ',
-        reason: ' 暂停资格 ',
-        siteId: '019f7a17-6845-7a90-94cb-e5f5caabd5f7',
-      }),
+      parseUpdateHostRequest(
+        '019F7A17-6845-7A90-94CB-E5F5CAABD5F6',
+        {
+          expectedRowVersion: 3,
+          hostCode: ' 000001 ',
+          nickname: null,
+          qualificationStatus: 'CANCELLED',
+          qualificationValidUntil: '2026-08-01',
+          realName: ' 主播一 ',
+          reason: ' 取消资格 ',
+          siteId: '019f7a17-6845-7a90-94cb-e5f5caabd5f7',
+        },
+        new Date('2026-07-23T02:00:00.000Z'),
+      ),
     ).toEqual({
       expectedRowVersion: 3,
       hostCode: '000001',
       id: '019f7a17-6845-7a90-94cb-e5f5caabd5f6',
-      qualificationStatus: 'SUSPENDED',
+      qualificationStatus: 'CANCELLED',
+      qualificationValidUntil: new Date('2026-08-01T00:00:00.000Z'),
       realName: '主播一',
-      reason: '暂停资格',
+      reason: '取消资格',
       siteId: '019f7a17-6845-7a90-94cb-e5f5caabd5f7',
     });
     expect(
@@ -145,6 +152,35 @@ describe('master-data request parser', () => {
       reason: '重新分配',
       validUntil: new Date('2026-08-01T00:00:00.000Z'),
     });
+  });
+
+  it('limits host qualification cancellation to one month and removes other status edits', () => {
+    const update = {
+      expectedRowVersion: 1,
+      hostCode: '000001',
+      nickname: null,
+      qualificationStatus: 'CANCELLED',
+      realName: '主播一',
+      reason: '取消资格',
+      siteId: '019f7a17-6845-7a90-94cb-e5f5caabd5f7',
+    };
+    expect(() =>
+      parseUpdateHostRequest(
+        '019f7a17-6845-7a90-94cb-e5f5caabd5f6',
+        { ...update, qualificationValidUntil: '2026-08-24' },
+        new Date('2026-07-23T02:00:00.000Z'),
+      ),
+    ).toThrow(MasterDataRequestInvalidError);
+    expect(() =>
+      parseUpdateArtistRequest('019f7a17-6845-7a90-94cb-e5f5caabd5f6', {
+        employmentStatus: 'INACTIVE',
+        expectedRowVersion: 1,
+        nickname: '柔柔',
+        realName: '化妆师一',
+        reason: '测试',
+        siteId: '019f7a17-6845-7a90-94cb-e5f5caabd5f7',
+      }),
+    ).toThrow(MasterDataRequestInvalidError);
   });
 
   it('rejects stale or malformed update input before calling a service', () => {

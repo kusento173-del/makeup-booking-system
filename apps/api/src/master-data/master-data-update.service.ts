@@ -2,11 +2,15 @@ import type { Prisma } from '@makeup/database';
 import { Injectable } from '@nestjs/common';
 
 import { AuditCommandService } from '../audit/audit-command.service';
-import { AuthorizationPolicyService } from '../auth/authorization-policy.service';
+import {
+  AuthorizationDeniedError,
+  AuthorizationPolicyService,
+} from '../auth/authorization-policy.service';
 import { normalizeBackofficeLoginName } from '../auth/backoffice-login-name';
 import { DatabaseService } from '../database/database.service';
 import type {
   EndOperatorAssignmentCommand,
+  DeleteMasterDataRecordCommand,
   MasterDataCommandContext,
   UpdateArtistCommand,
   UpdateHostCommand,
@@ -105,9 +109,11 @@ export class MasterDataUpdateService {
       const before = await transaction.hostProfile.findUnique({
         select: {
           hostCode: true,
+          deletedAt: true,
           id: true,
           nickname: true,
           qualificationStatus: true,
+          qualificationValidUntil: true,
           realName: true,
           rowVersion: true,
           siteId: true,
@@ -117,6 +123,9 @@ export class MasterDataUpdateService {
       });
 
       if (!before) {
+        throw new MasterDataNotFoundError('Host');
+      }
+      if (before.deletedAt) {
         throw new MasterDataNotFoundError('Host');
       }
 
@@ -138,7 +147,10 @@ export class MasterDataUpdateService {
       if (passwordIdentity && !syncedLoginName) {
         throw new MasterDataVersionConflictError();
       }
-      const qualificationChanged = before.qualificationStatus !== command.qualificationStatus;
+      const qualificationValidUntil = command.qualificationValidUntil ?? null;
+      const qualificationChanged =
+        before.qualificationStatus !== command.qualificationStatus ||
+        before.qualificationValidUntil?.getTime() !== qualificationValidUntil?.getTime();
       const qualificationEffectiveAt = qualificationChanged ? new Date() : undefined;
       const result = await transaction.hostProfile.updateMany({
         data: {
@@ -146,6 +158,7 @@ export class MasterDataUpdateService {
           nickname: optionalMasterDataText(command.nickname) ?? null,
           ...(qualificationEffectiveAt ? { qualificationEffectiveAt } : {}),
           qualificationStatus: command.qualificationStatus,
+          qualificationValidUntil,
           realName: requiredMasterDataText(command.realName, 'realName'),
           rowVersion: { increment: 1 },
           siteId: command.siteId,
@@ -183,6 +196,7 @@ export class MasterDataUpdateService {
           id: true,
           nickname: true,
           qualificationStatus: true,
+          qualificationValidUntil: true,
           realName: true,
           rowVersion: true,
           siteId: true,
@@ -196,6 +210,7 @@ export class MasterDataUpdateService {
         id: before.id,
         nickname: before.nickname,
         qualificationStatus: before.qualificationStatus,
+        qualificationValidUntil: before.qualificationValidUntil?.toISOString().slice(0, 10) ?? null,
         realName: before.realName,
         rowVersion: before.rowVersion,
         siteId: before.siteId,
@@ -205,6 +220,7 @@ export class MasterDataUpdateService {
         id: after.id,
         nickname: after.nickname,
         qualificationStatus: after.qualificationStatus,
+        qualificationValidUntil: after.qualificationValidUntil?.toISOString().slice(0, 10) ?? null,
         realName: after.realName,
         rowVersion: after.rowVersion,
         siteId: after.siteId,
@@ -234,6 +250,7 @@ export class MasterDataUpdateService {
       const before = await transaction.artistProfile.findUnique({
         select: {
           employmentStatus: true,
+          deletedAt: true,
           id: true,
           nickname: true,
           realName: true,
@@ -246,12 +263,14 @@ export class MasterDataUpdateService {
       if (!before) {
         throw new MasterDataNotFoundError('Artist');
       }
+      if (before.deletedAt) {
+        throw new MasterDataNotFoundError('Artist');
+      }
 
       this.assertCurrentAndTargetSite(context, before.siteId, command.siteId);
       await this.assertActiveMoveTarget(transaction, before.siteId, command.siteId);
       const result = await transaction.artistProfile.updateMany({
         data: {
-          employmentStatus: command.employmentStatus,
           nickname,
           nicknameNormalized: this.normalization.normalizeMatchText(nickname, 'nickname'),
           realName: requiredMasterDataText(command.realName, 'realName'),
@@ -265,6 +284,7 @@ export class MasterDataUpdateService {
       const after = await transaction.artistProfile.findUniqueOrThrow({
         select: {
           employmentStatus: true,
+          deletedAt: true,
           id: true,
           nickname: true,
           realName: true,
@@ -276,8 +296,14 @@ export class MasterDataUpdateService {
 
       await this.audit.append(transaction, context, {
         action: 'ARTIST_UPDATED',
-        afterData: after,
-        beforeData: before,
+        afterData: {
+          ...after,
+          deletedAt: after.deletedAt?.toISOString() ?? null,
+        },
+        beforeData: {
+          ...before,
+          deletedAt: null,
+        },
         objectId: before.id,
         objectType: 'ARTIST',
         reason: requiredMasterDataText(command.reason, 'reason'),
@@ -293,6 +319,7 @@ export class MasterDataUpdateService {
       const before = await transaction.operatorProfile.findUnique({
         select: {
           employmentStatus: true,
+          deletedAt: true,
           id: true,
           realName: true,
           rowVersion: true,
@@ -304,12 +331,14 @@ export class MasterDataUpdateService {
       if (!before) {
         throw new MasterDataNotFoundError('Operator');
       }
+      if (before.deletedAt) {
+        throw new MasterDataNotFoundError('Operator');
+      }
 
       this.assertCurrentAndTargetSite(context, before.siteId, command.siteId);
       await this.assertActiveMoveTarget(transaction, before.siteId, command.siteId);
       const result = await transaction.operatorProfile.updateMany({
         data: {
-          employmentStatus: command.employmentStatus,
           nameNormalized: this.normalization.normalizeMatchText(realName, 'realName'),
           realName,
           rowVersion: { increment: 1 },
@@ -322,6 +351,7 @@ export class MasterDataUpdateService {
       const after = await transaction.operatorProfile.findUniqueOrThrow({
         select: {
           employmentStatus: true,
+          deletedAt: true,
           id: true,
           realName: true,
           rowVersion: true,
@@ -332,12 +362,181 @@ export class MasterDataUpdateService {
 
       await this.audit.append(transaction, context, {
         action: 'OPERATOR_UPDATED',
-        afterData: after,
-        beforeData: before,
+        afterData: {
+          ...after,
+          deletedAt: after.deletedAt?.toISOString() ?? null,
+        },
+        beforeData: {
+          ...before,
+          deletedAt: null,
+        },
         objectId: before.id,
         objectType: 'OPERATOR',
         reason: requiredMasterDataText(command.reason, 'reason'),
         siteId: after.siteId,
+      });
+    });
+  }
+
+  deleteHost(
+    context: MasterDataCommandContext,
+    command: DeleteMasterDataRecordCommand,
+    now = new Date(),
+  ): Promise<void> {
+    return this.database.transaction(async (transaction) => {
+      const before = await transaction.hostProfile.findUnique({
+        select: {
+          deletedAt: true,
+          hostCode: true,
+          id: true,
+          qualificationStatus: true,
+          rowVersion: true,
+          siteId: true,
+          userId: true,
+        },
+        where: { id: command.id },
+      });
+      if (!before || before.deletedAt) throw new MasterDataNotFoundError('Host');
+      this.authorization.assertSiteScope(context, before.siteId);
+      await this.assertLinkedUserCanBeDeleted(transaction, context, before.userId);
+
+      const result = await transaction.hostProfile.updateMany({
+        data: {
+          deletedAt: now,
+          qualificationEffectiveAt: now,
+          qualificationStatus: 'CANCELLED',
+          qualificationValidUntil: null,
+          rowVersion: { increment: 1 },
+        },
+        where: { deletedAt: null, id: before.id, rowVersion: command.expectedRowVersion },
+      });
+      assertUpdated(result.count);
+      const cancelledAppointments = await this.cancelFutureAppointments(
+        transaction,
+        context,
+        { hostId: before.id },
+        now,
+        'HOST_DELETED',
+        command.reason,
+      );
+      await transaction.fixedAppointmentRule.updateMany({
+        data: { rowVersion: { increment: 1 }, status: 'CANCELLED' },
+        where: { hostId: before.id, status: 'ACTIVE' },
+      });
+      await this.disableUser(transaction, before.userId, now);
+      await this.audit.append(transaction, context, {
+        action: 'HOST_DELETED',
+        afterData: { cancelledAppointments, deletedAt: now.toISOString() },
+        beforeData: {
+          ...before,
+          deletedAt: null,
+        },
+        objectId: before.id,
+        objectType: 'HOST',
+        reason: requiredMasterDataText(command.reason, 'reason'),
+        siteId: before.siteId,
+      });
+    });
+  }
+
+  deleteArtist(
+    context: MasterDataCommandContext,
+    command: DeleteMasterDataRecordCommand,
+    now = new Date(),
+  ): Promise<void> {
+    return this.database.transaction(async (transaction) => {
+      const before = await transaction.artistProfile.findUnique({
+        select: {
+          deletedAt: true,
+          id: true,
+          nickname: true,
+          rowVersion: true,
+          siteId: true,
+          userId: true,
+        },
+        where: { id: command.id },
+      });
+      if (!before || before.deletedAt) throw new MasterDataNotFoundError('Artist');
+      this.authorization.assertSiteScope(context, before.siteId);
+      await this.assertLinkedUserCanBeDeleted(transaction, context, before.userId);
+      const result = await transaction.artistProfile.updateMany({
+        data: {
+          deletedAt: now,
+          employmentStatus: 'INACTIVE',
+          rowVersion: { increment: 1 },
+        },
+        where: { deletedAt: null, id: before.id, rowVersion: command.expectedRowVersion },
+      });
+      assertUpdated(result.count);
+      const cancelledAppointments = await this.cancelFutureAppointments(
+        transaction,
+        context,
+        { artistId: before.id },
+        now,
+        'ARTIST_DELETED',
+        command.reason,
+      );
+      await transaction.fixedAppointmentRule.updateMany({
+        data: { rowVersion: { increment: 1 }, status: 'CANCELLED' },
+        where: { artistId: before.id, status: 'ACTIVE' },
+      });
+      await this.disableUser(transaction, before.userId, now);
+      await this.audit.append(transaction, context, {
+        action: 'ARTIST_DELETED',
+        afterData: { cancelledAppointments, deletedAt: now.toISOString() },
+        beforeData: {
+          ...before,
+          deletedAt: null,
+        },
+        objectId: before.id,
+        objectType: 'ARTIST',
+        reason: requiredMasterDataText(command.reason, 'reason'),
+        siteId: before.siteId,
+      });
+    });
+  }
+
+  deleteOperator(
+    context: MasterDataCommandContext,
+    command: DeleteMasterDataRecordCommand,
+    now = new Date(),
+  ): Promise<void> {
+    return this.database.transaction(async (transaction) => {
+      const before = await transaction.operatorProfile.findUnique({
+        select: {
+          deletedAt: true,
+          id: true,
+          realName: true,
+          rowVersion: true,
+          siteId: true,
+          userId: true,
+        },
+        where: { id: command.id },
+      });
+      if (!before || before.deletedAt) throw new MasterDataNotFoundError('Operator');
+      this.authorization.assertSiteScope(context, before.siteId);
+      await this.assertLinkedUserCanBeDeleted(transaction, context, before.userId);
+      const result = await transaction.operatorProfile.updateMany({
+        data: {
+          deletedAt: now,
+          employmentStatus: 'INACTIVE',
+          rowVersion: { increment: 1 },
+        },
+        where: { deletedAt: null, id: before.id, rowVersion: command.expectedRowVersion },
+      });
+      assertUpdated(result.count);
+      await this.disableUser(transaction, before.userId, now);
+      await this.audit.append(transaction, context, {
+        action: 'OPERATOR_DELETED',
+        afterData: { deletedAt: now.toISOString() },
+        beforeData: {
+          ...before,
+          deletedAt: null,
+        },
+        objectId: before.id,
+        objectType: 'OPERATOR',
+        reason: requiredMasterDataText(command.reason, 'reason'),
+        siteId: before.siteId,
       });
     });
   }
@@ -400,6 +599,69 @@ export class MasterDataUpdateService {
   ): void {
     this.authorization.assertSiteScope(context, currentSiteId);
     this.authorization.assertSiteScope(context, targetSiteId);
+  }
+
+  private async cancelFutureAppointments(
+    transaction: Prisma.TransactionClient,
+    context: MasterDataCommandContext,
+    target: { readonly artistId?: string; readonly hostId?: string },
+    now: Date,
+    reasonCode: string,
+    reason: string,
+  ): Promise<number> {
+    const result = await transaction.appointment.updateMany({
+      data: {
+        cancellationReasonCode: reasonCode,
+        cancellationReasonText: requiredMasterDataText(reason, 'reason'),
+        cancelledAt: now,
+        cancelledByUserId: context.userId,
+        rowVersion: { increment: 1 },
+        status: 'CANCELLED',
+      },
+      where: { ...target, startAt: { gt: now }, status: 'BOOKED' },
+    });
+    return result.count;
+  }
+
+  private async disableUser(
+    transaction: Prisma.TransactionClient,
+    userId: string | null,
+    now: Date,
+  ): Promise<void> {
+    if (!userId) return;
+    await Promise.all([
+      transaction.appUser.updateMany({
+        data: { rowVersion: { increment: 1 }, status: 'DISABLED' },
+        where: { id: userId },
+      }),
+      transaction.authSession.updateMany({
+        data: { revokedAt: now },
+        where: { revokedAt: null, userId },
+      }),
+      transaction.userRole.updateMany({
+        data: { revokedAt: now, rowVersion: { increment: 1 } },
+        where: { revokedAt: null, userId },
+      }),
+    ]);
+  }
+
+  private async assertLinkedUserCanBeDeleted(
+    transaction: Prisma.TransactionClient,
+    context: MasterDataCommandContext,
+    userId: string | null,
+  ): Promise<void> {
+    if (!userId) return;
+    const protectedRole = await transaction.userRole.findFirst({
+      select: { id: true },
+      where: {
+        revokedAt: null,
+        roleCode: {
+          in: context.roleCode === 'ADMIN' ? ['ADMIN'] : ['ADMIN', 'CUSTOMER_SERVICE'],
+        },
+        userId,
+      },
+    });
+    if (protectedRole) throw new AuthorizationDeniedError();
   }
 
   private async assertActiveMoveTarget(

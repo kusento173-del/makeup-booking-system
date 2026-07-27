@@ -475,7 +475,7 @@ export class ManagedHostSummaryDto {
   @ApiProperty({ nullable: true, type: PendingFixedRequestSummaryDto })
   pendingRequest!: PendingFixedRequestSummaryDto | null;
 
-  @ApiProperty({ enum: ['ACTIVE', 'CANCELLED', 'SUSPENDED'] })
+  @ApiProperty({ enum: ['ACTIVE', 'CANCELLED'] })
   qualificationStatus!: string;
 
   @ApiProperty({ format: 'uuid' })

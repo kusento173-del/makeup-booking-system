@@ -209,7 +209,14 @@ describe('BookingSlotService', () => {
   });
 
   it.each([
-    [{ ...host, qualificationStatus: 'SUSPENDED' }, 'HOST_INELIGIBLE'],
+    [
+      {
+        ...host,
+        qualificationStatus: 'CANCELLED',
+        qualificationValidUntil: new Date('2026-08-01'),
+      },
+      'HOST_INELIGIBLE',
+    ],
     [{ ...host, site: { status: 'INACTIVE' } }, 'HOST_SITE_INACTIVE'],
     [{ ...host, leaveRecords: [{ id: 'leave-1' }] }, 'HOST_ON_LEAVE'],
   ] as const)(

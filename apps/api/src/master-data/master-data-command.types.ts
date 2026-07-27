@@ -56,14 +56,14 @@ export interface UpdateHostCommand {
   readonly hostCode: string;
   readonly id: string;
   readonly nickname?: string;
-  readonly qualificationStatus: 'ACTIVE' | 'SUSPENDED' | 'CANCELLED';
+  readonly qualificationStatus: 'ACTIVE' | 'CANCELLED';
+  readonly qualificationValidUntil?: Date;
   readonly realName: string;
   readonly reason: string;
   readonly siteId: string;
 }
 
 export interface UpdateArtistCommand {
-  readonly employmentStatus: 'ACTIVE' | 'INACTIVE';
   readonly expectedRowVersion: number;
   readonly id: string;
   readonly nickname: string;
@@ -73,12 +73,17 @@ export interface UpdateArtistCommand {
 }
 
 export interface UpdateOperatorCommand {
-  readonly employmentStatus: 'ACTIVE' | 'INACTIVE';
   readonly expectedRowVersion: number;
   readonly id: string;
   readonly realName: string;
   readonly reason: string;
   readonly siteId: string;
+}
+
+export interface DeleteMasterDataRecordCommand {
+  readonly expectedRowVersion: number;
+  readonly id: string;
+  readonly reason: string;
 }
 
 export interface EndOperatorAssignmentCommand {

@@ -7,6 +7,7 @@ import {
 } from '../auth/authorization-policy.service';
 import type { VerifiedAuthorizationContext } from '../auth/authorization.types';
 import { DatabaseService } from '../database/database.service';
+import { effectiveHostQualification, isHostQualifiedOn } from '../master-data/host-qualification';
 import { formatDateOnly, toBusinessDate } from '../shift/business-date';
 import { BookingHostNotFoundError } from './booking-slot.errors';
 import { FixedRequestStateConflictError } from './fixed-request.errors';
@@ -70,6 +71,7 @@ const MANAGED_HOST_SELECT = {
   leaveRecords: { select: { id: true }, take: 1 },
   nickname: true,
   qualificationStatus: true,
+  qualificationValidUntil: true,
   realName: true,
   site: { select: { name: true, status: true } },
   siteId: true,
@@ -191,7 +193,7 @@ export class FixedStateService {
         client.hostProfile.count({ where }),
       ]);
       return {
-        items: records.map((record) => this.managedHost(record)),
+        items: records.map((record) => this.managedHost(record, input.asOf)),
         page: input.page,
         pageSize: input.pageSize,
         total,
@@ -270,25 +272,25 @@ export class FixedStateService {
     };
   }
 
-  private managedHost(host: ManagedHostRecord): ManagedHostSummary {
-    if (!['ACTIVE', 'CANCELLED', 'SUSPENDED'].includes(host.qualificationStatus)) {
+  private managedHost(host: ManagedHostRecord, asOf: Date): ManagedHostSummary {
+    if (!['ACTIVE', 'CANCELLED'].includes(host.qualificationStatus)) {
       throw new FixedRequestStateConflictError();
     }
     return {
       activeRule: host.fixedRules[0] ? this.rule(host.fixedRules[0]) : null,
-      bookingAvailability: this.bookingAvailability(host),
+      bookingAvailability: this.bookingAvailability(host, asOf),
       hostCode: host.hostCode,
       hostId: host.id,
       hostName: host.nickname ?? host.realName,
       pendingRequest: host.fixedRequests[0] ? this.request(host.fixedRequests[0]) : null,
-      qualificationStatus: host.qualificationStatus as ManagedHostSummary['qualificationStatus'],
+      qualificationStatus: effectiveHostQualification(host, asOf),
       siteId: host.siteId,
       siteName: host.site.name,
     };
   }
 
-  private bookingAvailability(host: ManagedHostRecord): ManagedHostBookingAvailability {
-    if (host.qualificationStatus !== 'ACTIVE') return 'QUALIFICATION_BLOCKED';
+  private bookingAvailability(host: ManagedHostRecord, asOf: Date): ManagedHostBookingAvailability {
+    if (!isHostQualifiedOn(host, asOf)) return 'QUALIFICATION_BLOCKED';
     if (host.site.status !== 'ACTIVE') return 'SITE_INACTIVE';
     return host.leaveRecords.length > 0 ? 'ON_LEAVE' : 'AVAILABLE';
   }

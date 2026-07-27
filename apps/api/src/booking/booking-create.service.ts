@@ -10,6 +10,7 @@ import {
   AuthorizationPolicyService,
 } from '../auth/authorization-policy.service';
 import { DatabaseService } from '../database/database.service';
+import { isHostQualifiedOn } from '../master-data/host-qualification';
 import { acquireTransactionLock } from '../database/transaction-lock';
 import {
   businessDateMinuteToInstant,
@@ -87,6 +88,7 @@ const HOST_SELECT = {
     take: 1,
   },
   qualificationStatus: true,
+  qualificationValidUntil: true,
   realName: true,
   site: { select: { name: true, status: true } },
   siteId: true,
@@ -178,7 +180,7 @@ export class BookingCreateService {
   ): Promise<AppointmentSummary> {
     const host = await this.host(transaction, command);
     this.assertActorScope(context, host);
-    this.assertHostAvailable(host);
+    this.assertHostAvailable(host, command.date);
 
     const artist = await this.availability.getDayWithClient(
       transaction,
@@ -431,9 +433,9 @@ export class BookingCreateService {
     }
   }
 
-  private assertHostAvailable(host: HostRecord): void {
+  private assertHostAvailable(host: HostRecord, date: Date): void {
     if (
-      host.qualificationStatus !== 'ACTIVE' ||
+      !isHostQualifiedOn(host, date) ||
       host.site.status !== 'ACTIVE' ||
       host.leaveRecords.length > 0
     ) {

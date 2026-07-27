@@ -4,6 +4,7 @@ import { Injectable } from '@nestjs/common';
 import { AuthorizationDeniedError } from '../auth/authorization-policy.service';
 import type { VerifiedAuthorizationContext } from '../auth/authorization.types';
 import { DatabaseService } from '../database/database.service';
+import { effectiveHostQualification } from './host-qualification';
 import type {
   ArtistSummary,
   HostSummary,
@@ -15,10 +16,12 @@ import type {
 } from './master-data-query.types';
 
 const HOST_SELECT = {
+  deletedAt: true,
   hostCode: true,
   id: true,
   nickname: true,
   qualificationStatus: true,
+  qualificationValidUntil: true,
   realName: true,
   rowVersion: true,
   siteId: true,
@@ -27,6 +30,7 @@ const HOST_SELECT = {
 } satisfies Prisma.HostProfileSelect;
 
 const ARTIST_SELECT = {
+  deletedAt: true,
   employmentStatus: true,
   id: true,
   initialShiftConfiguredAt: true,
@@ -39,6 +43,7 @@ const ARTIST_SELECT = {
 } satisfies Prisma.ArtistProfileSelect;
 
 const OPERATOR_SELECT = {
+  deletedAt: true,
   employmentStatus: true,
   id: true,
   realName: true,
@@ -95,6 +100,29 @@ export class MasterDataQueryService {
       const scope = this.hostScope(context, asOf);
       const filters: Prisma.HostProfileWhereInput[] = [scope];
       if (input.siteId) filters.push({ siteId: input.siteId });
+      if (input.personnelStatus) {
+        filters.push({
+          deletedAt: input.personnelStatus === 'ACTIVE' ? null : { not: null },
+        });
+      }
+      if (input.qualificationStatus) {
+        filters.push(
+          input.qualificationStatus === 'ACTIVE'
+            ? {
+                OR: [
+                  { qualificationStatus: 'ACTIVE' },
+                  {
+                    qualificationStatus: 'CANCELLED',
+                    qualificationValidUntil: { lt: asOf },
+                  },
+                ],
+              }
+            : {
+                qualificationStatus: 'CANCELLED',
+                OR: [{ qualificationValidUntil: null }, { qualificationValidUntil: { gte: asOf } }],
+              },
+        );
+      }
       if (input.search) {
         filters.push({
           OR: [
@@ -117,11 +145,19 @@ export class MasterDataQueryService {
       ]);
 
       return {
-        items: items.map(({ user, userId, ...host }) => ({
+        items: items.map(({ deletedAt, qualificationValidUntil, user, userId, ...host }) => ({
           ...host,
           accountBound: userId !== null,
+          personnelStatus: deletedAt ? 'DELETED' : 'ACTIVE',
+          qualificationStatus: deletedAt
+            ? 'CANCELLED'
+            : effectiveHostQualification(
+                { qualificationStatus: host.qualificationStatus, qualificationValidUntil },
+                asOf,
+              ),
+          qualificationValidUntil: qualificationValidUntil?.toISOString().slice(0, 10) ?? null,
           webAccountEnabled: Boolean(user?.passwordCredential),
-        })) as HostSummary[],
+        })),
         page: input.page,
         pageSize: input.pageSize,
         total,
@@ -135,19 +171,21 @@ export class MasterDataQueryService {
   ): Promise<MasterDataPage<ArtistSummary>> {
     return this.database.read(async (client) => {
       const scope = await this.artistScope(client, context);
-      const where: Prisma.ArtistProfileWhereInput = input.search
-        ? {
-            AND: [
-              scope,
-              {
-                OR: [
-                  { nickname: { contains: input.search, mode: 'insensitive' } },
-                  { realName: { contains: input.search, mode: 'insensitive' } },
-                ],
-              },
-            ],
-          }
-        : scope;
+      const filters: Prisma.ArtistProfileWhereInput[] = [scope];
+      if (input.personnelStatus) {
+        filters.push({
+          deletedAt: input.personnelStatus === 'ACTIVE' ? null : { not: null },
+        });
+      }
+      if (input.search) {
+        filters.push({
+          OR: [
+            { nickname: { contains: input.search, mode: 'insensitive' } },
+            { realName: { contains: input.search, mode: 'insensitive' } },
+          ],
+        });
+      }
+      const where: Prisma.ArtistProfileWhereInput = filters.length === 1 ? scope : { AND: filters };
       const [artists, total] = await Promise.all([
         client.artistProfile.findMany({
           orderBy: [{ siteId: 'asc' }, { nickname: 'asc' }],
@@ -160,10 +198,11 @@ export class MasterDataQueryService {
       ]);
 
       return {
-        items: artists.map(({ initialShiftConfiguredAt, user, userId, ...artist }) => ({
+        items: artists.map(({ deletedAt, initialShiftConfiguredAt, user, userId, ...artist }) => ({
           ...artist,
           accountBound: userId !== null,
           initialShiftConfigured: initialShiftConfiguredAt !== null,
+          personnelStatus: deletedAt ? 'DELETED' : 'ACTIVE',
           webAccountEnabled: Boolean(user?.passwordCredential),
         })) as ArtistSummary[],
         page: input.page,
@@ -180,11 +219,17 @@ export class MasterDataQueryService {
   ): Promise<MasterDataPage<OperatorSummary>> {
     return this.database.read(async (client) => {
       const scope = this.operatorScope(context, asOf);
-      const where: Prisma.OperatorProfileWhereInput = input.search
-        ? {
-            AND: [scope, { realName: { contains: input.search, mode: 'insensitive' } }],
-          }
-        : scope;
+      const filters: Prisma.OperatorProfileWhereInput[] = [scope];
+      if (input.personnelStatus) {
+        filters.push({
+          deletedAt: input.personnelStatus === 'ACTIVE' ? null : { not: null },
+        });
+      }
+      if (input.search) {
+        filters.push({ realName: { contains: input.search, mode: 'insensitive' } });
+      }
+      const where: Prisma.OperatorProfileWhereInput =
+        filters.length === 1 ? scope : { AND: filters };
       const [items, total] = await Promise.all([
         client.operatorProfile.findMany({
           orderBy: [{ siteId: 'asc' }, { realName: 'asc' }],
@@ -197,9 +242,10 @@ export class MasterDataQueryService {
       ]);
 
       return {
-        items: items.map(({ user, userId, ...operator }) => ({
+        items: items.map(({ deletedAt, user, userId, ...operator }) => ({
           ...operator,
           accountBound: userId !== null,
+          personnelStatus: deletedAt ? 'DELETED' : 'ACTIVE',
           webAccountEnabled: Boolean(user?.passwordCredential),
         })) as OperatorSummary[],
         page: input.page,

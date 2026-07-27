@@ -8,6 +8,7 @@ import {
 } from '../auth/authorization-policy.service';
 import type { VerifiedAuthorizationContext } from '../auth/authorization.types';
 import { DatabaseService } from '../database/database.service';
+import { isHostQualifiedOn } from '../master-data/host-qualification';
 import { formatDateOnly, isoWeekdayForDate, toBusinessDate } from '../shift/business-date';
 import { canFitInShift, listShiftStartMinutes, type ShiftDefinition } from '../shift/shift-time';
 import { BookingHostNotFoundError, BookingSiteMismatchError } from './booking-slot.errors';
@@ -209,6 +210,7 @@ export class FixedAvailabilityService {
             },
           },
           qualificationStatus: true,
+          qualificationValidUntil: true,
           site: { select: { status: true } },
           siteId: true,
         },
@@ -248,7 +250,7 @@ export class FixedAvailabilityService {
     this.assertActorScope(context, host.siteId, host.operatorRelations[0]?.operator ?? null);
     if (host.siteId !== artist.siteId) throw new BookingSiteMismatchError();
 
-    const unavailableReason = this.unavailableReason(host, artist);
+    const unavailableReason = this.unavailableReason(host, artist, input.requestedStartDate);
     const base = {
       artistId: input.artistId,
       artistLeaveDates: expandLeaveDates(artist.leaveRecords, input.requestedStartDate, weekdays),
@@ -459,14 +461,16 @@ export class FixedAvailabilityService {
       readonly fixedRequests: readonly unknown[];
       readonly fixedRules: readonly unknown[];
       readonly qualificationStatus: string;
+      readonly qualificationValidUntil: Date | null;
       readonly site: { readonly status: string };
     },
     artist: {
       readonly employmentStatus: string;
       readonly site: { readonly status: string };
     },
+    date: Date,
   ): FixedAvailabilityUnavailableReason | null {
-    if (host.qualificationStatus !== 'ACTIVE') return 'HOST_INELIGIBLE';
+    if (!isHostQualifiedOn(host, date)) return 'HOST_INELIGIBLE';
     if (host.site.status !== 'ACTIVE' || artist.site.status !== 'ACTIVE') return 'SITE_INACTIVE';
     if (artist.employmentStatus !== 'ACTIVE') return 'ARTIST_INACTIVE';
     if (host.fixedRules.length > 0) return 'HOST_HAS_ACTIVE_FIXED_RULE';

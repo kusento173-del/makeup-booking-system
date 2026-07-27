@@ -4,6 +4,7 @@ import { Injectable } from '@nestjs/common';
 import { AuditCommandService } from '../audit/audit-command.service';
 import { AuthorizationDeniedError } from '../auth/authorization-policy.service';
 import { DatabaseService } from '../database/database.service';
+import { isHostQualifiedOn } from '../master-data/host-qualification';
 import { acquireTransactionLock } from '../database/transaction-lock';
 import { formatDateOnly, isoWeekdayForDate, toBusinessDate } from '../shift/business-date';
 import {
@@ -279,10 +280,17 @@ export class LeaveService {
   ): Promise<LeaveSubject> {
     if (context.roleCode === 'HOST') {
       const host = await client.hostProfile.findUnique({
-        select: { id: true, qualificationStatus: true, siteId: true },
+        select: {
+          id: true,
+          qualificationStatus: true,
+          qualificationValidUntil: true,
+          siteId: true,
+        },
         where: { userId: context.userId },
       });
-      if (!host || host.qualificationStatus !== 'ACTIVE') throw new LeaveSubjectUnavailableError();
+      if (!host || !isHostQualifiedOn(host, new Date())) {
+        throw new LeaveSubjectUnavailableError();
+      }
       return { id: host.id, siteId: host.siteId, subjectType: 'HOST' };
     }
     if (context.roleCode === 'ARTIST') {

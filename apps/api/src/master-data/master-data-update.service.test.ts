@@ -51,12 +51,135 @@ function createService(transaction: object) {
 }
 
 describe('MasterDataUpdateService', () => {
+  it('business-deletes a host and cancels future work without erasing history', async () => {
+    const now = new Date('2026-07-27T12:00:00.000Z');
+    const transaction = {
+      appointment: { updateMany: vi.fn().mockResolvedValue({ count: 2 }) },
+      fixedAppointmentRule: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+      hostProfile: {
+        findUnique: vi.fn().mockResolvedValue({
+          deletedAt: null,
+          hostCode: '000001',
+          id: 'host-1',
+          qualificationStatus: 'ACTIVE',
+          rowVersion: 3,
+          siteId: 'site-songjiang',
+          userId: null,
+        }),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+    const { append, service } = createService(transaction);
+
+    await expect(
+      service.deleteHost(
+        customerServiceContext,
+        {
+          expectedRowVersion: 3,
+          id: 'host-1',
+          reason: '重复人员记录',
+        },
+        now,
+      ),
+    ).resolves.toBeUndefined();
+    expect(transaction.hostProfile.updateMany).toHaveBeenCalledWith({
+      data: {
+        deletedAt: now,
+        qualificationEffectiveAt: now,
+        qualificationStatus: 'CANCELLED',
+        qualificationValidUntil: null,
+        rowVersion: { increment: 1 },
+      },
+      where: { deletedAt: null, id: 'host-1', rowVersion: 3 },
+    });
+    expect(transaction.appointment.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { hostId: 'host-1', startAt: { gt: now }, status: 'BOOKED' },
+      }),
+    );
+    expect(append).toHaveBeenCalledWith(
+      transaction,
+      expect.objectContaining({
+        action: 'HOST_DELETED',
+        afterData: { cancelledAppointments: 2, deletedAt: now.toISOString() },
+      }),
+    );
+  });
+
+  it('does not let a personnel endpoint bypass administrator deletion protection', async () => {
+    const transaction = {
+      hostProfile: {
+        findUnique: vi.fn().mockResolvedValue({
+          deletedAt: null,
+          hostCode: '000001',
+          id: 'host-1',
+          qualificationStatus: 'ACTIVE',
+          rowVersion: 3,
+          siteId: 'site-songjiang',
+          userId: 'admin-user',
+        }),
+        updateMany: vi.fn(),
+      },
+      userRole: { findFirst: vi.fn().mockResolvedValue({ id: 'admin-role' }) },
+    };
+    const { service } = createService(transaction);
+
+    await expect(
+      service.deleteHost(adminContext, {
+        expectedRowVersion: 3,
+        id: 'host-1',
+        reason: '不允许绕过管理员保护',
+      }),
+    ).rejects.toBeInstanceOf(AuthorizationDeniedError);
+    expect(transaction.userRole.findFirst).toHaveBeenCalledWith({
+      select: { id: true },
+      where: { revokedAt: null, roleCode: { in: ['ADMIN'] }, userId: 'admin-user' },
+    });
+    expect(transaction.hostProfile.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('does not let customer service delete a linked customer-service account', async () => {
+    const transaction = {
+      operatorProfile: {
+        findUnique: vi.fn().mockResolvedValue({
+          deletedAt: null,
+          id: 'operator-1',
+          realName: '运营一',
+          rowVersion: 2,
+          siteId: 'site-songjiang',
+          userId: 'customer-service-user',
+        }),
+        updateMany: vi.fn(),
+      },
+      userRole: { findFirst: vi.fn().mockResolvedValue({ id: 'customer-service-role' }) },
+    };
+    const { service } = createService(transaction);
+
+    await expect(
+      service.deleteOperator(customerServiceContext, {
+        expectedRowVersion: 2,
+        id: 'operator-1',
+        reason: '不允许客服删除客服',
+      }),
+    ).rejects.toBeInstanceOf(AuthorizationDeniedError);
+    expect(transaction.userRole.findFirst).toHaveBeenCalledWith({
+      select: { id: true },
+      where: {
+        revokedAt: null,
+        roleCode: { in: ['ADMIN', 'CUSTOMER_SERVICE'] },
+        userId: 'customer-service-user',
+      },
+    });
+    expect(transaction.operatorProfile.updateMany).not.toHaveBeenCalled();
+  });
+
   it('updates a host with optimistic locking and audits both snapshots', async () => {
     const before = {
       hostCode: 'ZB0001',
       id: 'host-1',
       nickname: null,
       qualificationStatus: 'ACTIVE' as const,
+      qualificationValidUntil: null,
       realName: '主播一',
       rowVersion: 3,
       siteId: 'site-songjiang',
@@ -92,6 +215,7 @@ describe('MasterDataUpdateService', () => {
         hostCode: 'ZB0001',
         nickname: '小一',
         qualificationStatus: 'ACTIVE',
+        qualificationValidUntil: null,
         realName: '主播一',
         rowVersion: { increment: 1 },
         siteId: 'site-songjiang',
@@ -180,7 +304,13 @@ describe('MasterDataUpdateService', () => {
       rowVersion: 3,
       siteId: 'site-songjiang',
     };
-    const after = { ...before, qualificationStatus: 'SUSPENDED' as const, rowVersion: 4 };
+    const qualificationValidUntil = new Date('2026-08-20T00:00:00.000Z');
+    const after = {
+      ...before,
+      qualificationStatus: 'CANCELLED' as const,
+      qualificationValidUntil,
+      rowVersion: 4,
+    };
     const createQualificationHistory = vi.fn().mockResolvedValue({ id: 'history-1' });
     const transaction = {
       hostProfile: {
@@ -198,7 +328,8 @@ describe('MasterDataUpdateService', () => {
           expectedRowVersion: 3,
           hostCode: 'ZB0001',
           id: 'host-1',
-          qualificationStatus: 'SUSPENDED',
+          qualificationStatus: 'CANCELLED',
+          qualificationValidUntil,
           realName: '主播一',
           reason: '暂停预约资格',
           siteId: 'site-songjiang',
@@ -213,7 +344,8 @@ describe('MasterDataUpdateService', () => {
         hostCode: 'ZB0001',
         nickname: null,
         qualificationEffectiveAt: effectiveAt,
-        qualificationStatus: 'SUSPENDED',
+        qualificationStatus: 'CANCELLED',
+        qualificationValidUntil,
         realName: '主播一',
         rowVersion: { increment: 1 },
         siteId: 'site-songjiang',
@@ -227,7 +359,7 @@ describe('MasterDataUpdateService', () => {
         fromStatus: 'ACTIVE',
         hostId: 'host-1',
         reason: '暂停预约资格',
-        toStatus: 'SUSPENDED',
+        toStatus: 'CANCELLED',
       },
     });
     expect(append).toHaveBeenCalledOnce();
@@ -250,7 +382,6 @@ describe('MasterDataUpdateService', () => {
 
     await expect(
       service.updateOperator(customerServiceContext, {
-        employmentStatus: 'ACTIVE',
         expectedRowVersion: 1,
         id: 'operator-1',
         realName: '运营一',
@@ -280,7 +411,6 @@ describe('MasterDataUpdateService', () => {
 
     await expect(
       service.updateArtist(customerServiceContext, {
-        employmentStatus: 'ACTIVE',
         expectedRowVersion: 1,
         id: 'artist-1',
         nickname: '柔柔',

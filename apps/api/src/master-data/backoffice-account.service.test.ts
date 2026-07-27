@@ -4,10 +4,7 @@ import type { AuditCommandService } from '../audit/audit-command.service';
 import { AuthorizationPolicyService } from '../auth/authorization-policy.service';
 import type { PasswordHasherService } from '../auth/password-hasher.service';
 import type { DatabaseService } from '../database/database.service';
-import {
-  BackofficeAccountConflictError,
-  LastAdministratorError,
-} from './backoffice-account.errors';
+import { BackofficeAccountConflictError } from './backoffice-account.errors';
 import { BackofficeAccountService } from './backoffice-account.service';
 import type { BackofficeAccountContext } from './backoffice-account.types';
 
@@ -114,7 +111,7 @@ describe('BackofficeAccountService', () => {
     expect(JSON.stringify(append.mock.calls)).not.toContain('Correct Horse 123');
   });
 
-  it('prevents disabling the last active administrator', async () => {
+  it('prevents deleting an administrator account', async () => {
     const transaction = {
       $queryRaw: vi.fn().mockResolvedValue([{ acquired: 1 }]),
       appUser: {
@@ -127,19 +124,16 @@ describe('BackofficeAccountService', () => {
         }),
         updateMany: vi.fn(),
       },
-      userRole: { count: vi.fn().mockResolvedValue(1) },
     };
     const { value } = service(transaction);
 
     await expect(
-      value.update(context, {
-        displayName: '管理员',
+      value.delete(context, {
         expectedRowVersion: 1,
         id: 'user-admin',
-        reason: '测试停用',
-        status: 'DISABLED',
+        reason: '测试删除',
       }),
-    ).rejects.toBeInstanceOf(LastAdministratorError);
+    ).rejects.toBeInstanceOf(BackofficeAccountConflictError);
     expect(transaction.appUser.updateMany).not.toHaveBeenCalled();
   });
 

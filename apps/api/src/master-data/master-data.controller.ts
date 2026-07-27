@@ -42,13 +42,15 @@ import {
   CreateHostRequestDto,
   CreateOperatorRequestDto,
   CreateSiteRequestDto,
-  DatedMasterDataListQueryDto,
+  DeleteMasterDataRecordRequestDto,
+  DatedPersonnelFilteredMasterDataListQueryDto,
   DatedSiteFilteredMasterDataListQueryDto,
   EndOperatorAssignmentRequestDto,
   HostPageDto,
   HostOperatorRelationPageDto,
   MasterDataListQueryDto,
   OperatorPageDto,
+  PersonnelFilteredMasterDataListQueryDto,
   SiteSummaryDto,
   UpdateArtistRequestDto,
   UpdateHostRequestDto,
@@ -71,6 +73,7 @@ import {
   parseCreateHostRequest,
   parseCreateOperatorRequest,
   parseCreateSiteRequest,
+  parseDeleteMasterDataRecordRequest,
   parseEndOperatorAssignmentRequest,
   parseMasterDataListRequest,
   parseUpdateArtistRequest,
@@ -208,7 +211,7 @@ export class MasterDataController {
 
   @Patch('artists/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: '修改或停用化妆师' })
+  @ApiOperation({ summary: '修改化妆师资料' })
   @ApiBody({ type: UpdateArtistRequestDto })
   @ApiNoContentResponse()
   @ApiNotFoundResponse({ type: ApiErrorResponseDto })
@@ -226,7 +229,7 @@ export class MasterDataController {
 
   @Patch('operators/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: '修改或停用运营' })
+  @ApiOperation({ summary: '修改运营资料' })
   @ApiBody({ type: UpdateOperatorRequestDto })
   @ApiNoContentResponse()
   @ApiNotFoundResponse({ type: ApiErrorResponseDto })
@@ -240,6 +243,57 @@ export class MasterDataController {
   ): Promise<void> {
     const context = await this.commandContext(authorization, ipAddress, userAgent, requestId);
     await this.updates.updateOperator(context, parseUpdateOperatorRequest(id, body));
+  }
+
+  @Post('hosts/:id/delete')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: '业务删除主播并取消未来预约' })
+  @ApiBody({ type: DeleteMasterDataRecordRequestDto })
+  @ApiNoContentResponse()
+  async deleteHost(
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @CurrentAuth() authorization: AccessTokenClaims,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent?: string,
+    @Headers('x-request-id') requestId?: string,
+  ): Promise<void> {
+    const context = await this.commandContext(authorization, ipAddress, userAgent, requestId);
+    await this.updates.deleteHost(context, parseDeleteMasterDataRecordRequest(id, body));
+  }
+
+  @Post('artists/:id/delete')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: '业务删除化妆师并取消未来预约' })
+  @ApiBody({ type: DeleteMasterDataRecordRequestDto })
+  @ApiNoContentResponse()
+  async deleteArtist(
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @CurrentAuth() authorization: AccessTokenClaims,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent?: string,
+    @Headers('x-request-id') requestId?: string,
+  ): Promise<void> {
+    const context = await this.commandContext(authorization, ipAddress, userAgent, requestId);
+    await this.updates.deleteArtist(context, parseDeleteMasterDataRecordRequest(id, body));
+  }
+
+  @Post('operators/:id/delete')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: '业务删除运营' })
+  @ApiBody({ type: DeleteMasterDataRecordRequestDto })
+  @ApiNoContentResponse()
+  async deleteOperator(
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @CurrentAuth() authorization: AccessTokenClaims,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent?: string,
+    @Headers('x-request-id') requestId?: string,
+  ): Promise<void> {
+    const context = await this.commandContext(authorization, ipAddress, userAgent, requestId);
+    await this.updates.deleteOperator(context, parseDeleteMasterDataRecordRequest(id, body));
   }
 
   @Patch('host-operator-relations/:id/end')
@@ -281,6 +335,8 @@ export class MasterDataController {
   ): Promise<MasterDataPage<HostSummary>> {
     const request = parseMasterDataListRequest(query, {
       includeAsOf: true,
+      includePersonnelStatus: true,
+      includeQualificationStatus: true,
       includeSiteId: true,
     });
     return this.queries.listHosts(authorization, request.asOf, request.page);
@@ -288,25 +344,31 @@ export class MasterDataController {
 
   @Get('artists')
   @ApiOperation({ summary: '分页查询当前角色可见化妆师' })
-  @ApiQuery({ type: MasterDataListQueryDto })
+  @ApiQuery({ type: PersonnelFilteredMasterDataListQueryDto })
   @ApiOkResponse({ type: ArtistPageDto })
   listArtists(
     @CurrentAuth() authorization: AccessTokenClaims,
     @Query() query: unknown,
   ): Promise<MasterDataPage<ArtistSummary>> {
-    const request = parseMasterDataListRequest(query);
+    const request = parseMasterDataListRequest(query, {
+      includeAsOf: false,
+      includePersonnelStatus: true,
+    });
     return this.queries.listArtists(authorization, request.page);
   }
 
   @Get('operators')
   @ApiOperation({ summary: '分页查询当前角色可见运营' })
-  @ApiQuery({ type: DatedMasterDataListQueryDto })
+  @ApiQuery({ type: DatedPersonnelFilteredMasterDataListQueryDto })
   @ApiOkResponse({ type: OperatorPageDto })
   listOperators(
     @CurrentAuth() authorization: AccessTokenClaims,
     @Query() query: unknown,
   ): Promise<MasterDataPage<OperatorSummary>> {
-    const request = parseMasterDataListRequest(query, { includeAsOf: true });
+    const request = parseMasterDataListRequest(query, {
+      includeAsOf: true,
+      includePersonnelStatus: true,
+    });
     return this.queries.listOperators(authorization, request.asOf, request.page);
   }
 

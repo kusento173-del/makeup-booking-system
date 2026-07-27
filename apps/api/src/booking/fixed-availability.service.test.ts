@@ -271,7 +271,15 @@ describe('FixedAvailabilityService', () => {
   });
 
   it.each([
-    [{ ...host, qualificationStatus: 'SUSPENDED' }, artist, 'HOST_INELIGIBLE'],
+    [
+      {
+        ...host,
+        qualificationStatus: 'CANCELLED',
+        qualificationValidUntil: new Date('2026-08-01'),
+      },
+      artist,
+      'HOST_INELIGIBLE',
+    ],
     [{ ...host, fixedRules: [{ id: 'rule-1' }] }, artist, 'HOST_HAS_ACTIVE_FIXED_RULE'],
     [{ ...host, fixedRequests: [{ id: 'request-1' }] }, artist, 'HOST_HAS_PENDING_FIXED_REQUEST'],
     [host, { ...artist, employmentStatus: 'INACTIVE' }, 'ARTIST_INACTIVE'],

@@ -6,6 +6,9 @@ const ACCOUNT_ROLE_CODES = ['ADMIN', 'CUSTOMER_SERVICE', 'HOST', 'ARTIST', 'OPER
 export class BackofficeAccountListQueryDto extends MasterDataListQueryDto {
   @ApiPropertyOptional({ enum: ACCOUNT_ROLE_CODES })
   roleCode?: string;
+
+  @ApiPropertyOptional({ enum: ['ACTIVE', 'DISABLED'] })
+  status?: string;
 }
 
 export class CreateBackofficeAccountRequestDto {
@@ -28,8 +31,13 @@ export class UpdateBackofficeAccountRequestDto {
   expectedRowVersion!: number;
   @ApiProperty({ maxLength: 500 })
   reason!: string;
-  @ApiProperty({ enum: ['ACTIVE', 'DISABLED'] })
-  status!: string;
+}
+
+export class DeleteBackofficeAccountRequestDto {
+  @ApiProperty({ minimum: 1 })
+  expectedRowVersion!: number;
+  @ApiProperty({ maxLength: 500 })
+  reason!: string;
 }
 
 export class AssignBackofficeRoleRequestDto {

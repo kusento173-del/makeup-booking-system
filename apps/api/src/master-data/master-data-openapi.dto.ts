@@ -3,6 +3,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   EMPLOYMENT_STATUSES,
   HOST_QUALIFICATION_STATUSES,
+  PERSONNEL_STATUSES,
   SITE_STATUSES,
 } from './master-data.constants';
 
@@ -25,6 +26,22 @@ export class DatedMasterDataListQueryDto extends MasterDataListQueryDto {
 export class DatedSiteFilteredMasterDataListQueryDto extends DatedMasterDataListQueryDto {
   @ApiPropertyOptional({ description: '仅在当前角色可见范围内按场地收窄', format: 'uuid' })
   siteId?: string;
+
+  @ApiPropertyOptional({ enum: PERSONNEL_STATUSES })
+  personnelStatus?: string;
+
+  @ApiPropertyOptional({ enum: HOST_QUALIFICATION_STATUSES })
+  qualificationStatus?: string;
+}
+
+export class PersonnelFilteredMasterDataListQueryDto extends MasterDataListQueryDto {
+  @ApiPropertyOptional({ enum: PERSONNEL_STATUSES })
+  personnelStatus?: string;
+}
+
+export class DatedPersonnelFilteredMasterDataListQueryDto extends DatedMasterDataListQueryDto {
+  @ApiPropertyOptional({ enum: PERSONNEL_STATUSES })
+  personnelStatus?: string;
 }
 
 export class CreatedMasterDataDto {
@@ -125,6 +142,9 @@ export class UpdateHostRequestDto extends UpdateMasterDataRequestDto {
   @ApiProperty({ enum: HOST_QUALIFICATION_STATUSES })
   qualificationStatus!: string;
 
+  @ApiPropertyOptional({ description: '取消资格截止日，最长一个月', format: 'date' })
+  qualificationValidUntil?: string;
+
   @ApiProperty({ maxLength: 64 })
   realName!: string;
 
@@ -133,9 +153,6 @@ export class UpdateHostRequestDto extends UpdateMasterDataRequestDto {
 }
 
 export class UpdateArtistRequestDto extends UpdateMasterDataRequestDto {
-  @ApiProperty({ enum: EMPLOYMENT_STATUSES })
-  employmentStatus!: string;
-
   @ApiProperty({ maxLength: 64 })
   nickname!: string;
 
@@ -147,14 +164,19 @@ export class UpdateArtistRequestDto extends UpdateMasterDataRequestDto {
 }
 
 export class UpdateOperatorRequestDto extends UpdateMasterDataRequestDto {
-  @ApiProperty({ enum: EMPLOYMENT_STATUSES })
-  employmentStatus!: string;
-
   @ApiProperty({ maxLength: 64 })
   realName!: string;
 
   @ApiProperty({ format: 'uuid' })
   siteId!: string;
+}
+
+export class DeleteMasterDataRecordRequestDto {
+  @ApiProperty({ minimum: 1 })
+  expectedRowVersion!: number;
+
+  @ApiProperty({ maxLength: 500 })
+  reason!: string;
 }
 
 export class EndOperatorAssignmentRequestDto extends UpdateMasterDataRequestDto {
@@ -201,6 +223,12 @@ export class HostSummaryDto {
   @ApiProperty({ enum: HOST_QUALIFICATION_STATUSES })
   qualificationStatus!: string;
 
+  @ApiPropertyOptional({ format: 'date', nullable: true })
+  qualificationValidUntil!: string | null;
+
+  @ApiProperty({ enum: PERSONNEL_STATUSES })
+  personnelStatus!: string;
+
   @ApiProperty()
   realName!: string;
 
@@ -217,6 +245,9 @@ export class ArtistSummaryDto {
 
   @ApiProperty({ enum: EMPLOYMENT_STATUSES })
   employmentStatus!: string;
+
+  @ApiProperty({ enum: PERSONNEL_STATUSES })
+  personnelStatus!: string;
 
   @ApiProperty({ format: 'uuid' })
   id!: string;
@@ -243,6 +274,9 @@ export class OperatorSummaryDto {
 
   @ApiProperty({ enum: EMPLOYMENT_STATUSES })
   employmentStatus!: string;
+
+  @ApiProperty({ enum: PERSONNEL_STATUSES })
+  personnelStatus!: string;
 
   @ApiProperty({ format: 'uuid' })
   id!: string;

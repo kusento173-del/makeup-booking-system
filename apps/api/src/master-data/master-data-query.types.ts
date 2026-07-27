@@ -1,6 +1,7 @@
 import type {
   EmploymentStatus,
   HostQualificationStatus,
+  PersonnelStatus,
   SiteStatus,
 } from './master-data.constants';
 
@@ -20,6 +21,8 @@ export interface HostSummary {
   readonly id: string;
   readonly nickname: string | null;
   readonly qualificationStatus: HostQualificationStatus;
+  readonly qualificationValidUntil: string | null;
+  readonly personnelStatus: PersonnelStatus;
   readonly realName: string;
   readonly rowVersion: number;
   readonly siteId: string;
@@ -29,6 +32,7 @@ export interface HostSummary {
 export interface ArtistSummary {
   readonly accountBound: boolean;
   readonly employmentStatus: EmploymentStatus;
+  readonly personnelStatus: PersonnelStatus;
   readonly id: string;
   readonly initialShiftConfigured: boolean;
   readonly nickname: string;
@@ -41,6 +45,7 @@ export interface ArtistSummary {
 export interface OperatorSummary {
   readonly accountBound: boolean;
   readonly employmentStatus: EmploymentStatus;
+  readonly personnelStatus: PersonnelStatus;
   readonly id: string;
   readonly realName: string;
   readonly rowVersion: number;
@@ -67,6 +72,8 @@ export interface MasterDataPageInput {
   readonly pageSize: number;
   readonly search?: string;
   readonly siteId?: string;
+  readonly personnelStatus?: PersonnelStatus;
+  readonly qualificationStatus?: HostQualificationStatus;
 }
 
 export interface MasterDataPage<T> {

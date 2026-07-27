@@ -4,6 +4,7 @@ import { Injectable } from '@nestjs/common';
 import { ArtistAvailabilityService } from '../availability/artist-availability.service';
 import { AuditCommandService } from '../audit/audit-command.service';
 import { DatabaseService } from '../database/database.service';
+import { isHostQualifiedOn } from '../master-data/host-qualification';
 import { acquireTransactionLock } from '../database/transaction-lock';
 import {
   businessDateMinuteToInstant,
@@ -24,6 +25,7 @@ const RULE_SELECT = {
       hostCode: true,
       nickname: true,
       qualificationStatus: true,
+      qualificationValidUntil: true,
       realName: true,
       site: { select: { name: true, status: true } },
     },
@@ -160,7 +162,7 @@ export class FixedGenerationService {
         });
         if (
           hostLeave ||
-          rule.host.qualificationStatus !== 'ACTIVE' ||
+          !isHostQualifiedOn(rule.host, date) ||
           rule.host.site.status !== 'ACTIVE'
         ) {
           return 'HOST_UNAVAILABLE';

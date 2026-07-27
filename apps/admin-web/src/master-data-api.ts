@@ -15,7 +15,9 @@ export interface HostSummary {
   readonly hostCode: string;
   readonly id: string;
   readonly nickname: string | null;
-  readonly qualificationStatus: 'ACTIVE' | 'SUSPENDED' | 'CANCELLED';
+  readonly personnelStatus: 'ACTIVE' | 'DELETED';
+  readonly qualificationStatus: 'ACTIVE' | 'CANCELLED';
+  readonly qualificationValidUntil: string | null;
   readonly realName: string;
   readonly rowVersion: number;
   readonly siteId: string;
@@ -28,6 +30,7 @@ export interface ArtistSummary {
   readonly id: string;
   readonly initialShiftConfigured: boolean;
   readonly nickname: string;
+  readonly personnelStatus: 'ACTIVE' | 'DELETED';
   readonly realName: string;
   readonly rowVersion: number;
   readonly siteId: string;
@@ -38,6 +41,7 @@ export interface OperatorSummary {
   readonly accountBound: boolean;
   readonly employmentStatus: 'ACTIVE' | 'INACTIVE';
   readonly id: string;
+  readonly personnelStatus: 'ACTIVE' | 'DELETED';
   readonly realName: string;
   readonly rowVersion: number;
   readonly siteId: string;
@@ -88,6 +92,13 @@ export type ManagementView = 'sites' | 'hosts' | 'artists' | 'operators' | 'rela
 export type ManagementItem =
   SiteSummary | HostSummary | ArtistSummary | OperatorSummary | RelationSummary | AccountSummary;
 
+export interface ManagementFilters {
+  readonly accountStatus?: 'ACTIVE' | 'DISABLED';
+  readonly personnelStatus?: 'ACTIVE' | 'DELETED';
+  readonly qualificationStatus?: 'ACTIVE' | 'CANCELLED';
+  readonly roleCode?: AccountRoleCode;
+}
+
 const PATHS: Record<Exclude<ManagementView, 'sites'>, string> = {
   accounts: '/backoffice/accounts',
   artists: '/master-data/artists',
@@ -105,14 +116,23 @@ export function listManagementItems(
   token: string,
   page: number,
   search?: string,
-  roleCode?: AccountRoleCode,
+  filters: ManagementFilters = {},
 ): Promise<Page<ManagementItem>> {
   const query = new URLSearchParams({ page: String(page), pageSize: '50' });
   if (search) {
     query.set('search', search);
   }
-  if (view === 'accounts' && roleCode) {
-    query.set('roleCode', roleCode);
+  if (view === 'accounts' && filters.roleCode) {
+    query.set('roleCode', filters.roleCode);
+  }
+  if (view === 'accounts' && filters.accountStatus) {
+    query.set('status', filters.accountStatus);
+  }
+  if (['hosts', 'artists', 'operators'].includes(view) && filters.personnelStatus) {
+    query.set('personnelStatus', filters.personnelStatus);
+  }
+  if (view === 'hosts' && filters.qualificationStatus) {
+    query.set('qualificationStatus', filters.qualificationStatus);
   }
   return apiRequest(`${PATHS[view]}?${query.toString()}`, { token });
 }
@@ -122,7 +142,13 @@ export function searchHosts(
   search: string,
   siteId: string,
 ): Promise<Page<HostSummary>> {
-  const query = new URLSearchParams({ page: '1', pageSize: '20', search, siteId });
+  const query = new URLSearchParams({
+    page: '1',
+    pageSize: '20',
+    personnelStatus: 'ACTIVE',
+    search,
+    siteId,
+  });
   return apiRequest(`/master-data/hosts?${query.toString()}`, { token });
 }
 
@@ -143,6 +169,22 @@ export function updateManagementItem(
 ): Promise<void> {
   const path = view === 'accounts' ? `/backoffice/accounts/${id}` : `/master-data/${view}/${id}`;
   return apiRequest(path, { body, method: 'PATCH', token });
+}
+
+export function deleteManagementItem(
+  view: 'hosts' | 'artists' | 'operators' | 'accounts',
+  token: string,
+  id: string,
+  expectedRowVersion: number,
+  reason: string,
+): Promise<void> {
+  const path =
+    view === 'accounts' ? `/backoffice/accounts/${id}/delete` : `/master-data/${view}/${id}/delete`;
+  return apiRequest(path, {
+    body: { expectedRowVersion, reason },
+    method: 'POST',
+    token,
+  });
 }
 
 export function endRelation(

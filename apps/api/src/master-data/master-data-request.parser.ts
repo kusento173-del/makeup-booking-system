@@ -6,6 +6,7 @@ import type {
   CreateHostCommand,
   CreateOperatorCommand,
   CreateSiteCommand,
+  DeleteMasterDataRecordCommand,
   EndOperatorAssignmentCommand,
   UpdateArtistCommand,
   UpdateHostCommand,
@@ -13,6 +14,7 @@ import type {
   UpdateSiteCommand,
 } from './master-data-command.types';
 import type { MasterDataPageInput } from './master-data-query.types';
+import { HOST_QUALIFICATION_STATUSES, PERSONNEL_STATUSES } from './master-data.constants';
 
 const BUSINESS_TIME_ZONE = 'Asia/Shanghai';
 
@@ -248,6 +250,8 @@ export function parseMasterDataListRequest(
   query: unknown,
   options: {
     readonly includeAsOf: boolean;
+    readonly includePersonnelStatus?: boolean;
+    readonly includeQualificationStatus?: boolean;
     readonly includeSiteId?: boolean;
     readonly now?: Date;
   } = { includeAsOf: false },
@@ -256,6 +260,8 @@ export function parseMasterDataListRequest(
   const allowedKeys = new Set(['page', 'pageSize', 'search']);
   if (options.includeAsOf) allowedKeys.add('asOf');
   if (options.includeSiteId) allowedKeys.add('siteId');
+  if (options.includePersonnelStatus) allowedKeys.add('personnelStatus');
+  if (options.includeQualificationStatus) allowedKeys.add('qualificationStatus');
 
   if (Object.keys(value).some((key) => !allowedKeys.has(key))) {
     throw new MasterDataRequestInvalidError();
@@ -270,6 +276,20 @@ export function parseMasterDataListRequest(
       ...(search ? { search } : {}),
       ...(options.includeSiteId && value['siteId'] !== undefined
         ? { siteId: uuidText(value['siteId']) }
+        : {}),
+      ...(options.includePersonnelStatus && value['personnelStatus'] !== undefined
+        ? {
+            personnelStatus: enumValue(value, 'personnelStatus', PERSONNEL_STATUSES),
+          }
+        : {}),
+      ...(options.includeQualificationStatus && value['qualificationStatus'] !== undefined
+        ? {
+            qualificationStatus: enumValue(
+              value,
+              'qualificationStatus',
+              HOST_QUALIFICATION_STATUSES,
+            ),
+          }
         : {}),
     },
   };
@@ -314,29 +334,45 @@ export function parseUpdateSiteRequest(id: unknown, body: unknown): UpdateSiteCo
   };
 }
 
-export function parseUpdateHostRequest(id: unknown, body: unknown): UpdateHostCommand {
+export function parseUpdateHostRequest(
+  id: unknown,
+  body: unknown,
+  now = new Date(),
+): UpdateHostCommand {
   const value = record(body);
   exactKeys(value, [
     'expectedRowVersion',
     'hostCode',
     'nickname',
     'qualificationStatus',
+    'qualificationValidUntil',
     'realName',
     'reason',
     'siteId',
   ]);
   const nickname = optionalText(value, 'nickname', 64);
+  const qualificationStatus = enumValue(value, 'qualificationStatus', HOST_QUALIFICATION_STATUSES);
+  const qualificationValidUntil =
+    qualificationStatus === 'CANCELLED'
+      ? dateOnly(requiredText(value, 'qualificationValidUntil', 10), now)
+      : undefined;
+  const today = dateOnly(undefined, now);
+  const maximum = new Date(today);
+  maximum.setUTCMonth(maximum.getUTCMonth() + 1);
+  if (
+    qualificationValidUntil &&
+    (qualificationValidUntil < today || qualificationValidUntil > maximum)
+  ) {
+    throw new MasterDataRequestInvalidError();
+  }
 
   return {
     expectedRowVersion: requiredInteger(value, 'expectedRowVersion', 1),
     hostCode: hostCode(value),
     id: parseMasterDataId(id),
     ...(nickname ? { nickname } : {}),
-    qualificationStatus: enumValue(value, 'qualificationStatus', [
-      'ACTIVE',
-      'SUSPENDED',
-      'CANCELLED',
-    ]),
+    qualificationStatus,
+    ...(qualificationValidUntil ? { qualificationValidUntil } : {}),
     realName: requiredText(value, 'realName', 64),
     reason: requiredText(value, 'reason', 500),
     siteId: uuid(value, 'siteId'),
@@ -345,17 +381,9 @@ export function parseUpdateHostRequest(id: unknown, body: unknown): UpdateHostCo
 
 export function parseUpdateArtistRequest(id: unknown, body: unknown): UpdateArtistCommand {
   const value = record(body);
-  exactKeys(value, [
-    'employmentStatus',
-    'expectedRowVersion',
-    'nickname',
-    'realName',
-    'reason',
-    'siteId',
-  ]);
+  exactKeys(value, ['expectedRowVersion', 'nickname', 'realName', 'reason', 'siteId']);
 
   return {
-    employmentStatus: enumValue(value, 'employmentStatus', ['ACTIVE', 'INACTIVE']),
     expectedRowVersion: requiredInteger(value, 'expectedRowVersion', 1),
     id: parseMasterDataId(id),
     nickname: requiredText(value, 'nickname', 64),
@@ -367,15 +395,27 @@ export function parseUpdateArtistRequest(id: unknown, body: unknown): UpdateArti
 
 export function parseUpdateOperatorRequest(id: unknown, body: unknown): UpdateOperatorCommand {
   const value = record(body);
-  exactKeys(value, ['employmentStatus', 'expectedRowVersion', 'realName', 'reason', 'siteId']);
+  exactKeys(value, ['expectedRowVersion', 'realName', 'reason', 'siteId']);
 
   return {
-    employmentStatus: enumValue(value, 'employmentStatus', ['ACTIVE', 'INACTIVE']),
     expectedRowVersion: requiredInteger(value, 'expectedRowVersion', 1),
     id: parseMasterDataId(id),
     realName: requiredText(value, 'realName', 64),
     reason: requiredText(value, 'reason', 500),
     siteId: uuid(value, 'siteId'),
+  };
+}
+
+export function parseDeleteMasterDataRecordRequest(
+  id: unknown,
+  body: unknown,
+): DeleteMasterDataRecordCommand {
+  const value = record(body);
+  exactKeys(value, ['expectedRowVersion', 'reason']);
+  return {
+    expectedRowVersion: requiredInteger(value, 'expectedRowVersion', 1),
+    id: parseMasterDataId(id),
+    reason: requiredText(value, 'reason', 500),
   };
 }
 

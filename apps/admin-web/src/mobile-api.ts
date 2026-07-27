@@ -7,7 +7,7 @@ export interface MobileHost {
   readonly hostCode: string;
   readonly id: string;
   readonly nickname: string | null;
-  readonly qualificationStatus: 'ACTIVE' | 'CANCELLED' | 'SUSPENDED';
+  readonly qualificationStatus: 'ACTIVE' | 'CANCELLED';
   readonly realName: string;
   readonly siteId: string;
 }

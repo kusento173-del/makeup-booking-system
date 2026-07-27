@@ -8,6 +8,7 @@ import {
 } from '../auth/authorization-policy.service';
 import type { VerifiedAuthorizationContext } from '../auth/authorization.types';
 import { DatabaseService } from '../database/database.service';
+import { isHostQualifiedOn } from '../master-data/host-qualification';
 import {
   businessDateMinuteToInstant,
   formatDateOnly,
@@ -57,6 +58,7 @@ export class BookingSlotService {
               },
             },
             qualificationStatus: true,
+            qualificationValidUntil: true,
             operatorRelations: {
               orderBy: { validFrom: 'desc' },
               select: { operator: { select: { userId: true } } },
@@ -77,7 +79,7 @@ export class BookingSlotService {
     if (!host) throw new BookingHostNotFoundError();
     this.assertActorScope(context, host);
     if (host.siteId !== availability.siteId) throw new BookingSiteMismatchError();
-    if (host.qualificationStatus !== 'ACTIVE') {
+    if (!isHostQualifiedOn(host, input.date)) {
       return this.unavailable(input, availability, 'HOST_INELIGIBLE');
     }
     if (host.site.status !== 'ACTIVE') {

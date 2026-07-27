@@ -31,6 +31,7 @@ export interface BackofficeAccountPageInput {
   readonly pageSize: number;
   readonly roleCode?: AccountRoleCode;
   readonly search?: string;
+  readonly status?: 'ACTIVE' | 'DISABLED';
 }
 
 export interface CreateBackofficeAccountCommand {
@@ -46,8 +47,9 @@ export interface UpdateBackofficeAccountCommand {
   readonly expectedRowVersion: number;
   readonly id: string;
   readonly reason: string;
-  readonly status: 'ACTIVE' | 'DISABLED';
 }
+
+export type DeleteBackofficeAccountCommand = Omit<UpdateBackofficeAccountCommand, 'displayName'>;
 
 export interface AssignBackofficeRoleCommand {
   readonly roleCode: BackofficeRoleCode;

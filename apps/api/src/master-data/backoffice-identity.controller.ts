@@ -35,6 +35,7 @@ import {
   BackofficeAccountListQueryDto,
   BackofficeAccountPageDto,
   CreateBackofficeAccountRequestDto,
+  DeleteBackofficeAccountRequestDto,
   RevokeBackofficeRoleRequestDto,
   UpdateBackofficeAccountRequestDto,
 } from './backoffice-account-openapi.dto';
@@ -42,6 +43,7 @@ import {
   parseAssignBackofficeRoleRequest,
   parseBackofficeAccountListRequest,
   parseCreateBackofficeAccountRequest,
+  parseDeleteBackofficeAccountRequest,
   parseRevokeBackofficeRoleRequest,
   parseUpdateBackofficeAccountRequest,
 } from './backoffice-account-request.parser';
@@ -136,7 +138,7 @@ export class BackofficeIdentityController {
 
   @Patch('accounts/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: '修改或停用账号（仅管理员）' })
+  @ApiOperation({ summary: '修改账号显示名称（仅管理员）' })
   @ApiBody({ type: UpdateBackofficeAccountRequestDto })
   @ApiNoContentResponse()
   async updateAccount(
@@ -149,6 +151,23 @@ export class BackofficeIdentityController {
   ): Promise<void> {
     const context = await this.context(authorization, ipAddress, userAgent, requestId);
     await this.accounts.update(context, parseUpdateBackofficeAccountRequest(id, body));
+  }
+
+  @Post('accounts/:id/delete')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: '删除客服账号（仅管理员）' })
+  @ApiBody({ type: DeleteBackofficeAccountRequestDto })
+  @ApiNoContentResponse()
+  async deleteAccount(
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @CurrentAuth() authorization: AccessTokenClaims,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent?: string,
+    @Headers('x-request-id') requestId?: string,
+  ): Promise<void> {
+    const context = await this.context(authorization, ipAddress, userAgent, requestId);
+    await this.accounts.delete(context, parseDeleteBackofficeAccountRequest(id, body));
   }
 
   @Post('accounts/:id/roles')

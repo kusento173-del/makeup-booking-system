@@ -4,6 +4,7 @@ import { ApiError } from './api-client';
 import type { SessionTokenPair } from './auth-session';
 import { currentBusinessDate } from './business-date';
 import { CreateRecordDialog } from './CreateRecordDialog';
+import { DeleteRecordDialog } from './DeleteRecordDialog';
 import { EditRecordDialog } from './EditRecordDialog';
 import { EndRelationDialog } from './EndRelationDialog';
 import {
@@ -11,6 +12,7 @@ import {
   type AccountRoleCode,
   type ArtistSummary,
   createManagementItem,
+  deleteManagementItem,
   endRelation,
   type HostSummary,
   listManagementItems,
@@ -41,9 +43,9 @@ interface Column {
 const STATUS_NAMES: Record<string, string> = {
   ACTIVE: '正常',
   CANCELLED: '已取消资格',
-  DISABLED: '已停用',
-  INACTIVE: '已停用',
-  SUSPENDED: '暂停资格',
+  DELETED: '已删除',
+  DISABLED: '已删除',
+  INACTIVE: '已删除',
 };
 
 const NAV_ITEMS: readonly { readonly id: ManagementView; readonly label: string }[] = [
@@ -94,9 +96,19 @@ function columns(view: ManagementView, siteNames: ReadonlyMap<string, string>): 
         },
         { key: 'site', label: '场地', render: (item) => site((item as HostSummary).siteId) },
         {
-          key: 'status',
+          key: 'personnel-status',
+          label: '人员状态',
+          render: (item) => STATUS_NAMES[(item as HostSummary).personnelStatus] ?? '未知',
+        },
+        {
+          key: 'qualification',
           label: '预约资格',
-          render: (item) => STATUS_NAMES[(item as HostSummary).qualificationStatus] ?? '未知',
+          render: (item) => {
+            const host = item as HostSummary;
+            return host.qualificationStatus === 'CANCELLED' && host.qualificationValidUntil
+              ? `取消至 ${host.qualificationValidUntil}`
+              : (STATUS_NAMES[host.qualificationStatus] ?? '未知');
+          },
         },
       ];
     case 'artists':
@@ -118,7 +130,7 @@ function columns(view: ManagementView, siteNames: ReadonlyMap<string, string>): 
         {
           key: 'status',
           label: '状态',
-          render: (item) => STATUS_NAMES[(item as ArtistSummary).employmentStatus] ?? '未知',
+          render: (item) => STATUS_NAMES[(item as ArtistSummary).personnelStatus] ?? '未知',
         },
       ];
     case 'operators':
@@ -128,7 +140,7 @@ function columns(view: ManagementView, siteNames: ReadonlyMap<string, string>): 
         {
           key: 'status',
           label: '状态',
-          render: (item) => STATUS_NAMES[(item as OperatorSummary).employmentStatus] ?? '未知',
+          render: (item) => STATUS_NAMES[(item as OperatorSummary).personnelStatus] ?? '未知',
         },
       ];
     case 'relations':
@@ -197,6 +209,9 @@ export function ManagementPage({ onUnauthorized, session, view }: ManagementPage
   const [draftSearch, setDraftSearch] = useState('');
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<AccountRoleCode | ''>('');
+  const [personnelStatusFilter, setPersonnelStatusFilter] = useState<'ACTIVE' | 'DELETED' | ''>('');
+  const [qualificationFilter, setQualificationFilter] = useState<'ACTIVE' | 'CANCELLED' | ''>('');
+  const [accountStatusFilter, setAccountStatusFilter] = useState<'ACTIVE' | 'DISABLED' | ''>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -207,6 +222,7 @@ export function ManagementPage({ onUnauthorized, session, view }: ManagementPage
   const [editItem, setEditItem] = useState<ManagementItem | null>(null);
   const [relationToEnd, setRelationToEnd] = useState<RelationSummary | null>(null);
   const [roleAccount, setRoleAccount] = useState<AccountSummary | null>(null);
+  const [deleteItem, setDeleteItem] = useState<ManagementItem | null>(null);
 
   const siteNames = useMemo(() => new Map(sites.map((site) => [site.id, site.name])), [sites]);
   const tableColumns = useMemo(() => columns(view, siteNames), [siteNames, view]);
@@ -233,13 +249,18 @@ export function ManagementPage({ onUnauthorized, session, view }: ManagementPage
     const request =
       view === 'sites'
         ? listSites(session.accessToken).then((result) => ({ items: result, total: result.length }))
-        : listManagementItems(
-            view,
-            session.accessToken,
-            page,
-            search,
-            view === 'accounts' && roleFilter ? roleFilter : undefined,
-          );
+        : listManagementItems(view, session.accessToken, page, search, {
+            ...(view === 'accounts' && roleFilter ? { roleCode: roleFilter } : {}),
+            ...(view === 'accounts' && accountStatusFilter
+              ? { accountStatus: accountStatusFilter }
+              : {}),
+            ...(['hosts', 'artists', 'operators'].includes(view) && personnelStatusFilter
+              ? { personnelStatus: personnelStatusFilter }
+              : {}),
+            ...(view === 'hosts' && qualificationFilter
+              ? { qualificationStatus: qualificationFilter }
+              : {}),
+          });
 
     void request
       .then((result) => {
@@ -262,7 +283,18 @@ export function ManagementPage({ onUnauthorized, session, view }: ManagementPage
     return () => {
       active = false;
     };
-  }, [onUnauthorized, page, reloadVersion, roleFilter, search, session.accessToken, view]);
+  }, [
+    accountStatusFilter,
+    onUnauthorized,
+    page,
+    personnelStatusFilter,
+    qualificationFilter,
+    reloadVersion,
+    roleFilter,
+    search,
+    session.accessToken,
+    view,
+  ]);
 
   function submitSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -337,6 +369,31 @@ export function ManagementPage({ onUnauthorized, session, view }: ManagementPage
     }
   }
 
+  async function removeRecord(reason: string) {
+    if (!deleteItem || !['hosts', 'artists', 'operators', 'accounts'].includes(view)) return;
+    setMutating(true);
+    setMutationError(null);
+    try {
+      await deleteManagementItem(
+        view as 'hosts' | 'artists' | 'operators' | 'accounts',
+        session.accessToken,
+        deleteItem.id,
+        deleteItem.rowVersion,
+        reason,
+      );
+      setDeleteItem(null);
+      setReloadVersion((value) => value + 1);
+    } catch (cause) {
+      if (cause instanceof ApiError && cause.status === 401) {
+        onUnauthorized();
+        return;
+      }
+      setMutationError(cause instanceof ApiError ? cause.message : '删除失败，请稍后重试');
+    } finally {
+      setMutating(false);
+    }
+  }
+
   function changedFromDialog(close: () => void) {
     close();
     setReloadVersion((value) => value + 1);
@@ -373,6 +430,66 @@ export function ManagementPage({ onUnauthorized, session, view }: ManagementPage
                   <option value="OPERATOR">运营</option>
                   <option value="CUSTOMER_SERVICE">客服</option>
                   <option value="ADMIN">管理员</option>
+                </select>
+              </>
+            ) : null}
+            {['hosts', 'artists', 'operators'].includes(view) ? (
+              <>
+                <label className="sr-only" htmlFor="personnel-status-filter">
+                  按人员状态筛选
+                </label>
+                <select
+                  className="role-filter"
+                  id="personnel-status-filter"
+                  onChange={(event) => {
+                    setPage(1);
+                    setPersonnelStatusFilter(event.target.value as 'ACTIVE' | 'DELETED' | '');
+                  }}
+                  value={personnelStatusFilter}
+                >
+                  <option value="">全部人员状态</option>
+                  <option value="ACTIVE">正常</option>
+                  <option value="DELETED">已删除</option>
+                </select>
+              </>
+            ) : null}
+            {view === 'hosts' ? (
+              <>
+                <label className="sr-only" htmlFor="qualification-filter">
+                  按预约资格筛选
+                </label>
+                <select
+                  className="role-filter"
+                  id="qualification-filter"
+                  onChange={(event) => {
+                    setPage(1);
+                    setQualificationFilter(event.target.value as 'ACTIVE' | 'CANCELLED' | '');
+                  }}
+                  value={qualificationFilter}
+                >
+                  <option value="">全部预约资格</option>
+                  <option value="ACTIVE">正常</option>
+                  <option value="CANCELLED">取消资格</option>
+                </select>
+              </>
+            ) : null}
+            {view === 'accounts' ? (
+              <>
+                <label className="sr-only" htmlFor="account-status-filter">
+                  按账号状态筛选
+                </label>
+                <select
+                  className="role-filter"
+                  id="account-status-filter"
+                  onChange={(event) => {
+                    setPage(1);
+                    setAccountStatusFilter(event.target.value as 'ACTIVE' | 'DISABLED' | '');
+                  }}
+                  value={accountStatusFilter}
+                >
+                  <option value="">全部账号状态</option>
+                  <option value="ACTIVE">正常</option>
+                  <option value="DISABLED">已删除</option>
                 </select>
               </>
             ) : null}
@@ -436,27 +553,33 @@ export function ManagementPage({ onUnauthorized, session, view }: ManagementPage
                       ))}
                       {view === 'hosts' || view === 'artists' || view === 'operators' ? (
                         <td>
-                          <button
-                            className="table-action"
-                            disabled={mutating}
-                            onClick={() =>
-                              setAccountTarget(
-                                item as HostSummary | ArtistSummary | OperatorSummary,
-                              )
-                            }
-                            type="button"
-                          >
-                            {(item as HostSummary | ArtistSummary | OperatorSummary)
-                              .webAccountEnabled
-                              ? '重置密码'
-                              : '开通账号'}
-                          </button>
+                          {(item as HostSummary | ArtistSummary | OperatorSummary)
+                            .personnelStatus === 'ACTIVE' ? (
+                            <button
+                              className="table-action"
+                              disabled={mutating}
+                              onClick={() =>
+                                setAccountTarget(
+                                  item as HostSummary | ArtistSummary | OperatorSummary,
+                                )
+                              }
+                              type="button"
+                            >
+                              {(item as HostSummary | ArtistSummary | OperatorSummary)
+                                .webAccountEnabled
+                                ? '重置密码'
+                                : '开通账号'}
+                            </button>
+                          ) : (
+                            <span className="muted-text">不可用</span>
+                          )}
                         </td>
                       ) : null}
                       <td>
                         <div className="row-actions">
                           {view !== 'relations' &&
-                          (view !== 'sites' || session.role.roleCode === 'ADMIN') ? (
+                          (view !== 'sites' || session.role.roleCode === 'ADMIN') &&
+                          isEditable(item, view) ? (
                             <button
                               className="table-action"
                               onClick={() => {
@@ -483,13 +606,25 @@ export function ManagementPage({ onUnauthorized, session, view }: ManagementPage
                           ) : view === 'relations' ? (
                             <span className="muted-text">已结束</span>
                           ) : null}
-                          {view === 'accounts' ? (
+                          {view === 'accounts' && (item as AccountSummary).status === 'ACTIVE' ? (
                             <button
                               className="table-action"
                               onClick={() => setRoleAccount(item as AccountSummary)}
                               type="button"
                             >
                               角色
+                            </button>
+                          ) : null}
+                          {canDelete(item, view, session.role.roleCode) ? (
+                            <button
+                              className="table-action danger-text"
+                              onClick={() => {
+                                setMutationError(null);
+                                setDeleteItem(item);
+                              }}
+                              type="button"
+                            >
+                              删除
                             </button>
                           ) : null}
                         </div>
@@ -587,6 +722,20 @@ export function ManagementPage({ onUnauthorized, session, view }: ManagementPage
         />
       ) : null}
 
+      {deleteItem && ['hosts', 'artists', 'operators', 'accounts'].includes(view) ? (
+        <DeleteRecordDialog
+          busy={mutating}
+          error={mutationError}
+          name={recordName(deleteItem, view)}
+          onClose={() => {
+            setDeleteItem(null);
+            setMutationError(null);
+          }}
+          onSubmit={removeRecord}
+          type={deleteType(view)}
+        />
+      ) : null}
+
       {accountTarget && ['hosts', 'artists', 'operators'].includes(view) ? (
         <WebAccountDialog
           onClose={() => setAccountTarget(null)}
@@ -598,4 +747,43 @@ export function ManagementPage({ onUnauthorized, session, view }: ManagementPage
       ) : null}
     </>
   );
+}
+
+function isEditable(item: ManagementItem, view: ManagementView): boolean {
+  if (view === 'hosts') return (item as HostSummary).personnelStatus === 'ACTIVE';
+  if (view === 'artists') return (item as ArtistSummary).personnelStatus === 'ACTIVE';
+  if (view === 'operators') return (item as OperatorSummary).personnelStatus === 'ACTIVE';
+  if (view === 'accounts') return (item as AccountSummary).status === 'ACTIVE';
+  return true;
+}
+
+function canDelete(item: ManagementItem, view: ManagementView, roleCode: string): boolean {
+  if (!['ADMIN', 'CUSTOMER_SERVICE'].includes(roleCode)) return false;
+  if (view === 'hosts') return (item as HostSummary).personnelStatus === 'ACTIVE';
+  if (view === 'artists') return (item as ArtistSummary).personnelStatus === 'ACTIVE';
+  if (view === 'operators') return (item as OperatorSummary).personnelStatus === 'ACTIVE';
+  if (view !== 'accounts' || roleCode !== 'ADMIN') return false;
+  const account = item as AccountSummary;
+  return (
+    account.status === 'ACTIVE' &&
+    account.roles.some((role) => role.roleCode === 'CUSTOMER_SERVICE') &&
+    account.roles.every((role) => role.roleCode === 'CUSTOMER_SERVICE')
+  );
+}
+
+function recordName(item: ManagementItem, view: ManagementView): string {
+  if (view === 'hosts')
+    return personName((item as HostSummary).realName, (item as HostSummary).nickname);
+  if (view === 'artists') {
+    return personName((item as ArtistSummary).realName, (item as ArtistSummary).nickname);
+  }
+  if (view === 'operators') return (item as OperatorSummary).realName;
+  return (item as AccountSummary).displayName;
+}
+
+function deleteType(view: ManagementView): '主播' | '化妆师' | '运营' | '客服' {
+  if (view === 'hosts') return '主播';
+  if (view === 'artists') return '化妆师';
+  if (view === 'operators') return '运营';
+  return '客服';
 }

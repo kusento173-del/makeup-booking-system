@@ -5,6 +5,7 @@ import type {
   BackofficeAccountPageInput,
   BackofficeRoleCode,
   CreateBackofficeAccountCommand,
+  DeleteBackofficeAccountCommand,
   RevokeBackofficeRoleCommand,
   UpdateBackofficeAccountCommand,
 } from './backoffice-account.types';
@@ -64,7 +65,7 @@ function role(value: Record<string, unknown>): BackofficeRoleCode {
 
 export function parseBackofficeAccountListRequest(query: unknown): BackofficeAccountPageInput {
   const value = record(query);
-  exactKeys(value, ['page', 'pageSize', 'search', 'roleCode']);
+  exactKeys(value, ['page', 'pageSize', 'search', 'roleCode', 'status']);
   const roleCode = value['roleCode'];
   if (
     roleCode !== undefined &&
@@ -72,11 +73,17 @@ export function parseBackofficeAccountListRequest(query: unknown): BackofficeAcc
   ) {
     throw new MasterDataRequestInvalidError();
   }
+  const status = value['status'];
+  if (status !== undefined && status !== 'ACTIVE' && status !== 'DISABLED') {
+    throw new MasterDataRequestInvalidError();
+  }
   const pageQuery = { ...value };
   delete pageQuery['roleCode'];
+  delete pageQuery['status'];
   return {
     ...parseMasterDataListRequest(pageQuery).page,
     ...(roleCode ? { roleCode: roleCode as AccountRoleCode } : {}),
+    ...(status ? { status } : {}),
   };
 }
 
@@ -116,16 +123,25 @@ export function parseUpdateBackofficeAccountRequest(
   body: unknown,
 ): UpdateBackofficeAccountCommand {
   const value = record(body);
-  exactKeys(value, ['displayName', 'expectedRowVersion', 'reason', 'status']);
-  if (value['status'] !== 'ACTIVE' && value['status'] !== 'DISABLED') {
-    throw new MasterDataRequestInvalidError();
-  }
+  exactKeys(value, ['displayName', 'expectedRowVersion', 'reason']);
   return {
     displayName: text(value, 'displayName', 64),
     expectedRowVersion: rowVersion(value),
     id: parseMasterDataId(id),
     reason: text(value, 'reason', 500),
-    status: value['status'],
+  };
+}
+
+export function parseDeleteBackofficeAccountRequest(
+  id: unknown,
+  body: unknown,
+): DeleteBackofficeAccountCommand {
+  const value = record(body);
+  exactKeys(value, ['expectedRowVersion', 'reason']);
+  return {
+    expectedRowVersion: rowVersion(value),
+    id: parseMasterDataId(id),
+    reason: text(value, 'reason', 500),
   };
 }
 

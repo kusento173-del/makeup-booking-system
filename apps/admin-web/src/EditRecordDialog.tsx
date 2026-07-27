@@ -1,5 +1,6 @@
-import type { FormEvent } from 'react';
+import { type FormEvent, useState } from 'react';
 
+import { currentBusinessDate } from './business-date';
 import type {
   AccountSummary,
   ArtistSummary,
@@ -44,6 +45,11 @@ export function EditRecordDialog({
   sites,
   view,
 }: EditRecordDialogProps) {
+  const host = view === 'hosts' ? (item as HostSummary) : null;
+  const [qualificationStatus, setQualificationStatus] = useState<'ACTIVE' | 'CANCELLED'>(
+    host?.qualificationStatus ?? 'ACTIVE',
+  );
+
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -64,7 +70,10 @@ export function EditRecordDialog({
           ...shared,
           hostCode: value(form, 'hostCode'),
           nickname: value(form, 'nickname') || null,
-          qualificationStatus: value(form, 'status'),
+          qualificationStatus,
+          ...(qualificationStatus === 'CANCELLED'
+            ? { qualificationValidUntil: value(form, 'qualificationValidUntil') }
+            : {}),
           realName: value(form, 'realName'),
           siteId: value(form, 'siteId'),
         };
@@ -72,7 +81,6 @@ export function EditRecordDialog({
       case 'artists':
         body = {
           ...shared,
-          employmentStatus: value(form, 'status'),
           nickname: value(form, 'nickname'),
           realName: value(form, 'realName'),
           siteId: value(form, 'siteId'),
@@ -81,7 +89,6 @@ export function EditRecordDialog({
       case 'operators':
         body = {
           ...shared,
-          employmentStatus: value(form, 'status'),
           realName: value(form, 'realName'),
           siteId: value(form, 'siteId'),
         };
@@ -90,7 +97,6 @@ export function EditRecordDialog({
         body = {
           ...shared,
           displayName: value(form, 'displayName'),
-          status: value(form, 'status'),
         };
         break;
     }
@@ -242,28 +248,47 @@ export function EditRecordDialog({
             </>
           ) : null}
 
-          <label htmlFor="edit-status">状态</label>
-          <select
-            defaultValue={
-              view === 'hosts'
-                ? (item as HostSummary).qualificationStatus
-                : view === 'sites'
-                  ? (item as SiteSummary).status
-                  : view === 'accounts'
-                    ? (item as AccountSummary).status
-                    : (item as ArtistSummary | OperatorSummary).employmentStatus
-            }
-            id="edit-status"
-            name="status"
-          >
-            <option value="ACTIVE">正常</option>
-            {view === 'hosts' ? <option value="SUSPENDED">暂停资格</option> : null}
-            {view === 'hosts' ? <option value="CANCELLED">取消资格</option> : null}
-            {view === 'accounts' ? <option value="DISABLED">停用</option> : null}
-            {view !== 'hosts' && view !== 'accounts' ? (
-              <option value="INACTIVE">停用</option>
-            ) : null}
-          </select>
+          {view === 'sites' ? (
+            <>
+              <label htmlFor="edit-status">状态</label>
+              <select defaultValue={(item as SiteSummary).status} id="edit-status" name="status">
+                <option value="ACTIVE">正常</option>
+                <option value="INACTIVE">停用</option>
+              </select>
+            </>
+          ) : null}
+
+          {view === 'hosts' ? (
+            <>
+              <label htmlFor="edit-status">预约资格</label>
+              <select
+                id="edit-status"
+                name="status"
+                onChange={(event) =>
+                  setQualificationStatus(event.target.value as 'ACTIVE' | 'CANCELLED')
+                }
+                value={qualificationStatus}
+              >
+                <option value="ACTIVE">正常</option>
+                <option value="CANCELLED">取消资格</option>
+              </select>
+              {qualificationStatus === 'CANCELLED' ? (
+                <>
+                  <label htmlFor="edit-qualification-valid-until">取消资格截止日</label>
+                  <input
+                    defaultValue={host?.qualificationValidUntil ?? currentBusinessDate()}
+                    id="edit-qualification-valid-until"
+                    max={maximumQualificationDate()}
+                    min={currentBusinessDate()}
+                    name="qualificationValidUntil"
+                    required
+                    type="date"
+                  />
+                  <p className="dialog-note">到截止日当天仍不可预约，次日自动恢复正常。</p>
+                </>
+              ) : null}
+            </>
+          ) : null}
 
           <label htmlFor="edit-reason">修改原因</label>
           <textarea id="edit-reason" maxLength={500} name="reason" required rows={3} />
@@ -280,4 +305,10 @@ export function EditRecordDialog({
       </section>
     </div>
   );
+}
+
+function maximumQualificationDate(): string {
+  const date = new Date(`${currentBusinessDate()}T00:00:00Z`);
+  date.setUTCMonth(date.getUTCMonth() + 1);
+  return date.toISOString().slice(0, 10);
 }
