@@ -7,6 +7,7 @@ import { ExportPage } from './ExportPage';
 import { FixedRulePage } from './FixedRulePage';
 import { FixedRequestApprovalPage } from './FixedRequestApprovalPage';
 import { ManagementPage } from './ManagementPage';
+import { MobileDashboard } from './MobileDashboard';
 import { OvertimeApprovalPage } from './OvertimeApprovalPage';
 import { SchedulePage } from './SchedulePage';
 import { ShiftApprovalPage } from './ShiftApprovalPage';
@@ -22,25 +23,7 @@ export function DashboardShell({ busy, onLogout, onUnauthorized, session }: Dash
   const [view, setView] = useState<BackofficeView>('schedule');
 
   if (session.role.roleCode !== 'ADMIN' && session.role.roleCode !== 'CUSTOMER_SERVICE') {
-    return (
-      <main className="mobile-dashboard">
-        <header className="topbar">
-          <strong>化妆部预约系统</strong>
-          <button
-            className="text-button"
-            disabled={busy}
-            onClick={() => void onLogout()}
-            type="button"
-          >
-            退出登录
-          </button>
-        </header>
-        <section className="empty-state">
-          <h1>登录成功</h1>
-          <p>移动端功能正在迁移到网页端。</p>
-        </section>
-      </main>
-    );
+    return <MobileDashboard busy={busy} onLogout={onLogout} session={session} />;
   }
 
   return (
