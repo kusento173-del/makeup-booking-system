@@ -1,3 +1,5 @@
+import { normalizeBackofficeLoginName } from '../auth/backoffice-login-name';
+
 import type {
   AssignOperatorCommand,
   CreateArtistCommand,
@@ -26,6 +28,12 @@ export class MasterDataRequestInvalidError extends Error {
 export interface MasterDataListRequest {
   readonly asOf: Date;
   readonly page: MasterDataPageInput;
+}
+
+function hostCode(value: Record<string, unknown>): string {
+  const code = requiredText(value, 'hostCode', 32).toLocaleUpperCase('en-US');
+  if (!normalizeBackofficeLoginName(code)) throw new MasterDataRequestInvalidError();
+  return code;
 }
 
 function record(value: unknown): Record<string, unknown> {
@@ -310,6 +318,7 @@ export function parseUpdateHostRequest(id: unknown, body: unknown): UpdateHostCo
   const value = record(body);
   exactKeys(value, [
     'expectedRowVersion',
+    'hostCode',
     'nickname',
     'qualificationStatus',
     'realName',
@@ -320,6 +329,7 @@ export function parseUpdateHostRequest(id: unknown, body: unknown): UpdateHostCo
 
   return {
     expectedRowVersion: requiredInteger(value, 'expectedRowVersion', 1),
+    hostCode: hostCode(value),
     id: parseMasterDataId(id),
     ...(nickname ? { nickname } : {}),
     qualificationStatus: enumValue(value, 'qualificationStatus', [
@@ -390,7 +400,7 @@ export function parseCreateHostRequest(body: unknown): CreateHostCommand {
   const nickname = optionalText(value, 'nickname', 64);
 
   return {
-    hostCode: requiredText(value, 'hostCode', 32).toLocaleUpperCase('en-US'),
+    hostCode: hostCode(value),
     ...(nickname ? { nickname } : {}),
     realName: requiredText(value, 'realName', 64),
     siteId: uuid(value, 'siteId'),

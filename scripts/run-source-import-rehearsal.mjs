@@ -66,6 +66,37 @@ function runImport(actorUserId, expectSuccess) {
   }
 }
 
+function runAccountInitialization(actorUserId, expectSuccess) {
+  const result = spawnSync(
+    pnpm,
+    [
+      'exec',
+      'tsx',
+      '--tsconfig',
+      'apps/api/tsconfig.json',
+      'apps/api/src/commands/initialize-profile-accounts.ts',
+      '--confirm',
+      `--actor-user-id=${actorUserId}`,
+      `--expected-database=${databaseName}`,
+    ],
+    {
+      cwd: root,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        DATABASE_URL: rehearsalUrl.toString(),
+        INITIAL_PROFILE_PASSWORD: 'Rehearsal-Only-Profile-2026!',
+      },
+      shell: process.platform === 'win32',
+      stdio: expectSuccess ? 'inherit' : 'pipe',
+    },
+  );
+  if (result.error) throw result.error;
+  if ((result.status === 0) !== expectSuccess) {
+    throw new Error(`Account initialization returned unexpected exit code ${result.status}`);
+  }
+}
+
 async function recreateDatabase() {
   const client = new Client({ connectionString: adminUrl.toString() });
   await client.connect();
@@ -151,7 +182,66 @@ async function verify(expectedCounts) {
           SELECT count(*)::int
           FROM host_operator_relations
           WHERE source_import_batch_id IS NULL
-        ) AS missing_provenance
+        ) AS missing_provenance,
+        (
+          SELECT count(*)::int
+          FROM user_identities identity
+          JOIN user_roles role ON role.user_id = identity.user_id
+          WHERE identity.provider = 'PASSWORD'
+            AND identity.provider_app_id = 'BACKOFFICE'
+            AND role.role_code IN ('HOST', 'ARTIST', 'OPERATOR')
+            AND role.revoked_at IS NULL
+        ) AS profile_accounts,
+        (
+          SELECT count(*)::int
+          FROM password_credentials credential
+          JOIN user_roles role ON role.user_id = credential.user_id
+          WHERE role.role_code IN ('HOST', 'ARTIST', 'OPERATOR')
+            AND role.revoked_at IS NULL
+        ) AS profile_passwords,
+        (
+          SELECT count(DISTINCT credential.password_hash)::int
+          FROM password_credentials credential
+          JOIN user_roles role ON role.user_id = credential.user_id
+          WHERE role.role_code IN ('HOST', 'ARTIST', 'OPERATOR')
+            AND role.revoked_at IS NULL
+        ) AS distinct_profile_password_hashes,
+        (
+          SELECT count(*)::int
+          FROM password_credentials credential
+          JOIN user_roles role ON role.user_id = credential.user_id
+          WHERE role.role_code IN ('HOST', 'ARTIST', 'OPERATOR')
+            AND role.revoked_at IS NULL
+            AND credential.must_change_password
+        ) AS must_change_profile_passwords,
+        (SELECT count(*)::int FROM host_profiles WHERE user_id IS NULL)
+          + (SELECT count(*)::int FROM artist_profiles WHERE user_id IS NULL)
+          + (SELECT count(*)::int FROM operator_profiles WHERE user_id IS NULL)
+          AS unlinked_profiles,
+        (
+          SELECT count(*)::int
+          FROM host_profiles profile
+          JOIN user_identities identity ON identity.user_id = profile.user_id
+          WHERE identity.provider = 'PASSWORD'
+            AND identity.provider_app_id = 'BACKOFFICE'
+            AND identity.external_subject <> lower(profile.host_code)
+        ) AS host_login_mismatches,
+        (
+          SELECT count(*)::int
+          FROM artist_profiles profile
+          JOIN user_identities identity ON identity.user_id = profile.user_id
+          WHERE identity.provider = 'PASSWORD'
+            AND identity.provider_app_id = 'BACKOFFICE'
+            AND identity.external_subject !~ '^ma[0-9]{4,}$'
+        ) AS artist_login_mismatches,
+        (
+          SELECT count(*)::int
+          FROM operator_profiles profile
+          JOIN user_identities identity ON identity.user_id = profile.user_id
+          WHERE identity.provider = 'PASSWORD'
+            AND identity.provider_app_id = 'BACKOFFICE'
+            AND identity.external_subject !~ '^op[0-9]{4,}$'
+        ) AS operator_login_mismatches
     `);
     const actual = result.rows[0];
     for (const [key, expected] of Object.entries(expectedCounts)) {
@@ -183,8 +273,16 @@ try {
     hosts: 0,
     import_rows: 0,
     missing_provenance: 0,
+    profile_accounts: 0,
+    profile_passwords: 0,
+    distinct_profile_password_hashes: 0,
+    must_change_profile_passwords: 0,
     operators: 0,
+    operator_login_mismatches: 0,
     relations: 0,
+    host_login_mismatches: 0,
+    artist_login_mismatches: 0,
+    unlinked_profiles: 0,
     unassigned_hosts: 0,
     warning_rows: 0,
   });
@@ -203,12 +301,28 @@ try {
     warning_rows: 83,
   });
 
+  runAccountInitialization(randomUUID(), false);
+  await verify({ ...imported, profile_accounts: 0, profile_passwords: 0 });
+  runAccountInitialization(actor.id, true);
+  const withAccounts = await verify({
+    ...imported,
+    artist_login_mismatches: 0,
+    distinct_profile_password_hashes: 1416,
+    host_login_mismatches: 0,
+    must_change_profile_passwords: 1416,
+    operator_login_mismatches: 0,
+    profile_accounts: 1416,
+    profile_passwords: 1416,
+    unlinked_profiles: 0,
+  });
+
   run(pnpm, ['db:check'], {
     env: { ...process.env, DATABASE_CHECK_DATABASE: databaseName },
   });
   runImport(actor.id, false);
-  await verify(imported);
-  console.log('Source import rehearsal passed');
+  runAccountInitialization(actor.id, false);
+  await verify(withAccounts);
+  console.log('Source import and profile account rehearsal passed');
 } catch (cause) {
   failure = cause;
 } finally {

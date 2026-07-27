@@ -237,4 +237,27 @@ test.describe.serial('统一网页五角色完整业务验收', () => {
     await expect(adminPage.getByText('全量验收固定申请')).toBeVisible();
     await adminPage.close();
   });
+
+  test('管理员修正主播编号后同步新的登录名', async ({ browser }) => {
+    const adminPage = await newBackofficePage(browser);
+    await login(adminPage, accounts.admin);
+    await adminPage.getByRole('button', { name: '主播', exact: true }).click();
+    await adminPage.getByLabel('搜索').fill('QA000001');
+    await adminPage.getByRole('button', { name: '搜索', exact: true }).click();
+    const hostRow = adminPage.getByRole('row').filter({ hasText: 'QA000001' });
+    await expect(hostRow).toBeVisible();
+    await hostRow.getByRole('button', { name: '编辑' }).click();
+    await adminPage.getByLabel('主播编号').fill('QA000101');
+    await adminPage.getByLabel('修改原因').fill('全量验收修正主播编号');
+    await adminPage.getByRole('button', { name: '保存修改' }).click();
+    await adminPage.getByLabel('搜索').fill('QA000101');
+    await adminPage.getByRole('button', { name: '搜索', exact: true }).click();
+    await expect(adminPage.getByRole('row').filter({ hasText: 'QA000101' })).toBeVisible();
+    await adminPage.close();
+
+    const hostPage = await browser.newPage();
+    await login(hostPage, 'QA000101');
+    await expect(hostPage.getByRole('heading', { name: '我的化妆安排' })).toBeVisible();
+    await hostPage.close();
+  });
 });

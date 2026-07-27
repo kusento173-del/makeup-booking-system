@@ -53,6 +53,7 @@ export interface UpdateSiteCommand {
 
 export interface UpdateHostCommand {
   readonly expectedRowVersion: number;
+  readonly hostCode: string;
   readonly id: string;
   readonly nickname?: string;
   readonly qualificationStatus: 'ACTIVE' | 'SUSPENDED' | 'CANCELLED';

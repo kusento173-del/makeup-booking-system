@@ -117,6 +117,7 @@ describe('master-data request parser', () => {
     expect(
       parseUpdateHostRequest('019F7A17-6845-7A90-94CB-E5F5CAABD5F6', {
         expectedRowVersion: 3,
+        hostCode: ' 000001 ',
         nickname: null,
         qualificationStatus: 'SUSPENDED',
         realName: ' 主播一 ',
@@ -125,6 +126,7 @@ describe('master-data request parser', () => {
       }),
     ).toEqual({
       expectedRowVersion: 3,
+      hostCode: '000001',
       id: '019f7a17-6845-7a90-94cb-e5f5caabd5f6',
       qualificationStatus: 'SUSPENDED',
       realName: '主播一',

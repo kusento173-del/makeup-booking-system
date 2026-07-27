@@ -77,6 +77,7 @@ describe('MasterDataUpdateService', () => {
     await expect(
       service.updateHost(customerServiceContext, {
         expectedRowVersion: 3,
+        hostCode: 'ZB0001',
         id: 'host-1',
         nickname: ' 小一 ',
         qualificationStatus: 'ACTIVE',
@@ -88,6 +89,7 @@ describe('MasterDataUpdateService', () => {
 
     expect(updateMany).toHaveBeenCalledWith({
       data: {
+        hostCode: 'ZB0001',
         nickname: '小一',
         qualificationStatus: 'ACTIVE',
         realName: '主播一',
@@ -107,6 +109,63 @@ describe('MasterDataUpdateService', () => {
       }),
     );
     expect(createQualificationHistory).not.toHaveBeenCalled();
+  });
+
+  it('updates a bound host login name atomically when the host code changes', async () => {
+    const before = {
+      hostCode: '000001',
+      id: 'host-1',
+      nickname: null,
+      qualificationStatus: 'ACTIVE' as const,
+      realName: '主播一',
+      rowVersion: 3,
+      siteId: 'site-songjiang',
+      userId: 'user-host-1',
+    };
+    const after = { ...before, hostCode: '000101', rowVersion: 4 };
+    const identityUpdate = vi.fn().mockResolvedValue({ id: 'identity-1' });
+    const transaction = {
+      hostProfile: {
+        findUnique: vi.fn().mockResolvedValue(before),
+        findUniqueOrThrow: vi.fn().mockResolvedValue(after),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+      hostQualificationHistory: { create: vi.fn() },
+      userIdentity: {
+        findFirst: vi.fn().mockResolvedValue({
+          externalSubject: '000001',
+          id: 'identity-1',
+        }),
+        update: identityUpdate,
+      },
+    };
+    const { append, service } = createService(transaction);
+
+    await expect(
+      service.updateHost(customerServiceContext, {
+        expectedRowVersion: 3,
+        hostCode: '000101',
+        id: 'host-1',
+        qualificationStatus: 'ACTIVE',
+        realName: '主播一',
+        reason: '修正主播编号',
+        siteId: 'site-songjiang',
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(identityUpdate).toHaveBeenCalledWith({
+      data: {
+        externalSubject: '000101',
+        rowVersion: { increment: 1 },
+      },
+      where: { id: 'identity-1' },
+    });
+    expect(append).toHaveBeenCalledOnce();
+    const auditedCommand: unknown = append.mock.calls[0]?.[1];
+    expect(auditedCommand).toMatchObject({
+      afterData: { hostCode: '000101', loginName: '000101' },
+      beforeData: { hostCode: '000001', loginName: '000001' },
+    });
   });
 
   it('records a qualification transition with the host update and audit', async () => {
@@ -137,6 +196,7 @@ describe('MasterDataUpdateService', () => {
       await expect(
         service.updateHost(customerServiceContext, {
           expectedRowVersion: 3,
+          hostCode: 'ZB0001',
           id: 'host-1',
           qualificationStatus: 'SUSPENDED',
           realName: '主播一',
@@ -150,6 +210,7 @@ describe('MasterDataUpdateService', () => {
 
     expect(transaction.hostProfile.updateMany).toHaveBeenCalledWith({
       data: {
+        hostCode: 'ZB0001',
         nickname: null,
         qualificationEffectiveAt: effectiveAt,
         qualificationStatus: 'SUSPENDED',
@@ -253,6 +314,7 @@ describe('MasterDataUpdateService', () => {
     await expect(
       service.updateHost(adminContext, {
         expectedRowVersion: 1,
+        hostCode: 'ZB0001',
         id: 'host-1',
         qualificationStatus: 'ACTIVE',
         realName: '主播一',

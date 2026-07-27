@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 
 import { AuditCommandService } from '../audit/audit-command.service';
 import { AuthorizationPolicyService } from '../auth/authorization-policy.service';
+import { normalizeBackofficeLoginName } from '../auth/backoffice-login-name';
 import { DatabaseService } from '../database/database.service';
 import type {
   EndOperatorAssignmentCommand,
@@ -96,6 +97,9 @@ export class MasterDataUpdateService {
 
   updateHost(context: MasterDataCommandContext, command: UpdateHostCommand): Promise<void> {
     const reason = requiredMasterDataText(command.reason, 'reason');
+    const hostCode = requiredMasterDataText(command.hostCode, 'hostCode').toLocaleUpperCase(
+      'en-US',
+    );
 
     return this.database.transaction(async (transaction) => {
       const before = await transaction.hostProfile.findUnique({
@@ -107,6 +111,7 @@ export class MasterDataUpdateService {
           realName: true,
           rowVersion: true,
           siteId: true,
+          userId: true,
         },
         where: { id: command.id },
       });
@@ -117,10 +122,27 @@ export class MasterDataUpdateService {
 
       this.assertCurrentAndTargetSite(context, before.siteId, command.siteId);
       await this.assertActiveMoveTarget(transaction, before.siteId, command.siteId);
+      const passwordIdentity =
+        before.userId && before.hostCode !== hostCode
+          ? await transaction.userIdentity.findFirst({
+              select: { externalSubject: true, id: true },
+              where: {
+                provider: 'PASSWORD',
+                providerAppId: 'BACKOFFICE',
+                status: 'ACTIVE',
+                userId: before.userId,
+              },
+            })
+          : null;
+      const syncedLoginName = passwordIdentity ? normalizeBackofficeLoginName(hostCode) : null;
+      if (passwordIdentity && !syncedLoginName) {
+        throw new MasterDataVersionConflictError();
+      }
       const qualificationChanged = before.qualificationStatus !== command.qualificationStatus;
       const qualificationEffectiveAt = qualificationChanged ? new Date() : undefined;
       const result = await transaction.hostProfile.updateMany({
         data: {
+          hostCode,
           nickname: optionalMasterDataText(command.nickname) ?? null,
           ...(qualificationEffectiveAt ? { qualificationEffectiveAt } : {}),
           qualificationStatus: command.qualificationStatus,
@@ -131,6 +153,16 @@ export class MasterDataUpdateService {
         where: { id: command.id, rowVersion: command.expectedRowVersion },
       });
       assertUpdated(result.count);
+
+      if (passwordIdentity && syncedLoginName) {
+        await transaction.userIdentity.update({
+          data: {
+            externalSubject: syncedLoginName,
+            rowVersion: { increment: 1 },
+          },
+          where: { id: passwordIdentity.id },
+        });
+      }
 
       if (qualificationEffectiveAt) {
         await transaction.hostQualificationHistory.create({
@@ -154,14 +186,39 @@ export class MasterDataUpdateService {
           realName: true,
           rowVersion: true,
           siteId: true,
+          userId: true,
         },
         where: { id: command.id },
       });
 
+      const beforeSnapshot = {
+        hostCode: before.hostCode,
+        id: before.id,
+        nickname: before.nickname,
+        qualificationStatus: before.qualificationStatus,
+        realName: before.realName,
+        rowVersion: before.rowVersion,
+        siteId: before.siteId,
+      };
+      const afterSnapshot = {
+        hostCode: after.hostCode,
+        id: after.id,
+        nickname: after.nickname,
+        qualificationStatus: after.qualificationStatus,
+        realName: after.realName,
+        rowVersion: after.rowVersion,
+        siteId: after.siteId,
+      };
       await this.audit.append(transaction, context, {
         action: 'HOST_UPDATED',
-        afterData: after,
-        beforeData: before,
+        afterData: {
+          ...afterSnapshot,
+          ...(syncedLoginName ? { loginName: syncedLoginName } : {}),
+        },
+        beforeData: {
+          ...beforeSnapshot,
+          ...(passwordIdentity ? { loginName: passwordIdentity.externalSubject } : {}),
+        },
         objectId: before.id,
         objectType: 'HOST',
         reason,

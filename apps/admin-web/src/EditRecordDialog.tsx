@@ -62,6 +62,7 @@ export function EditRecordDialog({
       case 'hosts':
         body = {
           ...shared,
+          hostCode: value(form, 'hostCode'),
           nickname: value(form, 'nickname') || null,
           qualificationStatus: value(form, 'status'),
           realName: value(form, 'realName'),
@@ -165,6 +166,14 @@ export function EditRecordDialog({
 
           {view === 'hosts' ? (
             <>
+              <label htmlFor="edit-host-code">主播编号</label>
+              <input
+                defaultValue={(item as HostSummary).hostCode}
+                id="edit-host-code"
+                maxLength={32}
+                name="hostCode"
+                required
+              />
               <label htmlFor="edit-real-name">姓名</label>
               <input
                 defaultValue={(item as HostSummary).realName}
