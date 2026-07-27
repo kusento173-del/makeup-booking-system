@@ -12,6 +12,7 @@ const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_DURATION_MS = 15 * 60 * 1000;
 
 export interface VerifiedBackofficeAccount {
+  readonly mustChangePassword: boolean;
   readonly roles: readonly LoginRole[];
   readonly userId: string;
 }
@@ -26,7 +27,7 @@ export class BackofficeLoginService {
   async verify(loginName: string, password: string): Promise<VerifiedBackofficeAccount> {
     const normalizedLoginName = this.normalizeLoginName(loginName);
     const account = await this.database.transaction(async (transaction) => {
-      await acquireTransactionLock(transaction, `BACKOFFICE:${normalizedLoginName}`);
+      await acquireTransactionLock(transaction, `PASSWORD_LOGIN:${normalizedLoginName}`);
       const identity = await transaction.userIdentity.findUnique({
         select: {
           status: true,
@@ -36,7 +37,7 @@ export class BackofficeLoginService {
               passwordCredential: true,
               roles: {
                 select: { id: true, roleCode: true, siteId: true },
-                where: { revokedAt: null, roleCode: { in: ['CUSTOMER_SERVICE', 'ADMIN'] } },
+                where: { revokedAt: null },
               },
               status: true,
             },
@@ -91,6 +92,7 @@ export class BackofficeLoginService {
       });
 
       return {
+        mustChangePassword: credential.mustChangePassword,
         roles: toLoginRoles(identity.user.roles),
         userId: identity.user.id,
       };

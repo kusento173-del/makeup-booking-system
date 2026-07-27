@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { AccountBindingService } from './account-binding.service';
 import { AuthFlowService } from './auth-flow.service';
 import type { AuthSessionService } from './auth-session.service';
+import type { PasswordChangeChallengeService } from './password-change-challenge.service';
 import type { RoleSelectionChallengeService } from './role-selection-challenge.service';
 import type { WechatLoginService } from './wechat-login.service';
 
@@ -28,12 +29,34 @@ function createService() {
     { consume, issue } as unknown as RoleSelectionChallengeService,
     { create } as unknown as AuthSessionService,
     { login } as unknown as WechatLoginService,
+    { issue } as unknown as PasswordChangeChallengeService,
   );
 
   return { bind, consume, create, issue, login, service };
 }
 
 describe('AuthFlowService', () => {
+  it('requires a one-time password change before creating a session', async () => {
+    const { create, issue, service } = createService();
+    issue.mockResolvedValue({
+      expiresAt: new Date('2026-07-22T04:05:00.000Z'),
+      token: 'password-change-challenge',
+    });
+
+    await expect(
+      service.completeVerifiedAccount({
+        mustChangePassword: true,
+        roles: [role],
+        userId: 'user-1',
+      }),
+    ).resolves.toEqual({
+      expiresAt: new Date('2026-07-22T04:05:00.000Z'),
+      kind: 'PASSWORD_CHANGE_REQUIRED',
+      passwordChangeChallenge: 'password-change-challenge',
+    });
+    expect(create).not.toHaveBeenCalled();
+  });
+
   it('returns the binding challenge without creating a formal session', async () => {
     const { create, login, service } = createService();
     login.mockResolvedValue({

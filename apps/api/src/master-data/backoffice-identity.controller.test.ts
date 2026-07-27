@@ -4,6 +4,7 @@ import type { AccessTokenClaims } from '../auth/auth-session.types';
 import type { BindingCodeIssuerService } from '../auth/binding-code-issuer.service';
 import type { BackofficeAccountService } from './backoffice-account.service';
 import type { MasterDataCommandContextService } from './master-data-command-context.service';
+import type { WebAccountService } from './web-account.service';
 import { BackofficeIdentityController } from './backoffice-identity.controller';
 
 const authorization: AccessTokenClaims = {
@@ -31,6 +32,7 @@ describe('BackofficeIdentityController', () => {
       { resolve } as unknown as MasterDataCommandContextService,
       { issue } as unknown as BindingCodeIssuerService,
       {} as BackofficeAccountService,
+      {} as WebAccountService,
     );
 
     await expect(

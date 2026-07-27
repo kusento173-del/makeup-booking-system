@@ -23,6 +23,14 @@ export class BackofficePasswordChangeRequestDto {
   newPassword!: string;
 }
 
+export class InitialPasswordChangeRequestDto {
+  @ApiProperty({ maxLength: 128, minLength: 12 })
+  newPassword!: string;
+
+  @ApiProperty({ maxLength: 256 })
+  passwordChangeChallenge!: string;
+}
+
 export class RefreshSessionRequestDto {
   @ApiProperty({ description: '上一次登录或刷新返回的刷新令牌', maxLength: 256 })
   refreshToken!: string;
@@ -99,7 +107,14 @@ export class SessionTokenPairDto {
 }
 
 export class AuthFlowResponseDto {
-  @ApiProperty({ enum: ['BINDING_REQUIRED', 'ROLE_SELECTION_REQUIRED', 'SESSION_CREATED'] })
+  @ApiProperty({
+    enum: [
+      'BINDING_REQUIRED',
+      'PASSWORD_CHANGE_REQUIRED',
+      'ROLE_SELECTION_REQUIRED',
+      'SESSION_CREATED',
+    ],
+  })
   kind!: string;
 
   @ApiPropertyOptional()
@@ -107,6 +122,9 @@ export class AuthFlowResponseDto {
 
   @ApiPropertyOptional({ format: 'date-time' })
   bindingChallengeExpiresAt?: string;
+
+  @ApiPropertyOptional()
+  passwordChangeChallenge?: string;
 
   @ApiPropertyOptional()
   roleSelectionChallenge?: string;

@@ -58,7 +58,11 @@ describe('BackofficeAccountService', () => {
       }),
     ).resolves.toBe('user-2');
     expect(transaction.passwordCredential.create).toHaveBeenCalledWith({
-      data: { passwordHash: 'secret-password-hash', userId: 'user-2' },
+      data: {
+        mustChangePassword: true,
+        passwordHash: 'secret-password-hash',
+        userId: 'user-2',
+      },
     });
     expect(JSON.stringify(append.mock.calls)).not.toContain('secret-password-hash');
     expect(JSON.stringify(append.mock.calls)).not.toContain('Correct Horse 123');

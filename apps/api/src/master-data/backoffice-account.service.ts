@@ -147,7 +147,9 @@ export class BackofficeAccountService {
           userId: user.id,
         },
       });
-      await transaction.passwordCredential.create({ data: { passwordHash, userId: user.id } });
+      await transaction.passwordCredential.create({
+        data: { mustChangePassword: true, passwordHash, userId: user.id },
+      });
       const role = await transaction.userRole.create({
         data: {
           assignedByUserId: context.userId,

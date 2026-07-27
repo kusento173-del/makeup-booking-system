@@ -3,6 +3,11 @@ import type { LoginRole, WechatAccountRequiresBinding } from './wechat-login.typ
 
 export type AuthFlowResult =
   | WechatAccountRequiresBinding
+  | {
+      readonly expiresAt: Date;
+      readonly kind: 'PASSWORD_CHANGE_REQUIRED';
+      readonly passwordChangeChallenge: string;
+    }
   | { readonly kind: 'SESSION_CREATED'; readonly session: SessionTokenPair }
   | {
       readonly expiresAt: Date;

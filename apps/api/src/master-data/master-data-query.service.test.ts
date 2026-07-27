@@ -157,7 +157,7 @@ describe('MasterDataQueryService', () => {
     expect(query.where.AND[1]).toEqual({ siteId: 'site-songjiang' });
   });
 
-  it('exposes only a binding flag instead of a host account identifier', async () => {
+  it('exposes account availability flags without a host account identifier', async () => {
     const service = createService({
       hostProfile: {
         count: vi.fn().mockResolvedValue(1),
@@ -187,6 +187,7 @@ describe('MasterDataQueryService', () => {
       realName: '主播一',
       rowVersion: 1,
       siteId: 'site-songjiang',
+      webAccountEnabled: false,
     });
     expect(result.items[0]).not.toHaveProperty('userId');
   });

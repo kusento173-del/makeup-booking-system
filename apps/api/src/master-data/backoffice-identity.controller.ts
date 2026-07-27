@@ -57,6 +57,16 @@ import { MasterDataCommandContextService } from './master-data-command-context.s
 import type { MasterDataCommandContext } from './master-data-command.types';
 import { CreatedMasterDataDto, MasterDataListQueryDto } from './master-data-openapi.dto';
 import { parseMasterDataListRequest } from './master-data-request.parser';
+import {
+  ProvisionedProfileAccountDto,
+  ProvisionProfileAccountRequestDto,
+  ResetWebAccountPasswordRequestDto,
+} from './web-account-openapi.dto';
+import {
+  parseProvisionProfileAccountRequest,
+  parseResetWebAccountPasswordRequest,
+} from './web-account-request.parser';
+import { WebAccountService } from './web-account.service';
 
 @ApiTags('后台身份管理')
 @ApiBearerAuth('access-token')
@@ -70,6 +80,7 @@ export class BackofficeIdentityController {
     private readonly contexts: MasterDataCommandContextService,
     private readonly bindingCodes: BindingCodeIssuerService,
     private readonly accounts: BackofficeAccountService,
+    private readonly webAccounts: WebAccountService,
   ) {}
 
   @Get('accounts')
@@ -83,6 +94,37 @@ export class BackofficeIdentityController {
     const request = parseMasterDataListRequest(query);
     const context = await this.contexts.resolve(authorization, { clientType: 'ADMIN_WEB' });
     return this.accounts.list(context, request.page);
+  }
+
+  @Post('profile-accounts')
+  @ApiOperation({ summary: '为主播、运营或化妆师档案开通网页账号' })
+  @ApiBody({ type: ProvisionProfileAccountRequestDto })
+  @ApiCreatedResponse({ type: ProvisionedProfileAccountDto })
+  async provisionProfileAccount(
+    @Body() body: unknown,
+    @CurrentAuth() authorization: AccessTokenClaims,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent?: string,
+    @Headers('x-request-id') requestId?: string,
+  ): Promise<ProvisionedProfileAccountDto> {
+    const context = await this.context(authorization, ipAddress, userAgent, requestId);
+    return this.webAccounts.provisionProfile(context, parseProvisionProfileAccountRequest(body));
+  }
+
+  @Post('profile-accounts/password-reset')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: '重置网页账号临时密码并注销全部会话' })
+  @ApiBody({ type: ResetWebAccountPasswordRequestDto })
+  @ApiNoContentResponse()
+  async resetAccountPassword(
+    @Body() body: unknown,
+    @CurrentAuth() authorization: AccessTokenClaims,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent?: string,
+    @Headers('x-request-id') requestId?: string,
+  ): Promise<void> {
+    const context = await this.context(authorization, ipAddress, userAgent, requestId);
+    await this.webAccounts.resetPassword(context, parseResetWebAccountPasswordRequest(body));
   }
 
   @Post('accounts')

@@ -23,6 +23,7 @@ export interface HostSummary {
   readonly realName: string;
   readonly rowVersion: number;
   readonly siteId: string;
+  readonly webAccountEnabled: boolean;
 }
 
 export interface ArtistSummary {
@@ -34,6 +35,7 @@ export interface ArtistSummary {
   readonly realName: string;
   readonly rowVersion: number;
   readonly siteId: string;
+  readonly webAccountEnabled: boolean;
 }
 
 export interface OperatorSummary {
@@ -43,6 +45,7 @@ export interface OperatorSummary {
   readonly realName: string;
   readonly rowVersion: number;
   readonly siteId: string;
+  readonly webAccountEnabled: boolean;
 }
 
 export interface HostOperatorRelationSummary {

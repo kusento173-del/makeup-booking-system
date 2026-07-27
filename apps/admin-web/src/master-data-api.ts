@@ -19,6 +19,7 @@ export interface HostSummary {
   readonly realName: string;
   readonly rowVersion: number;
   readonly siteId: string;
+  readonly webAccountEnabled: boolean;
 }
 
 export interface ArtistSummary {
@@ -30,6 +31,7 @@ export interface ArtistSummary {
   readonly realName: string;
   readonly rowVersion: number;
   readonly siteId: string;
+  readonly webAccountEnabled: boolean;
 }
 
 export interface OperatorSummary {
@@ -39,6 +41,7 @@ export interface OperatorSummary {
   readonly realName: string;
   readonly rowVersion: number;
   readonly siteId: string;
+  readonly webAccountEnabled: boolean;
 }
 
 export interface RelationSummary {
@@ -188,6 +191,32 @@ export function issueBindingCode(
 ): Promise<IssuedBindingCode> {
   return apiRequest('/backoffice/binding-codes', {
     body: { profileId, roleCode },
+    method: 'POST',
+    token,
+  });
+}
+
+export function provisionProfileAccount(
+  token: string,
+  body: {
+    readonly loginName?: string;
+    readonly profileId: string;
+    readonly roleCode: 'ARTIST' | 'HOST' | 'OPERATOR';
+    readonly temporaryPassword: string;
+  },
+): Promise<{ readonly loginName: string; readonly userId: string }> {
+  return apiRequest('/backoffice/profile-accounts', { body, method: 'POST', token });
+}
+
+export function resetWebAccountPassword(
+  token: string,
+  profileId: string,
+  roleCode: 'ARTIST' | 'HOST' | 'OPERATOR',
+  temporaryPassword: string,
+  reason: string,
+): Promise<void> {
+  return apiRequest('/backoffice/profile-accounts/password-reset', {
+    body: { profileId, reason, roleCode, temporaryPassword },
     method: 'POST',
     token,
   });

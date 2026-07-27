@@ -1,10 +1,11 @@
 import { ApiError, apiRequest } from './api-client';
 
-export type BackofficeRoleCode = 'ADMIN' | 'CUSTOMER_SERVICE';
+export type RoleCode = 'ADMIN' | 'ARTIST' | 'CUSTOMER_SERVICE' | 'HOST' | 'OPERATOR';
+export type BackofficeRoleCode = Extract<RoleCode, 'ADMIN' | 'CUSTOMER_SERVICE'>;
 
 export interface SessionRole {
   readonly roleAssignmentId: string;
-  readonly roleCode: BackofficeRoleCode;
+  readonly roleCode: RoleCode;
   readonly siteId: string | null;
 }
 
@@ -19,6 +20,11 @@ export interface SessionTokenPair {
 }
 
 export type BackofficeLoginResult =
+  | {
+      readonly expiresAt: string;
+      readonly kind: 'PASSWORD_CHANGE_REQUIRED';
+      readonly passwordChangeChallenge: string;
+    }
   | { readonly kind: 'SESSION_CREATED'; readonly session: SessionTokenPair }
   | {
       readonly expiresAt: string;
@@ -42,7 +48,9 @@ function isSession(value: unknown): value is SessionTokenPair {
     typeof session.sessionId === 'string' &&
     typeof session.userId === 'string' &&
     typeof session.role?.roleAssignmentId === 'string' &&
-    (session.role.roleCode === 'ADMIN' || session.role.roleCode === 'CUSTOMER_SERVICE')
+    ['ADMIN', 'ARTIST', 'CUSTOMER_SERVICE', 'HOST', 'OPERATOR'].includes(
+      session.role.roleCode ?? '',
+    )
   );
 }
 
@@ -73,8 +81,18 @@ export function saveSession(
 }
 
 export function login(loginName: string, password: string): Promise<BackofficeLoginResult> {
-  return apiRequest('/auth/backoffice/login', {
+  return apiRequest('/auth/password/login', {
     body: { loginName, password },
+    method: 'POST',
+  });
+}
+
+export function completeInitialPasswordChange(
+  passwordChangeChallenge: string,
+  newPassword: string,
+): Promise<BackofficeLoginResult> {
+  return apiRequest('/auth/password/complete', {
+    body: { newPassword, passwordChangeChallenge },
     method: 'POST',
   });
 }

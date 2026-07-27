@@ -21,7 +21,11 @@ function createService(transaction: object, passwordMatches: boolean) {
   return { service, verify };
 }
 
-function activeIdentity(failedAttemptCount = 0) {
+function activeIdentity(
+  failedAttemptCount = 0,
+  roleCode = 'CUSTOMER_SERVICE',
+  mustChangePassword = false,
+) {
   return {
     status: 'ACTIVE',
     user: {
@@ -29,9 +33,10 @@ function activeIdentity(failedAttemptCount = 0) {
       passwordCredential: {
         failedAttemptCount,
         lockedUntil: null,
+        mustChangePassword,
         passwordHash: 'argon2id-hash',
       },
-      roles: [{ id: 'role-1', roleCode: 'CUSTOMER_SERVICE', siteId: 'site-1' }],
+      roles: [{ id: 'role-1', roleCode, siteId: 'site-1' }],
       status: 'ACTIVE',
     },
   };
@@ -50,6 +55,7 @@ describe('BackofficeLoginService', () => {
     const { service } = createService(transaction, true);
 
     await expect(service.verify(' Admin.User ', 'correct passphrase')).resolves.toEqual({
+      mustChangePassword: false,
       roles: [{ roleAssignmentId: 'role-1', roleCode: 'CUSTOMER_SERVICE', siteId: 'site-1' }],
       userId: 'user-1',
     });
@@ -80,6 +86,22 @@ describe('BackofficeLoginService', () => {
         lockedUntil: new Date('2026-07-22T04:15:00.000Z'),
       },
       where: { userId: 'user-1' },
+    });
+  });
+
+  it('accepts a mobile web role and reports that its temporary password must change', async () => {
+    const update = vi.fn().mockResolvedValue({ userId: 'user-1' });
+    const transaction = {
+      $queryRaw: vi.fn().mockResolvedValue([{ pg_advisory_xact_lock: null }]),
+      passwordCredential: { update },
+      userIdentity: { findUnique: vi.fn().mockResolvedValue(activeIdentity(0, 'HOST', true)) },
+    };
+    const { service } = createService(transaction, true);
+
+    await expect(service.verify('000001', 'temporary password')).resolves.toEqual({
+      mustChangePassword: true,
+      roles: [{ roleAssignmentId: 'role-1', roleCode: 'HOST', siteId: 'site-1' }],
+      userId: 'user-1',
     });
   });
 

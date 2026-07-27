@@ -23,6 +23,7 @@ import {
   BackofficePasswordChangeRequestDto,
   BindWechatAccountRequestDto,
   RefreshSessionRequestDto,
+  InitialPasswordChangeRequestDto,
   SelectRoleRequestDto,
   SessionTokenPairDto,
   WechatLoginRequestDto,
@@ -32,6 +33,7 @@ import {
   parseAccountBindingRequest,
   parseBackofficeLoginRequest,
   parseBackofficePasswordChangeRequest,
+  parseInitialPasswordChangeRequest,
   parseRefreshRequest,
   parseRoleSelectionRequest,
   parseWechatLoginRequest,
@@ -56,7 +58,7 @@ export class AuthController {
     private readonly sessions: AuthSessionService,
   ) {}
 
-  @Post('backoffice/password')
+  @Post(['password', 'backoffice/password'])
   @HttpCode(204)
   @UseGuards(AccessTokenGuard)
   @ApiBearerAuth('access-token')
@@ -89,7 +91,7 @@ export class AuthController {
     });
   }
 
-  @Post('backoffice/login')
+  @Post(['password/login', 'backoffice/login'])
   @HttpCode(200)
   @ApiOperation({ summary: '客服或管理员密码登录' })
   @ApiBody({ type: BackofficeLoginRequestDto })
@@ -99,6 +101,31 @@ export class AuthController {
     const request = parseBackofficeLoginRequest(body);
     return this.flow.completeVerifiedAccount(
       await this.backofficeLogin.verify(request.loginName, request.password),
+    );
+  }
+
+  @Post('password/complete')
+  @HttpCode(200)
+  @ApiOperation({ summary: '使用一次性改密凭证完成首次密码修改' })
+  @ApiBody({ type: InitialPasswordChangeRequestDto })
+  @ApiOkResponse({ type: AuthFlowResponseDto })
+  async completeInitialPasswordChange(
+    @Body() body: unknown,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent?: string,
+    @Headers('x-request-id') requestId?: string,
+  ): Promise<AuthFlowResult> {
+    await this.rateLimits.assertAllowed('initial-password-ip', ipAddress, 30, 10 * 60);
+    const request = parseInitialPasswordChangeRequest(body);
+    return this.flow.completeVerifiedAccount(
+      await this.backofficePasswords.completeInitial({
+        clientType: 'WEB',
+        ipAddress,
+        newPassword: request.newPassword,
+        passwordChangeChallenge: request.passwordChangeChallenge,
+        ...(requestId ? { requestId } : {}),
+        ...(userAgent ? { userAgent } : {}),
+      }),
     );
   }
 

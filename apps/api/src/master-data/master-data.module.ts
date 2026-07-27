@@ -5,6 +5,7 @@ import { AuthModule } from '../auth/auth.module';
 import { DatabaseModule } from '../database/database.module';
 import { BackofficeIdentityController } from './backoffice-identity.controller';
 import { BackofficeAccountService } from './backoffice-account.service';
+import { WebAccountService } from './web-account.service';
 import { MasterDataCreateService } from './master-data-create.service';
 import { MasterDataCommandContextService } from './master-data-command-context.service';
 import { MasterDataController } from './master-data.controller';
@@ -17,6 +18,7 @@ import { MasterDataUpdateService } from './master-data-update.service';
   imports: [AuditModule, AuthModule, DatabaseModule],
   providers: [
     BackofficeAccountService,
+    WebAccountService,
     MasterDataCreateService,
     MasterDataCommandContextService,
     MasterDataNormalizationService,
@@ -25,6 +27,7 @@ import { MasterDataUpdateService } from './master-data-update.service';
   ],
   exports: [
     BackofficeAccountService,
+    WebAccountService,
     MasterDataCreateService,
     MasterDataCommandContextService,
     MasterDataNormalizationService,

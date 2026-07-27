@@ -22,6 +22,7 @@ const HOST_SELECT = {
   realName: true,
   rowVersion: true,
   siteId: true,
+  user: { select: { passwordCredential: { select: { userId: true } } } },
   userId: true,
 } satisfies Prisma.HostProfileSelect;
 
@@ -33,6 +34,7 @@ const ARTIST_SELECT = {
   realName: true,
   rowVersion: true,
   siteId: true,
+  user: { select: { passwordCredential: { select: { userId: true } } } },
   userId: true,
 } satisfies Prisma.ArtistProfileSelect;
 
@@ -42,6 +44,7 @@ const OPERATOR_SELECT = {
   realName: true,
   rowVersion: true,
   siteId: true,
+  user: { select: { passwordCredential: { select: { userId: true } } } },
   userId: true,
 } satisfies Prisma.OperatorProfileSelect;
 
@@ -114,9 +117,10 @@ export class MasterDataQueryService {
       ]);
 
       return {
-        items: items.map(({ userId, ...host }) => ({
+        items: items.map(({ user, userId, ...host }) => ({
           ...host,
           accountBound: userId !== null,
+          webAccountEnabled: Boolean(user?.passwordCredential),
         })) as HostSummary[],
         page: input.page,
         pageSize: input.pageSize,
@@ -156,10 +160,11 @@ export class MasterDataQueryService {
       ]);
 
       return {
-        items: artists.map(({ initialShiftConfiguredAt, userId, ...artist }) => ({
+        items: artists.map(({ initialShiftConfiguredAt, user, userId, ...artist }) => ({
           ...artist,
           accountBound: userId !== null,
           initialShiftConfigured: initialShiftConfiguredAt !== null,
+          webAccountEnabled: Boolean(user?.passwordCredential),
         })) as ArtistSummary[],
         page: input.page,
         pageSize: input.pageSize,
@@ -192,9 +197,10 @@ export class MasterDataQueryService {
       ]);
 
       return {
-        items: items.map(({ userId, ...operator }) => ({
+        items: items.map(({ user, userId, ...operator }) => ({
           ...operator,
           accountBound: userId !== null,
+          webAccountEnabled: Boolean(user?.passwordCredential),
         })) as OperatorSummary[],
         page: input.page,
         pageSize: input.pageSize,

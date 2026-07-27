@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { ApiError } from './api-client';
 import {
+  completeInitialPasswordChange,
   isPermanentSessionError,
   loadSession,
   login,
@@ -19,6 +20,7 @@ import { LoginPage } from './LoginPage';
 export function App() {
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [passwordChangeChallenge, setPasswordChangeChallenge] = useState<string | null>(null);
   const [pendingChallenge, setPendingChallenge] = useState<string | null>(null);
   const [pendingRoles, setPendingRoles] = useState<readonly SessionRole[]>([]);
   const [session, setSession] = useState<SessionTokenPair | null>(null);
@@ -98,6 +100,7 @@ export function App() {
     setSession(next);
     setPendingChallenge(null);
     setPendingRoles([]);
+    setPasswordChangeChallenge(null);
   }
 
   function clearSession() {
@@ -112,12 +115,38 @@ export function App() {
       const result = await login(loginName, password);
       if (result.kind === 'SESSION_CREATED') {
         acceptSession(result.session);
-      } else {
+      } else if (result.kind === 'ROLE_SELECTION_REQUIRED') {
         setPendingChallenge(result.roleSelectionChallenge);
         setPendingRoles(result.roles);
+      } else {
+        setPasswordChangeChallenge(result.passwordChangeChallenge);
       }
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : '无法连接服务器，请稍后重试');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleInitialPasswordChange(newPassword: string) {
+    if (!passwordChangeChallenge) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await completeInitialPasswordChange(passwordChangeChallenge, newPassword);
+      if (result.kind === 'SESSION_CREATED') {
+        acceptSession(result.session);
+      } else if (result.kind === 'ROLE_SELECTION_REQUIRED') {
+        setPasswordChangeChallenge(null);
+        setPendingChallenge(result.roleSelectionChallenge);
+        setPendingRoles(result.roles);
+      } else {
+        throw new Error('Unexpected password-change result');
+      }
+    } catch (cause) {
+      setError(cause instanceof ApiError ? cause.message : '密码修改失败，请重新登录后再试');
     } finally {
       setBusy(false);
     }
@@ -157,7 +186,7 @@ export function App() {
     }
   }
 
-  if (busy && !session && pendingRoles.length === 0) {
+  if (busy && !session && pendingRoles.length === 0 && !passwordChangeChallenge) {
     return <main className="loading-page">正在加载…</main>;
   }
 
@@ -176,8 +205,10 @@ export function App() {
     <LoginPage
       busy={busy}
       error={error}
+      onCompletePasswordChange={handleInitialPasswordChange}
       onLogin={handleLogin}
       onSelectRole={handleRoleSelection}
+      passwordChangeRequired={Boolean(passwordChangeChallenge)}
       pendingRoles={pendingRoles}
     />
   );

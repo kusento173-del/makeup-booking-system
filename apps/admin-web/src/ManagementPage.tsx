@@ -12,8 +12,6 @@ import {
   createManagementItem,
   endRelation,
   type HostSummary,
-  issueBindingCode,
-  type IssuedBindingCode,
   listManagementItems,
   listSites,
   type ManagementItem,
@@ -25,6 +23,7 @@ import {
 } from './master-data-api';
 import { RelationDialog } from './RelationDialog';
 import { RoleDialog } from './RoleDialog';
+import { type ProfileAccountTarget, WebAccountDialog } from './WebAccountDialog';
 
 interface ManagementPageProps {
   readonly onUnauthorized: () => void;
@@ -192,7 +191,7 @@ export function ManagementPage({ onUnauthorized, session, view }: ManagementPage
   const [createOpen, setCreateOpen] = useState(false);
   const [mutating, setMutating] = useState(false);
   const [reloadVersion, setReloadVersion] = useState(0);
-  const [bindingCode, setBindingCode] = useState<IssuedBindingCode | null>(null);
+  const [accountTarget, setAccountTarget] = useState<ProfileAccountTarget | null>(null);
   const [mutationError, setMutationError] = useState<string | null>(null);
   const [editItem, setEditItem] = useState<ManagementItem | null>(null);
   const [relationToEnd, setRelationToEnd] = useState<RelationSummary | null>(null);
@@ -326,23 +325,6 @@ export function ManagementPage({ onUnauthorized, session, view }: ManagementPage
     setReloadVersion((value) => value + 1);
   }
 
-  async function createBindingCode(item: HostSummary | ArtistSummary | OperatorSummary) {
-    const roleCode = view === 'hosts' ? 'HOST' : view === 'artists' ? 'ARTIST' : 'OPERATOR';
-    setMutating(true);
-    setError(null);
-    try {
-      setBindingCode(await issueBindingCode(session.accessToken, item.id, roleCode));
-    } catch (cause) {
-      if (cause instanceof ApiError && cause.status === 401) {
-        onUnauthorized();
-        return;
-      }
-      setError(cause instanceof ApiError ? cause.message : '绑定码生成失败，请稍后重试');
-    } finally {
-      setMutating(false);
-    }
-  }
-
   const title = NAV_ITEMS.find((item) => item.id === view)?.label ?? '主数据';
 
   return (
@@ -401,7 +383,7 @@ export function ManagementPage({ onUnauthorized, session, view }: ManagementPage
                       <th key={column.key}>{column.label}</th>
                     ))}
                     {view === 'hosts' || view === 'artists' || view === 'operators' ? (
-                      <th>账号绑定</th>
+                      <th>网页账号</th>
                     ) : null}
                     <th>操作</th>
                   </tr>
@@ -414,22 +396,21 @@ export function ManagementPage({ onUnauthorized, session, view }: ManagementPage
                       ))}
                       {view === 'hosts' || view === 'artists' || view === 'operators' ? (
                         <td>
-                          {(item as HostSummary | ArtistSummary | OperatorSummary).accountBound ? (
-                            <span className="muted-text">已绑定</span>
-                          ) : (
-                            <button
-                              className="table-action"
-                              disabled={mutating}
-                              onClick={() =>
-                                void createBindingCode(
-                                  item as HostSummary | ArtistSummary | OperatorSummary,
-                                )
-                              }
-                              type="button"
-                            >
-                              生成绑定码
-                            </button>
-                          )}
+                          <button
+                            className="table-action"
+                            disabled={mutating}
+                            onClick={() =>
+                              setAccountTarget(
+                                item as HostSummary | ArtistSummary | OperatorSummary,
+                              )
+                            }
+                            type="button"
+                          >
+                            {(item as HostSummary | ArtistSummary | OperatorSummary)
+                              .webAccountEnabled
+                              ? '重置密码'
+                              : '开通账号'}
+                          </button>
                         </td>
                       ) : null}
                       <td>
@@ -566,37 +547,14 @@ export function ManagementPage({ onUnauthorized, session, view }: ManagementPage
         />
       ) : null}
 
-      {bindingCode ? (
-        <div className="dialog-backdrop" role="presentation">
-          <section
-            aria-labelledby="binding-code-title"
-            aria-modal="true"
-            className="dialog"
-            role="dialog"
-          >
-            <div className="dialog-header">
-              <h2 id="binding-code-title">一次性绑定码</h2>
-              <button
-                aria-label="关闭"
-                className="icon-button"
-                onClick={() => setBindingCode(null)}
-                type="button"
-              >
-                ×
-              </button>
-            </div>
-            <p className="dialog-note">绑定码只显示这一次，请立即安全地交给本人。</p>
-            <strong className="binding-code">{bindingCode.code}</strong>
-            <p className="dialog-note">
-              有效期至 {new Date(bindingCode.expiresAt).toLocaleString('zh-CN', { hour12: false })}
-            </p>
-            <div className="dialog-actions">
-              <button className="primary-button" onClick={() => setBindingCode(null)} type="button">
-                我已记录
-              </button>
-            </div>
-          </section>
-        </div>
+      {accountTarget && ['hosts', 'artists', 'operators'].includes(view) ? (
+        <WebAccountDialog
+          onClose={() => setAccountTarget(null)}
+          onSaved={() => changedFromDialog(() => setAccountTarget(null))}
+          session={session}
+          target={accountTarget}
+          type={view === 'hosts' ? 'HOST' : view === 'artists' ? 'ARTIST' : 'OPERATOR'}
+        />
       ) : null}
     </>
   );

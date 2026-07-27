@@ -85,6 +85,24 @@ export function parseBackofficePasswordChangeRequest(body: unknown): {
   return { currentPassword, newPassword };
 }
 
+export function parseInitialPasswordChangeRequest(body: unknown): {
+  readonly newPassword: string;
+  readonly passwordChangeChallenge: string;
+} {
+  const value = record(body);
+  exactKeys(value, ['newPassword', 'passwordChangeChallenge']);
+  const newPassword = value['newPassword'];
+
+  if (typeof newPassword !== 'string' || newPassword.length > 128) {
+    throw new AuthRequestInvalidError();
+  }
+
+  return {
+    newPassword,
+    passwordChangeChallenge: requiredString(value, 'passwordChangeChallenge', 256),
+  };
+}
+
 export function parseRefreshRequest(body: unknown): string {
   const value = record(body);
   exactKeys(value, ['refreshToken']);
