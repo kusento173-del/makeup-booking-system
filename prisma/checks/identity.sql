@@ -75,6 +75,37 @@ BEGIN
             "provider",
             "provider_app_id",
             "external_subject"
+        ) VALUES (
+            user_two_id,
+            'WECHAT_MINIPROGRAM',
+            'retired-client',
+            'legacy-identity-' || test_suffix
+        );
+        RAISE EXCEPTION 'Active legacy identity was accepted';
+    EXCEPTION
+        WHEN check_violation THEN NULL;
+    END;
+
+    INSERT INTO "user_identities" (
+        "user_id",
+        "provider",
+        "provider_app_id",
+        "external_subject",
+        "status"
+    ) VALUES (
+        user_two_id,
+        'WECHAT_MINIPROGRAM',
+        'retired-client',
+        'revoked-legacy-identity-' || test_suffix,
+        'REVOKED'
+    );
+
+    BEGIN
+        INSERT INTO "user_identities" (
+            "user_id",
+            "provider",
+            "provider_app_id",
+            "external_subject"
         ) VALUES (user_two_id, 'PASSWORD', 'BACKOFFICE', 'identity-' || test_suffix);
         RAISE EXCEPTION 'Duplicate external identity was accepted';
     EXCEPTION
