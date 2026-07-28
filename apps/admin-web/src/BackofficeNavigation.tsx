@@ -1,6 +1,5 @@
 import { useState } from 'react';
 
-import type { BackofficeRoleCode } from './auth-session';
 import type { ManagementView } from './master-data-api';
 
 export type BackofficeView =
@@ -17,7 +16,6 @@ const NAV_GROUPS: readonly {
   readonly id: string;
   readonly label: string;
   readonly items: readonly {
-    readonly adminOnly?: boolean;
     readonly id: BackofficeView;
     readonly label: string;
   }[];
@@ -54,7 +52,7 @@ const NAV_GROUPS: readonly {
     id: 'system',
     items: [
       { id: 'sites', label: '场地' },
-      { adminOnly: true, id: 'accounts', label: '账号与角色' },
+      { id: 'accounts', label: '账号与角色' },
       { id: 'audit', label: '操作记录' },
     ],
     label: '系统设置',
@@ -63,11 +61,10 @@ const NAV_GROUPS: readonly {
 
 interface BackofficeNavigationProps {
   readonly onSelect: (view: BackofficeView) => void;
-  readonly roleCode: BackofficeRoleCode;
   readonly view: BackofficeView;
 }
 
-export function BackofficeNavigation({ onSelect, roleCode, view }: BackofficeNavigationProps) {
+export function BackofficeNavigation({ onSelect, view }: BackofficeNavigationProps) {
   const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(() => new Set());
 
   function toggleGroup(groupId: string) {
@@ -84,8 +81,6 @@ export function BackofficeNavigation({ onSelect, roleCode, view }: BackofficeNav
       <div className="sidebar-brand">妆序</div>
       <nav>
         {NAV_GROUPS.map((group) => {
-          const items = group.items.filter((item) => !item.adminOnly || roleCode === 'ADMIN');
-          if (items.length === 0) return null;
           const collapsed = collapsedGroups.has(group.id);
           return (
             <section aria-labelledby={`nav-${group.id}-label`} className="nav-group" key={group.id}>
@@ -101,7 +96,7 @@ export function BackofficeNavigation({ onSelect, roleCode, view }: BackofficeNav
                 <span aria-hidden="true">{collapsed ? '▸' : '▾'}</span>
               </button>
               <div className="nav-group-items" hidden={collapsed} id={`nav-${group.id}-items`}>
-                {items.map((item) => (
+                {group.items.map((item) => (
                   <button
                     aria-current={item.id === view ? 'page' : undefined}
                     key={item.id}

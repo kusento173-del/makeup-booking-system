@@ -52,6 +52,7 @@ export function RoleDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const siteNames = useMemo(() => new Map(sites.map((site) => [site.id, site.name])), [sites]);
+  const isAdmin = session.role.roleCode === 'ADMIN';
 
   function handleError(cause: unknown, fallback: string) {
     if (cause instanceof ApiError && cause.status === 401) {
@@ -64,7 +65,9 @@ export function RoleDialog({
   async function assign(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const siteId = form.get('siteId');
+    const selectedSiteId = form.get('siteId');
+    const siteId =
+      session.role.roleCode === 'CUSTOMER_SERVICE' ? session.role.siteId : selectedSiteId;
     setBusy(true);
     setError(null);
     try {
@@ -133,7 +136,9 @@ export function RoleDialog({
           {account.roles.map((role) => (
             <div className="role-management-item" key={role.id}>
               <span>{roleName(role, siteNames)}</span>
-              {isManagedRole(role.roleCode) ? (
+              {isManagedRole(role.roleCode) &&
+              (isAdmin ||
+                (role.roleCode === 'CUSTOMER_SERVICE' && role.siteId === session.role.siteId)) ? (
                 <button disabled={busy} onClick={() => setRevokeTarget(role)} type="button">
                   撤销
                 </button>
@@ -167,32 +172,41 @@ export function RoleDialog({
           <form className="record-form separated-form" onSubmit={(event) => void assign(event)}>
             <strong>添加角色</strong>
             <p className="dialog-note">
-              主播、化妆师和运营角色由对应人员档案决定；此处只添加客服或管理员角色。
+              主播、化妆师和运营角色由对应人员档案决定；
+              {isAdmin ? '此处只添加客服或管理员角色。' : '此处只添加当前场地的客服角色。'}
             </p>
-            <label htmlFor="assign-role-code">角色</label>
-            <select
-              id="assign-role-code"
-              name="roleCode"
-              onChange={(event) => setRoleCode(event.target.value as typeof roleCode)}
-              value={roleCode}
-            >
-              <option value="CUSTOMER_SERVICE">客服</option>
-              <option value="ADMIN">管理员</option>
-            </select>
-            {roleCode === 'CUSTOMER_SERVICE' ? (
+            {isAdmin ? (
               <>
-                <label htmlFor="assign-role-site">负责场地</label>
-                <select id="assign-role-site" name="siteId" required>
-                  <option value="">请选择场地</option>
-                  {sites
-                    .filter((site) => site.status === 'ACTIVE')
-                    .map((site) => (
-                      <option key={site.id} value={site.id}>
-                        {site.name}
-                      </option>
-                    ))}
+                <label htmlFor="assign-role-code">角色</label>
+                <select
+                  id="assign-role-code"
+                  name="roleCode"
+                  onChange={(event) => setRoleCode(event.target.value as typeof roleCode)}
+                  value={roleCode}
+                >
+                  <option value="CUSTOMER_SERVICE">客服</option>
+                  <option value="ADMIN">管理员</option>
                 </select>
               </>
+            ) : (
+              <p className="dialog-note">管理员角色不可由客服授予。</p>
+            )}
+            {roleCode === 'CUSTOMER_SERVICE' ? (
+              isAdmin ? (
+                <>
+                  <label htmlFor="assign-role-site">负责场地</label>
+                  <select id="assign-role-site" name="siteId" required>
+                    <option value="">请选择场地</option>
+                    {sites
+                      .filter((site) => site.status === 'ACTIVE')
+                      .map((site) => (
+                        <option key={site.id} value={site.id}>
+                          {site.name}
+                        </option>
+                      ))}
+                  </select>
+                </>
+              ) : null
             ) : null}
             <div className="dialog-actions">
               <button className="secondary-button" disabled={busy} onClick={onClose} type="button">

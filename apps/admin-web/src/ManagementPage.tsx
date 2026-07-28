@@ -583,7 +583,7 @@ export function ManagementPage({ onUnauthorized, session, view }: ManagementPage
                         <div className="row-actions">
                           {view !== 'relations' &&
                           (view !== 'sites' || session.role.roleCode === 'ADMIN') &&
-                          isEditable(item, view) ? (
+                          isEditable(item, view, session.role.roleCode) ? (
                             <button
                               className="table-action"
                               onClick={() => {
@@ -610,7 +610,7 @@ export function ManagementPage({ onUnauthorized, session, view }: ManagementPage
                           ) : view === 'relations' ? (
                             <span className="muted-text">已结束</span>
                           ) : null}
-                          {view === 'accounts' && (item as AccountSummary).status === 'ACTIVE' ? (
+                          {view === 'accounts' && isEditable(item, view, session.role.roleCode) ? (
                             <button
                               className="table-action"
                               onClick={() => setRoleAccount(item as AccountSummary)}
@@ -618,6 +618,13 @@ export function ManagementPage({ onUnauthorized, session, view }: ManagementPage
                             >
                               角色
                             </button>
+                          ) : null}
+                          {view === 'accounts' &&
+                          session.role.roleCode === 'CUSTOMER_SERVICE' &&
+                          (item as AccountSummary).roles.some(
+                            (role) => role.roleCode === 'ADMIN',
+                          ) ? (
+                            <span className="muted-text">管理员只读</span>
                           ) : null}
                           {canDelete(item, view, session.role.roleCode) ? (
                             <button
@@ -753,11 +760,18 @@ export function ManagementPage({ onUnauthorized, session, view }: ManagementPage
   );
 }
 
-function isEditable(item: ManagementItem, view: ManagementView): boolean {
+function isEditable(item: ManagementItem, view: ManagementView, roleCode: string): boolean {
   if (view === 'hosts') return (item as HostSummary).personnelStatus === 'ACTIVE';
   if (view === 'artists') return (item as ArtistSummary).personnelStatus === 'ACTIVE';
   if (view === 'operators') return (item as OperatorSummary).personnelStatus === 'ACTIVE';
-  if (view === 'accounts') return (item as AccountSummary).status === 'ACTIVE';
+  if (view === 'accounts') {
+    const account = item as AccountSummary;
+    return (
+      account.status === 'ACTIVE' &&
+      (roleCode === 'ADMIN' ||
+        !account.roles.some((accountRole) => accountRole.roleCode === 'ADMIN'))
+    );
+  }
   return true;
 }
 

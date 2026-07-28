@@ -2,7 +2,10 @@ import type { Prisma } from '@makeup/database';
 import { Injectable } from '@nestjs/common';
 
 import { AuditCommandService } from '../audit/audit-command.service';
-import { AuthorizationPolicyService } from '../auth/authorization-policy.service';
+import {
+  AuthorizationDeniedError,
+  AuthorizationPolicyService,
+} from '../auth/authorization-policy.service';
 import { normalizeBackofficeLoginName } from '../auth/backoffice-login-name';
 import { PasswordHasherService } from '../auth/password-hasher.service';
 import { DatabaseService } from '../database/database.service';
@@ -40,7 +43,7 @@ export class BackofficeAccountService {
     context: BackofficeAccountContext,
     input: BackofficeAccountPageInput,
   ): Promise<BackofficeAccountPage> {
-    this.authorization.assertRole(context, ['ADMIN']);
+    this.authorization.assertRole(context, ['ADMIN', 'CUSTOMER_SERVICE']);
 
     return this.database.read(async (client) => {
       const backofficeScope: Prisma.AppUserWhereInput = {
@@ -58,6 +61,9 @@ export class BackofficeAccountService {
         ],
       };
       const conditions: Prisma.AppUserWhereInput[] = [backofficeScope];
+      if (context.roleCode === 'CUSTOMER_SERVICE') {
+        conditions.push(this.customerServiceVisibleAccountScope(context.siteId));
+      }
       if (input.search) {
         conditions.push({
           OR: [
@@ -133,7 +139,8 @@ export class BackofficeAccountService {
     context: BackofficeAccountContext,
     command: CreateBackofficeAccountCommand,
   ): Promise<string> {
-    this.authorization.assertRole(context, ['ADMIN']);
+    this.authorization.assertRole(context, ['ADMIN', 'CUSTOMER_SERVICE']);
+    this.assertBackofficeRoleScope(context, command.roleCode, command.siteId);
     const loginName = normalizeBackofficeLoginName(command.loginName);
     const displayName = requiredMasterDataText(command.displayName, 'displayName');
     if (!loginName) {
@@ -190,7 +197,7 @@ export class BackofficeAccountService {
     context: BackofficeAccountContext,
     command: UpdateBackofficeAccountCommand,
   ): Promise<void> {
-    this.authorization.assertRole(context, ['ADMIN']);
+    this.authorization.assertRole(context, ['ADMIN', 'CUSTOMER_SERVICE']);
     const displayName = requiredMasterDataText(command.displayName, 'displayName');
     const reason = requiredMasterDataText(command.reason, 'reason');
 
@@ -198,7 +205,14 @@ export class BackofficeAccountService {
       const before = await transaction.appUser.findUnique({
         select: {
           displayName: true,
+          artistProfile: { select: { siteId: true } },
+          hostProfile: { select: { siteId: true } },
           id: true,
+          operatorProfile: { select: { siteId: true } },
+          roles: {
+            select: { roleCode: true, siteId: true },
+            where: { revokedAt: null },
+          },
           rowVersion: true,
           status: true,
         },
@@ -207,6 +221,7 @@ export class BackofficeAccountService {
       if (!before) {
         throw new BackofficeAccountNotFoundError();
       }
+      this.assertCustomerServiceCanManageAccount(context, before);
       const updated = await transaction.appUser.updateMany({
         data: {
           displayName,
@@ -295,15 +310,23 @@ export class BackofficeAccountService {
     context: BackofficeAccountContext,
     command: AssignBackofficeRoleCommand,
   ): Promise<string> {
-    this.authorization.assertRole(context, ['ADMIN']);
+    this.authorization.assertRole(context, ['ADMIN', 'CUSTOMER_SERVICE']);
+    this.assertBackofficeRoleScope(context, command.roleCode, command.siteId);
 
     return this.database.transaction(async (transaction) => {
       const user = await transaction.appUser.findUnique({
         select: {
+          artistProfile: { select: { siteId: true } },
+          hostProfile: { select: { siteId: true } },
           id: true,
           identities: {
             select: { id: true },
             where: { provider: 'PASSWORD', providerAppId: 'BACKOFFICE', status: 'ACTIVE' },
+          },
+          operatorProfile: { select: { siteId: true } },
+          roles: {
+            select: { roleCode: true, siteId: true },
+            where: { revokedAt: null },
           },
           status: true,
         },
@@ -315,6 +338,7 @@ export class BackofficeAccountService {
       if (user.status !== 'ACTIVE' || user.identities.length !== 1) {
         throw new BackofficeAccountConflictError();
       }
+      this.assertCustomerServiceCanManageAccount(context, user);
       await this.assertRoleSite(transaction, command.roleCode, command.siteId);
       const role = await transaction.userRole.create({
         data: {
@@ -344,7 +368,7 @@ export class BackofficeAccountService {
     context: BackofficeAccountContext,
     command: RevokeBackofficeRoleCommand,
   ): Promise<void> {
-    this.authorization.assertRole(context, ['ADMIN']);
+    this.authorization.assertRole(context, ['ADMIN', 'CUSTOMER_SERVICE']);
     const reason = requiredMasterDataText(command.reason, 'reason');
 
     return this.database.transaction(async (transaction) => {
@@ -356,6 +380,17 @@ export class BackofficeAccountService {
           roleCode: true,
           rowVersion: true,
           siteId: true,
+          user: {
+            select: {
+              artistProfile: { select: { siteId: true } },
+              hostProfile: { select: { siteId: true } },
+              operatorProfile: { select: { siteId: true } },
+              roles: {
+                select: { roleCode: true, siteId: true },
+                where: { revokedAt: null },
+              },
+            },
+          },
           userId: true,
         },
         where: { id: command.id },
@@ -363,6 +398,8 @@ export class BackofficeAccountService {
       if (!before || before.revokedAt || !['ADMIN', 'CUSTOMER_SERVICE'].includes(before.roleCode)) {
         throw new BackofficeAccountNotFoundError();
       }
+      this.assertBackofficeRoleScope(context, before.roleCode as BackofficeRoleCode, before.siteId);
+      this.assertCustomerServiceCanManageAccount(context, before.user);
       await this.assertNotLastAdministrator(transaction, before.roleCode === 'ADMIN');
       const now = new Date();
       const updated = await transaction.userRole.updateMany({
@@ -393,6 +430,66 @@ export class BackofficeAccountService {
         ...(before.siteId ? { siteId: before.siteId } : {}),
       });
     });
+  }
+
+  private customerServiceVisibleAccountScope(siteId: string | null): Prisma.AppUserWhereInput {
+    if (!siteId) throw new AuthorizationDeniedError();
+    return {
+      OR: [
+        { roles: { some: { revokedAt: null, roleCode: 'ADMIN' } } },
+        { roles: { some: { revokedAt: null, siteId } } },
+        { hostProfile: { is: { siteId } } },
+        { artistProfile: { is: { siteId } } },
+        { operatorProfile: { is: { siteId } } },
+      ],
+    };
+  }
+
+  private assertBackofficeRoleScope(
+    context: BackofficeAccountContext,
+    roleCode: BackofficeRoleCode,
+    siteId?: string | null,
+  ): void {
+    if (context.roleCode === 'ADMIN') return;
+    if (
+      context.roleCode !== 'CUSTOMER_SERVICE' ||
+      roleCode !== 'CUSTOMER_SERVICE' ||
+      !context.siteId ||
+      siteId !== context.siteId
+    ) {
+      throw new AuthorizationDeniedError();
+    }
+  }
+
+  private assertCustomerServiceCanManageAccount(
+    context: BackofficeAccountContext,
+    account: {
+      readonly artistProfile: { readonly siteId: string } | null;
+      readonly hostProfile: { readonly siteId: string } | null;
+      readonly operatorProfile: { readonly siteId: string } | null;
+      readonly roles: readonly {
+        readonly roleCode: string;
+        readonly siteId: string | null;
+      }[];
+    },
+  ): void {
+    if (context.roleCode === 'ADMIN') return;
+    if (
+      context.roleCode !== 'CUSTOMER_SERVICE' ||
+      !context.siteId ||
+      account.roles.some((role) => role.roleCode === 'ADMIN')
+    ) {
+      throw new AuthorizationDeniedError();
+    }
+    const siteIds = [
+      account.hostProfile?.siteId,
+      account.artistProfile?.siteId,
+      account.operatorProfile?.siteId,
+      ...account.roles.map((role) => role.siteId),
+    ];
+    if (!siteIds.includes(context.siteId)) {
+      throw new AuthorizationDeniedError();
+    }
   }
 
   private assertUpdated(count: number): void {

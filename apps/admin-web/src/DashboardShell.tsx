@@ -43,7 +43,7 @@ export function DashboardShell({ busy, onLogout, onUnauthorized, session }: Dash
         </button>
       </header>
       <div className="management-layout">
-        <BackofficeNavigation onSelect={setView} roleCode={session.role.roleCode} view={view} />
+        <BackofficeNavigation onSelect={setView} view={view} />
         {view === 'schedule' ? (
           <SchedulePage onUnauthorized={onUnauthorized} session={session} />
         ) : view === 'exports' ? (

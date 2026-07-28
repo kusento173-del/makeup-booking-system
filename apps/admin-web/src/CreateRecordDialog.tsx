@@ -163,18 +163,24 @@ export function CreateRecordDialog({
                 required
                 type="password"
               />
-              <label htmlFor="record-role">角色</label>
-              <select
-                id="record-role"
-                name="roleCode"
-                onChange={(event) =>
-                  setAccountRole(event.target.value as 'ADMIN' | 'CUSTOMER_SERVICE')
-                }
-                value={accountRole}
-              >
-                <option value="CUSTOMER_SERVICE">客服</option>
-                <option value="ADMIN">管理员</option>
-              </select>
+              {session.role.roleCode === 'ADMIN' ? (
+                <>
+                  <label htmlFor="record-role">角色</label>
+                  <select
+                    id="record-role"
+                    name="roleCode"
+                    onChange={(event) =>
+                      setAccountRole(event.target.value as 'ADMIN' | 'CUSTOMER_SERVICE')
+                    }
+                    value={accountRole}
+                  >
+                    <option value="CUSTOMER_SERVICE">客服</option>
+                    <option value="ADMIN">管理员</option>
+                  </select>
+                </>
+              ) : (
+                <p className="dialog-note">将创建当前场地的客服账号。</p>
+              )}
             </>
           ) : null}
 
