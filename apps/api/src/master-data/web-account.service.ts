@@ -53,12 +53,7 @@ export class WebAccountService {
       );
       const profile = await this.findProfile(transaction, command.roleCode, command.profileId);
       this.authorization.assertSiteScope(context, profile.siteId);
-      const loginName = normalizeBackofficeLoginName(
-        command.loginName ?? profile.suggestedLoginName ?? '',
-      );
-      if (!loginName) {
-        throw new BackofficeAccountConflictError();
-      }
+      const loginName = await this.resolveLoginName(transaction, command.roleCode, profile);
 
       const existingIdentity = await transaction.userIdentity.findUnique({
         select: { id: true },
@@ -107,6 +102,37 @@ export class WebAccountService {
 
       return { loginName, userId };
     });
+  }
+
+  private async resolveLoginName(
+    transaction: Prisma.TransactionClient,
+    roleCode: ProfileAccountRoleCode,
+    profile: ProfileTarget,
+  ): Promise<string> {
+    if (roleCode === 'HOST') {
+      const loginName = normalizeBackofficeLoginName(profile.suggestedLoginName ?? '');
+      if (!loginName) {
+        throw new BackofficeAccountConflictError();
+      }
+      return loginName;
+    }
+
+    await acquireTransactionLock(transaction, `PROFILE_LOGIN_SEQUENCE:${roleCode}`);
+    const prefix = roleCode === 'ARTIST' ? 'ma' : 'op';
+    const identities = await transaction.userIdentity.findMany({
+      select: { externalSubject: true },
+      where: {
+        externalSubject: { startsWith: prefix },
+        provider: 'PASSWORD',
+        providerAppId: 'BACKOFFICE',
+      },
+    });
+    const pattern = new RegExp(`^${prefix}(\\d+)$`);
+    const maximum = identities.reduce((current, identity) => {
+      const match = pattern.exec(identity.externalSubject);
+      return match ? Math.max(current, Number(match[1])) : current;
+    }, 0);
+    return `${prefix}${String(maximum + 1).padStart(4, '0')}`;
   }
 
   async resetPassword(

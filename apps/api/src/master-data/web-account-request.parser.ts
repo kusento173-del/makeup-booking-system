@@ -1,4 +1,3 @@
-import { normalizeBackofficeLoginName } from '../auth/backoffice-login-name';
 import type {
   ProfileAccountRoleCode,
   ProvisionProfileAccountCommand,
@@ -41,22 +40,13 @@ function temporaryPassword(value: Record<string, unknown>): string {
 
 export function parseProvisionProfileAccountRequest(body: unknown): ProvisionProfileAccountCommand {
   const value = record(body);
-  exactKeys(value, ['loginName', 'profileId', 'roleCode', 'temporaryPassword']);
+  exactKeys(value, ['profileId', 'roleCode', 'temporaryPassword']);
   const roleCode = value['roleCode'];
   if (!['ARTIST', 'HOST', 'OPERATOR'].includes(String(roleCode))) {
     throw new MasterDataRequestInvalidError();
   }
-  const rawLoginName = value['loginName'];
-  const loginName =
-    rawLoginName === undefined
-      ? undefined
-      : normalizeBackofficeLoginName(requiredText(value, 'loginName', 64));
-  if (rawLoginName !== undefined && !loginName) {
-    throw new MasterDataRequestInvalidError();
-  }
 
   return {
-    ...(loginName ? { loginName } : {}),
     profileId: parseMasterDataId(value['profileId']),
     roleCode: roleCode as ProfileAccountRoleCode,
     temporaryPassword: temporaryPassword(value),

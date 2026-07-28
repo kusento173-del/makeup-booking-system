@@ -23,15 +23,29 @@ describe('web account request parser', () => {
     });
   });
 
-  it('normalizes a supplied artist login name', () => {
+  it('accepts an artist account without a client-supplied login name', () => {
     expect(
       parseProvisionProfileAccountRequest({
-        loginName: ' Artist.One ',
         profileId,
         roleCode: 'ARTIST',
         temporaryPassword: 'temporary password',
       }),
-    ).toMatchObject({ loginName: 'artist.one', roleCode: 'ARTIST' });
+    ).toEqual({
+      profileId,
+      roleCode: 'ARTIST',
+      temporaryPassword: 'temporary password',
+    });
+  });
+
+  it('rejects client-supplied profile login names', () => {
+    expect(() =>
+      parseProvisionProfileAccountRequest({
+        loginName: 'artist.one',
+        profileId,
+        roleCode: 'ARTIST',
+        temporaryPassword: 'temporary password',
+      }),
+    ).toThrow(MasterDataRequestInvalidError);
   });
 
   it('requires the reset target role and profile identifier', () => {

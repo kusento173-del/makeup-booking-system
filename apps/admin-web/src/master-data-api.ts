@@ -227,7 +227,6 @@ export function revokeBackofficeRole(
 export function provisionProfileAccount(
   token: string,
   body: {
-    readonly loginName?: string;
     readonly profileId: string;
     readonly roleCode: 'ARTIST' | 'HOST' | 'OPERATOR';
     readonly temporaryPassword: string;

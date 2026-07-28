@@ -3,7 +3,6 @@ import type { MasterDataCommandContext } from './master-data-command.types';
 export type ProfileAccountRoleCode = 'ARTIST' | 'HOST' | 'OPERATOR';
 
 export interface ProvisionProfileAccountCommand {
-  readonly loginName?: string;
   readonly profileId: string;
   readonly roleCode: ProfileAccountRoleCode;
   readonly temporaryPassword: string;

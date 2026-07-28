@@ -28,9 +28,6 @@ export function WebAccountDialog({
   type,
 }: WebAccountDialogProps) {
   const enabled = target.webAccountEnabled;
-  const [loginName, setLoginName] = useState(
-    type === 'HOST' ? (target as HostSummary).hostCode : '',
-  );
   const [temporaryPassword, setTemporaryPassword] = useState('');
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
@@ -51,7 +48,6 @@ export function WebAccountDialog({
         );
       } else {
         await provisionProfileAccount(session.accessToken, {
-          ...(loginName ? { loginName } : {}),
           profileId: target.id,
           roleCode: type,
           temporaryPassword,
@@ -85,19 +81,13 @@ export function WebAccountDialog({
 
         <form className="dialog-form" onSubmit={(event) => void submit(event)}>
           {!enabled ? (
-            <>
-              <label htmlFor="web-login-name">登录名</label>
-              <input
-                disabled={busy || type === 'HOST'}
-                id="web-login-name"
-                maxLength={64}
-                minLength={3}
-                onChange={(event) => setLoginName(event.target.value)}
-                required
-                value={loginName}
-              />
-              {type === 'HOST' ? <p className="field-hint">主播登录名固定使用主播编号。</p> : null}
-            </>
+            <p className="field-hint">
+              {type === 'HOST'
+                ? `主播登录账号固定使用主播编号：${(target as HostSummary).hostCode}`
+                : type === 'ARTIST'
+                  ? '化妆师账号由系统按顺序生成（MA0001、MA0002……），生成后不可修改。'
+                  : '运营账号由系统按顺序生成（OP0001、OP0002……），生成后不可修改。'}
+            </p>
           ) : (
             <>
               <label htmlFor="password-reset-reason">重置原因</label>
