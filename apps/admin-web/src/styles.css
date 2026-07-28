@@ -386,9 +386,13 @@ button:disabled {
   width: 240px;
 }
 
-.role-filter {
-  min-width: 136px;
-  min-height: 40px;
+.header-filter {
+  width: auto;
+  min-width: 148px;
+  height: 40px;
+  flex: 0 0 auto;
+  padding-right: 32px;
+  font-size: 15px;
 }
 
 .search-form button,
@@ -1871,16 +1875,28 @@ tbody tr:hover {
   }
 
   .header-actions {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    display: flex;
+    align-items: stretch;
+    justify-content: flex-start;
+  }
+
+  .header-filter {
+    width: calc(50% - 5px);
+    min-width: 0;
+    flex: 1 1 140px;
   }
 
   .search-form input {
     width: 100%;
   }
 
-  .search-form {
+  .header-actions .search-form {
+    flex: 1 1 100%;
     width: 100%;
+  }
+
+  .header-actions .primary-action {
+    margin-left: auto;
   }
 
   th,

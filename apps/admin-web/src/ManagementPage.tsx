@@ -420,7 +420,7 @@ export function ManagementPage({ onUnauthorized, session, view }: ManagementPage
                   按角色筛选
                 </label>
                 <select
-                  className="role-filter"
+                  className="header-filter"
                   id="account-role-filter"
                   onChange={(event) => {
                     setPage(1);
@@ -443,7 +443,7 @@ export function ManagementPage({ onUnauthorized, session, view }: ManagementPage
                   按人员状态筛选
                 </label>
                 <select
-                  className="role-filter"
+                  className="header-filter"
                   id="personnel-status-filter"
                   onChange={(event) => {
                     setPage(1);
@@ -463,7 +463,7 @@ export function ManagementPage({ onUnauthorized, session, view }: ManagementPage
                   按预约资格筛选
                 </label>
                 <select
-                  className="role-filter"
+                  className="header-filter"
                   id="qualification-filter"
                   onChange={(event) => {
                     setPage(1);
@@ -483,7 +483,7 @@ export function ManagementPage({ onUnauthorized, session, view }: ManagementPage
                   按账号状态筛选
                 </label>
                 <select
-                  className="role-filter"
+                  className="header-filter"
                   id="account-status-filter"
                   onChange={(event) => {
                     setPage(1);
