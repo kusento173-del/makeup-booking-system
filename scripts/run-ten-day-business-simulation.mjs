@@ -80,15 +80,15 @@ function run(command, arguments_, options = {}) {
   }
 }
 
-function runDockerShell(script) {
-  const result = spawnSync('docker', ['compose', 'exec', '-T', 'postgres', 'sh', '-ec', script], {
+function runDockerShell(service, script) {
+  const result = spawnSync('docker', ['compose', 'exec', '-T', service, 'sh', '-ec', script], {
     cwd: root,
     encoding: 'utf8',
     shell: false,
     stdio: 'inherit',
   });
   if (result.error) throw result.error;
-  if (result.status !== 0) throw new Error(`PostgreSQL clone command failed (${result.status})`);
+  if (result.status !== 0) throw new Error(`${service} command failed (${result.status})`);
 }
 
 function addDays(date, days) {
@@ -143,7 +143,7 @@ async function cloneDatabase() {
     `pg_dump -U "$POSTGRES_USER" --no-owner --no-privileges ${sourceDatabaseName} | psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" ${simulationDatabaseName}`,
   ].join('\n');
   console.log(`[simulation] cloning ${sourceDatabaseName} -> ${simulationDatabaseName}`);
-  runDockerShell(cloneScript);
+  runDockerShell('postgres', cloneScript);
   run('pnpm', ['db:migrate'], {
     env: { ...process.env, DATABASE_URL: simulationUrl.toString() },
   });
@@ -181,7 +181,10 @@ async function resetOperationalData() {
   await client.query(
     `UPDATE artist_profiles SET initial_shift_configured_at = NULL, updated_at = NOW()`,
   );
-  runDockerShell('redis-cli --no-auth-warning -a "$REDIS_PASSWORD" -n 2 FLUSHDB >/dev/null');
+  runDockerShell(
+    'redis',
+    'redis-cli --no-auth-warning -a "$REDIS_PASSWORD" -n 2 FLUSHDB >/dev/null',
+  );
 }
 
 async function loadFixtures() {
