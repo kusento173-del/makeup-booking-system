@@ -178,7 +178,10 @@ button:disabled {
 }
 
 .dashboard-shell {
-  min-height: 100vh;
+  height: 100vh;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
 }
 
 .topbar {
@@ -217,15 +220,22 @@ button:disabled {
 }
 
 .management-layout {
+  height: 100%;
   max-width: 1440px;
-  min-height: calc(100vh - 65px);
+  min-height: 0;
+  width: 100%;
   display: grid;
   grid-template-columns: 220px minmax(0, 1fr);
   margin: 0 auto;
+  overflow: hidden;
 }
 
 .sidebar {
+  min-height: 0;
   padding: 28px 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   border-right: 1px solid #dce2e8;
   background: #fff;
 }
@@ -357,7 +367,10 @@ button:disabled {
 
 .management-main {
   min-width: 0;
+  min-height: 0;
   padding: 32px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .management-header {
@@ -1738,6 +1751,13 @@ tbody tr:hover {
 }
 
 @media (max-width: 560px) {
+  .dashboard-shell {
+    height: auto;
+    min-height: 100vh;
+    display: block;
+    overflow: visible;
+  }
+
   .login-card {
     padding: 28px 22px;
   }
@@ -1756,11 +1776,16 @@ tbody tr:hover {
 
   .management-layout {
     display: block;
+    height: auto;
+    min-height: calc(100vh - 65px);
+    overflow: visible;
   }
 
   .sidebar {
     padding: 10px 12px;
+    overflow-y: hidden;
     overflow-x: auto;
+    scrollbar-gutter: auto;
     border-right: 0;
     border-bottom: 1px solid #dce2e8;
   }
@@ -1807,6 +1832,7 @@ tbody tr:hover {
 
   .management-main {
     padding: 24px 16px;
+    overflow-y: visible;
   }
 
   .management-header {

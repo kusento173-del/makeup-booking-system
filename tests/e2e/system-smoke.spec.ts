@@ -169,12 +169,13 @@ test('已登录管理员可查看排班详情并进入主播维护', async ({ pa
           {
             hostCode: 'ZB0001',
             id: 'host-1',
-            accountBound: false,
             nickname: '小雨',
+            personnelStatus: 'ACTIVE',
             qualificationStatus: 'ACTIVE',
             realName: '主播一',
             rowVersion: 1,
             siteId: 'site-1',
+            webAccountEnabled: false,
           },
         ],
         page: 1,
@@ -191,6 +192,9 @@ test('已登录管理员可查看排班详情并进入主播维护', async ({ pa
   await expect(page.getByRole('region', { name: '审批管理' })).toBeVisible();
   await expect(page.getByRole('region', { name: '人员管理' })).toBeVisible();
   await expect(page.getByRole('region', { name: '系统设置' })).toBeVisible();
+  await expect(page.locator('.dashboard-shell')).toHaveCSS('overflow', 'hidden');
+  await expect(page.locator('.sidebar')).toHaveCSS('overflow-y', 'auto');
+  await expect(page.locator('.management-main')).toHaveCSS('overflow-y', 'auto');
   const schedulingNavigation = page.getByRole('region', { name: '排班管理' });
   await schedulingNavigation.getByRole('button', { name: '收起排班管理' }).click();
   await expect(schedulingNavigation.getByRole('button', { name: '固定主播名单' })).toBeHidden();
@@ -231,4 +235,8 @@ test('已登录管理员可查看排班详情并进入主播维护', async ({ pa
   await expect(page.getByText('小雨', { exact: true })).toBeVisible();
   await expect(page.getByText('柔柔 · 周一、周三、周五 · 09:30–10:00 · 30分钟')).toBeVisible();
   await expect(page.getByRole('button', { name: '通过' })).toBeVisible();
+
+  await page.setViewportSize({ height: 844, width: 390 });
+  await expect(page.locator('.dashboard-shell')).toHaveCSS('overflow', 'visible');
+  await expect(page.locator('.management-main')).toHaveCSS('overflow-y', 'visible');
 });

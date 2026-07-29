@@ -122,5 +122,7 @@ test('OpenAPI 契约包含认证、主数据路径和分页查询参数', async 
     'search',
     'asOf',
     'siteId',
+    'personnelStatus',
+    'qualificationStatus',
   ]);
 });
