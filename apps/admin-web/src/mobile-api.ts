@@ -1,4 +1,12 @@
 import { apiRequest } from './api-client';
+import type { ShiftDefinition } from './artist-shift-api';
+
+export {
+  getCurrentShift,
+  setInitialShift,
+  type ArtistShift,
+  type ShiftDefinition,
+} from './artist-shift-api';
 
 export type MobileRoleCode = 'ARTIST' | 'HOST' | 'OPERATOR';
 export type BookingDuration = 15 | 30 | 45 | 60;
@@ -58,21 +66,6 @@ export interface LeaveRecord {
   readonly rowVersion: number;
   readonly startDate: string;
   readonly status: 'ACTIVE' | 'CANCELLED';
-}
-
-export interface ShiftDefinition {
-  readonly breakEndMinute: number | null;
-  readonly breakStartMinute: number | null;
-  readonly workEndMinute: number;
-  readonly workStartMinute: number;
-  readonly workdays: readonly number[];
-}
-
-export interface ArtistShift extends ShiftDefinition {
-  readonly id: string;
-  readonly validFrom: string;
-  readonly validUntil: string | null;
-  readonly versionNo: number;
 }
 
 export interface ShiftChange extends ShiftDefinition {
@@ -333,22 +326,6 @@ export function cancelLeave(
 
 export async function getOwnArtist(token: string): Promise<MobileArtist | null> {
   return (await listArtists(token)).items[0] ?? null;
-}
-
-export function getCurrentShift(token: string, artistId: string): Promise<ArtistShift | null> {
-  return apiRequest(`/artists/${artistId}/shifts/current`, { token });
-}
-
-export function setInitialShift(
-  token: string,
-  artistId: string,
-  definition: ShiftDefinition,
-): Promise<ArtistShift> {
-  return apiRequest(`/artists/${artistId}/shifts/initial`, {
-    body: definition,
-    method: 'POST',
-    token,
-  });
 }
 
 export async function getLatestShiftChange(token: string): Promise<ShiftChange | null> {

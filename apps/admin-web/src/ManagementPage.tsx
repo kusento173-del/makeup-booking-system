@@ -1,6 +1,7 @@
 import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from 'react';
 
 import { ApiError } from './api-client';
+import { ArtistShiftDialog } from './ArtistShiftDialog';
 import type { SessionTokenPair } from './auth-session';
 import { currentBusinessDate } from './business-date';
 import { CreateRecordDialog } from './CreateRecordDialog';
@@ -227,6 +228,7 @@ export function ManagementPage({ onUnauthorized, session, view }: ManagementPage
   const [relationToEnd, setRelationToEnd] = useState<RelationSummary | null>(null);
   const [roleAccount, setRoleAccount] = useState<AccountSummary | null>(null);
   const [deleteItem, setDeleteItem] = useState<ManagementItem | null>(null);
+  const [shiftArtist, setShiftArtist] = useState<ArtistSummary | null>(null);
 
   const siteNames = useMemo(() => new Map(sites.map((site) => [site.id, site.name])), [sites]);
   const tableColumns = useMemo(() => columns(view, siteNames), [siteNames, view]);
@@ -581,6 +583,18 @@ export function ManagementPage({ onUnauthorized, session, view }: ManagementPage
                       ) : null}
                       <td>
                         <div className="row-actions">
+                          {view === 'artists' &&
+                          (item as ArtistSummary).personnelStatus === 'ACTIVE' ? (
+                            <button
+                              className="table-action"
+                              onClick={() => setShiftArtist(item as ArtistSummary)}
+                              type="button"
+                            >
+                              {(item as ArtistSummary).initialShiftConfigured
+                                ? '修改班次'
+                                : '设置班次'}
+                            </button>
+                          ) : null}
                           {view !== 'relations' &&
                           (view !== 'sites' || session.role.roleCode === 'ADMIN') &&
                           isEditable(item, view, session.role.roleCode) ? (
@@ -754,6 +768,16 @@ export function ManagementPage({ onUnauthorized, session, view }: ManagementPage
           session={session}
           target={accountTarget}
           type={view === 'hosts' ? 'HOST' : view === 'artists' ? 'ARTIST' : 'OPERATOR'}
+        />
+      ) : null}
+
+      {shiftArtist ? (
+        <ArtistShiftDialog
+          artist={shiftArtist}
+          onClose={() => setShiftArtist(null)}
+          onSaved={() => changedFromDialog(() => setShiftArtist(null))}
+          onUnauthorized={onUnauthorized}
+          session={session}
         />
       ) : null}
     </>

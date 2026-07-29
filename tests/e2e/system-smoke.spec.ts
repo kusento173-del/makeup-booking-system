@@ -163,6 +163,44 @@ test('已登录管理员可查看排班详情并进入主播维护', async ({ pa
       });
       return;
     }
+    if (path === '/api/master-data/artists') {
+      await route.fulfill({
+        json: {
+          items: [
+            {
+              id: 'artist-1',
+              initialShiftConfigured: true,
+              nickname: '柔柔',
+              personnelStatus: 'ACTIVE',
+              realName: '化妆师一',
+              rowVersion: 1,
+              siteId: 'site-1',
+              webAccountEnabled: true,
+            },
+          ],
+          page: 1,
+          pageSize: 50,
+          total: 1,
+        },
+      });
+      return;
+    }
+    if (path === '/api/artists/artist-1/shifts/current') {
+      await route.fulfill({
+        json: {
+          breakEndMinute: 780,
+          breakStartMinute: 720,
+          id: 'shift-1',
+          validFrom: '2026-07-01',
+          validUntil: null,
+          versionNo: 1,
+          workEndMinute: 1_080,
+          workStartMinute: 540,
+          workdays: [1, 2, 3, 4, 5],
+        },
+      });
+      return;
+    }
     await route.fulfill({
       json: {
         items: [
@@ -237,6 +275,14 @@ test('已登录管理员可查看排班详情并进入主播维护', async ({ pa
   await page.getByRole('button', { name: '编辑' }).click();
   await expect(page.getByRole('heading', { name: '维护主播' })).toBeVisible();
   await expect(page.getByLabel('修改原因')).toBeVisible();
+  await page.getByRole('button', { name: '关闭' }).click();
+
+  await page.getByRole('button', { name: '化妆师', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '化妆师' })).toBeVisible();
+  await page.getByRole('button', { name: '修改班次' }).click();
+  await expect(page.getByRole('heading', { name: '修改化妆师班次' })).toBeVisible();
+  await expect(page.getByLabel('上班时间')).toHaveValue('09:00');
+  await expect(page.getByLabel('下班时间')).toHaveValue('18:00');
   await page.getByRole('button', { name: '关闭' }).click();
 
   await page.getByRole('button', { name: '固定主播名单' }).click();
