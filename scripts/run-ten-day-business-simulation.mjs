@@ -593,7 +593,7 @@ async function simulateDay(dayIndex, businessDate) {
 
   const fixedAppointments = await query(
     `
-      SELECT a.id, a.host_id, a.row_version
+      SELECT a.id, a.host_id, a.row_version AS "rowVersion"
       FROM appointments a
       WHERE a.appointment_date = $1::date
         AND a.appointment_type = 'FIXED'
