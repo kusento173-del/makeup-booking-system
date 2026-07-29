@@ -202,7 +202,23 @@ test('已登录管理员可查看排班详情并进入主播维护', async ({ pa
   await expect(schedulingNavigation.getByRole('button', { name: '固定主播名单' })).toBeVisible();
   await expect(page.getByRole('article').getByText('柔柔', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: '设置不可排' })).toBeVisible();
-  await expect(page.getByText('临时不可排 14:00–15:00')).toBeVisible();
+  await expect(page.locator('.artist-availability')).toContainText('临时不可排');
+  await expect(page.locator('.artist-availability')).toContainText('14:00–15:00');
+  await page.setViewportSize({ height: 300, width: 1280 });
+  const managementMain = page.locator('.management-main');
+  await expect
+    .poll(() => managementMain.evaluate((element) => element.scrollHeight > element.clientHeight))
+    .toBe(true);
+  await managementMain.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
+  await expect
+    .poll(() => managementMain.evaluate((element) => element.scrollTop))
+    .toBeGreaterThan(0);
+  await managementMain.evaluate((element) => {
+    element.scrollTop = 0;
+  });
+  await page.setViewportSize({ height: 720, width: 1280 });
   await page.getByRole('button', { name: /09:30.*小雨/ }).click();
   await expect(page.getByRole('heading', { name: '小雨' })).toBeVisible();
   await expect(page.getByText('实际预约化妆师')).toBeVisible();

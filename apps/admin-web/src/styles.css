@@ -220,7 +220,7 @@ button:disabled {
 }
 
 .management-layout {
-  height: 100%;
+  align-self: stretch;
   max-width: 1440px;
   min-height: 0;
   width: 100%;
@@ -1828,6 +1828,7 @@ tbody tr:hover {
 
   .management-layout {
     display: block;
+    align-self: auto;
     height: auto;
     min-height: calc(100vh - 65px);
     overflow: visible;
