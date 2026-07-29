@@ -958,6 +958,7 @@ async function assertConsistency() {
           GROUP BY fixed_rule_id, appointment_date
           HAVING COUNT(*) > 1
         ) duplicate_fixed_days
+      )::int AS duplicate_fixed_days
   `);
   const failures = Object.entries(result).filter(([, value]) => Number(value) !== 0);
   if (failures.length > 0) {
