@@ -152,6 +152,21 @@ export function searchHosts(
   return apiRequest(`/master-data/hosts?${query.toString()}`, { token });
 }
 
+export function searchArtists(
+  token: string,
+  search: string,
+  siteId: string,
+): Promise<Page<ArtistSummary>> {
+  const query = new URLSearchParams({
+    page: '1',
+    pageSize: '50',
+    personnelStatus: 'ACTIVE',
+    search,
+    siteId,
+  });
+  return apiRequest(`/master-data/artists?${query.toString()}`, { token });
+}
+
 export function createManagementItem(
   view: ManagementView,
   token: string,

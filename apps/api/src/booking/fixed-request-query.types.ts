@@ -24,7 +24,7 @@ export interface FixedRequestListItem {
   readonly siteName: string;
   readonly status: FixedRequestStatus;
   readonly submittedAt: string;
-  readonly submittedByOperatorId: string;
+  readonly submittedByOperatorId: string | null;
   readonly submittedByOperatorName: string;
   readonly targetArtistId: string | null;
   readonly targetArtistNickname: string | null;

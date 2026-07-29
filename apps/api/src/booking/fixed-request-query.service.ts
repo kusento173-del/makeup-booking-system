@@ -35,6 +35,7 @@ const REQUEST_SELECT = {
   submittedAt: true,
   submittedByOperator: { select: { realName: true } },
   submittedByOperatorId: true,
+  submittedByUser: { select: { displayName: true } },
   targetArtist: { select: { nickname: true } },
   targetArtistId: true,
   targetDurationMinutes: true,
@@ -184,7 +185,8 @@ export class FixedRequestQueryService {
       status: record.status,
       submittedAt: record.submittedAt.toISOString(),
       submittedByOperatorId: record.submittedByOperatorId,
-      submittedByOperatorName: record.submittedByOperator.realName,
+      submittedByOperatorName:
+        record.submittedByOperator?.realName ?? `${record.submittedByUser.displayName}（后台设置）`,
       targetArtistId: record.targetArtistId,
       targetArtistNickname: record.targetArtist?.nickname ?? null,
       targetDurationMinutes: record.targetDurationMinutes,

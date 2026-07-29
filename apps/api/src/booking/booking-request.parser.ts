@@ -11,6 +11,7 @@ import type {
   CancelFixedRequestCommand,
   ChangeFixedRequestCommand,
   CreateFixedRequestCommand,
+  DirectFixedRuleCommand,
   ReviewFixedRequestCommand,
   WithdrawFixedRequestCommand,
 } from './fixed-request.types';
@@ -193,6 +194,54 @@ export function parseCancelFixedRequest(
     idempotencyKey: idempotencyKey(idempotencyHeader),
     reason: input.reason,
   };
+}
+
+export function parseDirectFixedRuleRequest(body: unknown): DirectFixedRuleCommand {
+  const input = record(body);
+  if (input.requestType === 'CANCEL') {
+    exactKeys(input, ['currentRuleId', 'effectiveFrom', 'hostId', 'reason', 'requestType']);
+    if (typeof input.reason !== 'string') throw new BookingRequestInvalidError();
+    return {
+      currentRuleId: uuid(input.currentRuleId),
+      effectiveFrom: dateOnly(input.effectiveFrom),
+      hostId: uuid(input.hostId),
+      reason: input.reason,
+      requestType: 'CANCEL',
+    };
+  }
+  if (input.requestType !== 'CREATE' && input.requestType !== 'CHANGE') {
+    throw new BookingRequestInvalidError();
+  }
+  exactKeys(input, [
+    'artistId',
+    ...(input.requestType === 'CHANGE' ? ['currentRuleId'] : []),
+    'durationMinutes',
+    'effectiveFrom',
+    'hostId',
+    'reason',
+    'requestType',
+    'startMinute',
+    'weekdays',
+  ]);
+  if (!Array.isArray(input.weekdays) || typeof input.reason !== 'string') {
+    throw new BookingRequestInvalidError();
+  }
+  const target = {
+    artistId: uuid(input.artistId),
+    durationMinutes: integer(input.durationMinutes, false),
+    effectiveFrom: dateOnly(input.effectiveFrom),
+    hostId: uuid(input.hostId),
+    reason: input.reason,
+    startMinute: integer(input.startMinute, false),
+    weekdays: input.weekdays.map((weekday) => integer(weekday, false)),
+  };
+  return input.requestType === 'CHANGE'
+    ? {
+        ...target,
+        currentRuleId: uuid(input.currentRuleId),
+        requestType: 'CHANGE',
+      }
+    : { ...target, requestType: 'CREATE' };
 }
 
 export function parseFixedRequestList(query: unknown): FixedRequestListInput {

@@ -9,11 +9,13 @@ import { formatDateOnly, toBusinessDate } from '../shift/business-date';
 import { FixedAvailabilityService } from './fixed-availability.service';
 import {
   FixedRequestNotFoundError,
+  FixedRequestReasonInvalidError,
   FixedRequestReviewCommentInvalidError,
   FixedRequestStateConflictError,
   FixedRequestUnavailableError,
 } from './fixed-request.errors';
 import type {
+  DirectFixedRuleCommand,
   FixedRequestCommandContext,
   FixedRequestReviewResult,
   ReviewFixedRequestCommand,
@@ -87,54 +89,7 @@ export class FixedRequestReviewService {
         });
         if (!request) throw new FixedRequestNotFoundError();
         this.assertReviewable(context, command, request);
-
-        const currentRule =
-          command.decision === 'APPROVE'
-            ? await this.validateApproval(transaction, context, request, now)
-            : null;
-        const status = command.decision === 'APPROVE' ? 'APPROVED' : 'REJECTED';
-        const updated = await transaction.fixedAppointmentRequest.updateMany({
-          data: {
-            reviewComment: comment,
-            reviewedAt: now,
-            reviewedByUserId: context.userId,
-            rowVersion: { increment: 1 },
-            status,
-          },
-          where: {
-            id: request.id,
-            rowVersion: command.expectedRowVersion,
-            status: 'PENDING',
-          },
-        });
-        if (updated.count !== 1) throw new FixedRequestStateConflictError();
-
-        let cancelledAppointmentCount = 0;
-        if (command.decision === 'APPROVE' && currentRule) {
-          await this.endRule(transaction, request, currentRule);
-          cancelledAppointmentCount = await this.cancelFutureAppointments(
-            transaction,
-            context,
-            request,
-            currentRule,
-            now,
-          );
-        }
-        const fixedRuleId =
-          command.decision === 'APPROVE' && request.requestType !== 'CANCEL'
-            ? await this.createRule(transaction, request)
-            : null;
-        const result: FixedRequestReviewResult = {
-          cancelledAppointmentCount,
-          fixedRuleId,
-          id: request.id,
-          reviewComment: comment,
-          reviewedAt: now.toISOString(),
-          rowVersion: command.expectedRowVersion + 1,
-          status,
-        };
-        await this.recordSideEffects(transaction, context, request, result);
-        return result;
+        return this.finishReview(transaction, context, request, command, comment, now);
       })
       .catch((error: unknown) => {
         if (
@@ -145,6 +100,126 @@ export class FixedRequestReviewService {
         }
         throw error;
       });
+  }
+
+  direct(
+    context: FixedRequestCommandContext,
+    command: DirectFixedRuleCommand,
+    now = new Date(),
+  ): Promise<FixedRequestReviewResult> {
+    this.authorization.assertRole(context, ['CUSTOMER_SERVICE', 'ADMIN']);
+    const reason = command.reason.normalize('NFKC').trim();
+    if (!reason || reason.length > 500) throw new FixedRequestReasonInvalidError();
+
+    return this.database
+      .transaction(async (transaction) => {
+        await acquireTransactionLock(transaction, `fixed:host:${command.hostId}`);
+        const host = await transaction.hostProfile.findUnique({
+          select: { deletedAt: true, siteId: true },
+          where: { id: command.hostId },
+        });
+        if (!host || host.deletedAt) throw new FixedRequestUnavailableError();
+        this.authorization.assertSiteScope(context, host.siteId);
+
+        const request = await transaction.fixedAppointmentRequest.create({
+          data: {
+            currentRuleId: command.requestType === 'CREATE' ? null : command.currentRuleId,
+            effectiveFrom: command.effectiveFrom,
+            hostId: command.hostId,
+            reason,
+            requestType: command.requestType,
+            siteId: host.siteId,
+            status: 'PENDING',
+            submittedByOperatorId: null,
+            submittedByUserId: context.userId,
+            targetArtistId: command.requestType === 'CANCEL' ? null : command.artistId,
+            targetDurationMinutes:
+              command.requestType === 'CANCEL' ? null : command.durationMinutes,
+            targetStartMinute: command.requestType === 'CANCEL' ? null : command.startMinute,
+            targetWeekdays: command.requestType === 'CANCEL' ? [] : [...command.weekdays],
+          },
+          select: REVIEW_SELECT,
+        });
+        return this.finishReview(
+          transaction,
+          context,
+          request,
+          {
+            comment: context.roleCode === 'ADMIN' ? '管理员直接设置' : '客服直接设置',
+            decision: 'APPROVE',
+            expectedRowVersion: request.rowVersion,
+            requestId: request.id,
+          },
+          context.roleCode === 'ADMIN' ? '管理员直接设置' : '客服直接设置',
+          now,
+        );
+      })
+      .catch((error: unknown) => {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          ['P2002', 'P2004'].includes(error.code)
+        ) {
+          throw new FixedRequestUnavailableError();
+        }
+        throw error;
+      });
+  }
+
+  private async finishReview(
+    transaction: Prisma.TransactionClient,
+    context: FixedRequestCommandContext,
+    request: ReviewRecord,
+    command: ReviewFixedRequestCommand,
+    comment: string | null,
+    now: Date,
+  ): Promise<FixedRequestReviewResult> {
+    const currentRule =
+      command.decision === 'APPROVE'
+        ? await this.validateApproval(transaction, context, request, now)
+        : null;
+    const status = command.decision === 'APPROVE' ? 'APPROVED' : 'REJECTED';
+    const updated = await transaction.fixedAppointmentRequest.updateMany({
+      data: {
+        reviewComment: comment,
+        reviewedAt: now,
+        reviewedByUserId: context.userId,
+        rowVersion: { increment: 1 },
+        status,
+      },
+      where: {
+        id: request.id,
+        rowVersion: command.expectedRowVersion,
+        status: 'PENDING',
+      },
+    });
+    if (updated.count !== 1) throw new FixedRequestStateConflictError();
+
+    let cancelledAppointmentCount = 0;
+    if (command.decision === 'APPROVE' && currentRule) {
+      await this.endRule(transaction, request, currentRule);
+      cancelledAppointmentCount = await this.cancelFutureAppointments(
+        transaction,
+        context,
+        request,
+        currentRule,
+        now,
+      );
+    }
+    const fixedRuleId =
+      command.decision === 'APPROVE' && request.requestType !== 'CANCEL'
+        ? await this.createRule(transaction, request)
+        : null;
+    const result: FixedRequestReviewResult = {
+      cancelledAppointmentCount,
+      fixedRuleId,
+      id: request.id,
+      reviewComment: comment,
+      reviewedAt: now.toISOString(),
+      rowVersion: command.expectedRowVersion + 1,
+      status,
+    };
+    await this.recordSideEffects(transaction, context, request, result);
+    return result;
   }
 
   private async validateApproval(
@@ -215,8 +290,7 @@ export class FixedRequestReviewService {
       rule.hostId !== request.hostId ||
       rule.siteId !== request.siteId ||
       rule.status !== 'ACTIVE' ||
-      rule.validFrom >= request.effectiveFrom ||
-      (request.requestType === 'CHANGE' && rule.artistId !== request.targetArtistId)
+      rule.validFrom >= request.effectiveFrom
     ) {
       throw new FixedRequestUnavailableError();
     }

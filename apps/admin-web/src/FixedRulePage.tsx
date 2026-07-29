@@ -2,6 +2,7 @@ import { type FormEvent, useCallback, useEffect, useState } from 'react';
 
 import { ApiError } from './api-client';
 import type { SessionTokenPair } from './auth-session';
+import { FixedRuleDialog } from './FixedRuleDialog';
 import { type FixedRule, type FixedRuleStatus, listFixedRules } from './fixed-rule-api';
 import { listSites, type SiteSummary } from './master-data-api';
 
@@ -43,6 +44,7 @@ export function FixedRulePage({ onUnauthorized, session }: FixedRulePageProps) {
   const [status, setStatus] = useState<FixedRuleStatus>('ACTIVE');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [dialogRule, setDialogRule] = useState<FixedRule | null | undefined>(undefined);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -95,9 +97,14 @@ export function FixedRulePage({ onUnauthorized, session }: FixedRulePageProps) {
           <p className="eyebrow">排班管理</p>
           <h1>固定主播名单</h1>
         </div>
-        <button className="secondary-button" disabled={loading} onClick={() => void load()}>
-          刷新
-        </button>
+        <div className="header-actions">
+          <button className="secondary-button" disabled={loading} onClick={() => void load()}>
+            刷新
+          </button>
+          <button className="primary-button" onClick={() => setDialogRule(null)}>
+            设置固定关系
+          </button>
+        </div>
       </header>
 
       <section className="list-filter-card" aria-label="固定主播筛选">
@@ -168,6 +175,7 @@ export function FixedRulePage({ onUnauthorized, session }: FixedRulePageProps) {
                   <th>固定时间</th>
                   <th>生效周期</th>
                   <th>状态</th>
+                  <th>操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -193,6 +201,19 @@ export function FixedRulePage({ onUnauthorized, session }: FixedRulePageProps) {
                         {rule.status === 'ACTIVE' ? '生效中' : '已结束'}
                       </span>
                     </td>
+                    <td>
+                      {rule.status === 'ACTIVE' ? (
+                        <button
+                          className="table-action"
+                          onClick={() => setDialogRule(rule)}
+                          type="button"
+                        >
+                          修改或取消
+                        </button>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -213,6 +234,19 @@ export function FixedRulePage({ onUnauthorized, session }: FixedRulePageProps) {
           </div>
         ) : null}
       </section>
+      {dialogRule !== undefined ? (
+        <FixedRuleDialog
+          onClose={() => setDialogRule(undefined)}
+          onSaved={() => {
+            setDialogRule(undefined);
+            void load();
+          }}
+          onUnauthorized={onUnauthorized}
+          rule={dialogRule}
+          session={session}
+          sites={sites}
+        />
+      ) : null}
     </main>
   );
 }

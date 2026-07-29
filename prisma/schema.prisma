@@ -510,7 +510,7 @@ model FixedAppointmentRequest {
   effectiveFrom         DateTime  @map("effective_from") @db.Date
   reason                String    @db.VarChar(500)
   status                String    @default("PENDING") @db.VarChar(16)
-  submittedByOperatorId String    @map("submitted_by_operator_id") @db.Uuid
+  submittedByOperatorId String?   @map("submitted_by_operator_id") @db.Uuid
   submittedByUserId     String    @map("submitted_by_user_id") @db.Uuid
   submittedAt           DateTime  @default(now()) @map("submitted_at") @db.Timestamptz(3)
   reviewedByUserId      String?   @map("reviewed_by_user_id") @db.Uuid
@@ -524,7 +524,7 @@ model FixedAppointmentRequest {
   site                Site                  @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "fixed_requests_site_id_fkey")
   currentRule         FixedAppointmentRule? @relation("FixedRequestCurrentRule", fields: [currentRuleId, siteId], references: [id, siteId], onDelete: Restrict, onUpdate: Cascade, map: "fixed_requests_current_rule_site_fkey")
   targetArtist        ArtistProfile?        @relation(fields: [targetArtistId, siteId], references: [id, siteId], onDelete: Restrict, onUpdate: Cascade, map: "fixed_requests_target_artist_site_fkey")
-  submittedByOperator OperatorProfile       @relation(fields: [submittedByOperatorId, siteId], references: [id, siteId], onDelete: Restrict, onUpdate: Cascade, map: "fixed_requests_operator_site_fkey")
+  submittedByOperator OperatorProfile?      @relation(fields: [submittedByOperatorId, siteId], references: [id, siteId], onDelete: Restrict, onUpdate: Cascade, map: "fixed_requests_operator_site_fkey")
   submittedByUser     AppUser               @relation("FixedRequestSubmittedBy", fields: [submittedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   reviewedByUser      AppUser?              @relation("FixedRequestReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   resultingRule       FixedAppointmentRule? @relation("FixedRuleSourceRequest")

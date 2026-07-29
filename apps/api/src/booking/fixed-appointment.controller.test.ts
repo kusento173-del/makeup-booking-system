@@ -307,6 +307,50 @@ describe('FixedAppointmentController', () => {
     });
   });
 
+  it('directly sets a fixed rule through a trusted backoffice context', async () => {
+    const customerService = { ...authorization, roleCode: 'CUSTOMER_SERVICE' as const };
+    const commandContext = { actorName: '松江客服', ...customerService };
+    const resolve = vi.fn().mockResolvedValue(commandContext);
+    const direct = vi.fn().mockResolvedValue({ id: ruleId, status: 'APPROVED' });
+    const controller = new FixedAppointmentController(
+      {} as FixedAvailabilityService,
+      { resolve } as unknown as MasterDataCommandContextService,
+      {} as FixedRequestQueryService,
+      { direct } as unknown as FixedRequestReviewService,
+      {} as FixedRequestService,
+      {} as FixedStateService,
+      {} as FixedRequestWithdrawService,
+    );
+
+    await controller.directlySetRule(
+      {
+        artistId,
+        durationMinutes: 30,
+        effectiveFrom: '2026-07-30',
+        hostId,
+        reason: '客服直接设置',
+        requestType: 'CREATE',
+        startMinute: 540,
+        weekdays: [1, 3],
+      },
+      customerService,
+      '127.0.0.1',
+      'admin-web',
+      'trace-direct',
+    );
+
+    expect(resolve).toHaveBeenCalledWith(customerService, {
+      clientType: 'ADMIN_WEB',
+      ipAddress: '127.0.0.1',
+      requestId: 'trace-direct',
+      userAgent: 'admin-web',
+    });
+    expect(direct).toHaveBeenCalledWith(
+      commandContext,
+      expect.objectContaining({ hostId, requestType: 'CREATE' }),
+    );
+  });
+
   it('reads fixed host state and withdraws through trusted operator identity', async () => {
     const commandContext = { actorName: '运营小周', ...authorization };
     const resolve = vi.fn().mockResolvedValue(commandContext);

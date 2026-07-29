@@ -163,6 +163,22 @@ test('已登录管理员可查看排班详情并进入主播维护', async ({ pa
       });
       return;
     }
+    if (path === '/api/fixed-appointments/availability') {
+      await route.fulfill({
+        json: {
+          slots: [
+            {
+              available: true,
+              earliestStartDate: '2026-07-30',
+              endMinute: 600,
+              startMinute: 570,
+            },
+          ],
+          unavailableReason: null,
+        },
+      });
+      return;
+    }
     if (path === '/api/master-data/artists') {
       await route.fulfill({
         json: {
@@ -291,6 +307,17 @@ test('已登录管理员可查看排班详情并进入主播维护', async ({ pa
   await expect(page.getByText('ZB0001')).toBeVisible();
   await expect(page.getByText('周一、周三、周五')).toBeVisible();
   await expect(page.getByText('09:30–10:00')).toBeVisible();
+  await page.getByRole('button', { name: '设置固定关系' }).click();
+  await expect(page.getByRole('heading', { name: '设置固定主播关系' })).toBeVisible();
+  const fixedRuleDialog = page.getByRole('dialog');
+  await expect(fixedRuleDialog.getByLabel('场地', { exact: true })).toBeVisible();
+  await expect(fixedRuleDialog.getByLabel('主播', { exact: true })).toBeVisible();
+  await expect(fixedRuleDialog.getByLabel('化妆师', { exact: true })).toBeVisible();
+  await fixedRuleDialog.getByText('关闭', { exact: true }).click();
+  await page.getByRole('button', { name: '修改或取消' }).click();
+  await expect(page.getByRole('heading', { name: '修改固定主播关系' })).toBeVisible();
+  await expect(page.getByRole('dialog').getByLabel('查找主播')).toHaveValue('小雨 · ZB0001');
+  await page.getByRole('dialog').getByText('关闭', { exact: true }).click();
 
   await page.getByRole('button', { name: '固定申请审批' }).click();
   await expect(page.getByRole('heading', { name: '固定申请' })).toBeVisible();

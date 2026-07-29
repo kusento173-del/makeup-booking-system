@@ -50,6 +50,7 @@ import {
   parseCancelFixedRequest,
   parseChangeFixedRequest,
   parseCreateFixedRequest,
+  parseDirectFixedRuleRequest,
   parseFixedAvailabilityRequest,
   parseFixedHostStateRequest,
   parseFixedRuleList,
@@ -158,6 +159,29 @@ export class FixedAppointmentController {
     @CurrentAuth() authorization: AccessTokenClaims,
   ): Promise<FixedRulePage> {
     return this.requestQueries.listRules(authorization, parseFixedRuleList(query));
+  }
+
+  @Post('rules/direct')
+  @HttpCode(200)
+  @ApiOperation({ summary: '客服或管理员直接创建、修改或取消固定主播关系' })
+  @ApiOkResponse({ type: FixedRequestReviewResultDto })
+  @ApiConflictResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  async directlySetRule(
+    @Body() body: unknown,
+    @CurrentAuth() authorization: AccessTokenClaims,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent?: string,
+    @Headers('x-request-id') requestId?: string,
+  ): Promise<FixedRequestReviewResult> {
+    const command = parseDirectFixedRuleRequest(body);
+    const context = await this.contexts.resolve(authorization, {
+      clientType: 'ADMIN_WEB',
+      ipAddress,
+      ...(requestId ? { requestId } : {}),
+      ...(userAgent ? { userAgent } : {}),
+    });
+    return this.requestReviews.direct(context, command);
   }
 
   @Get('requests')

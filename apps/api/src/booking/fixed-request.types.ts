@@ -30,6 +30,11 @@ export type SubmitFixedRequestCommand =
   | ({ readonly requestType: 'CHANGE' } & ChangeFixedRequestCommand)
   | ({ readonly requestType: 'CREATE' } & CreateFixedRequestCommand);
 
+export type DirectFixedRuleCommand =
+  | ({ readonly requestType: 'CANCEL' } & Omit<CancelFixedRequestCommand, 'idempotencyKey'>)
+  | ({ readonly requestType: 'CHANGE' } & Omit<ChangeFixedRequestCommand, 'idempotencyKey'>)
+  | ({ readonly requestType: 'CREATE' } & Omit<CreateFixedRequestCommand, 'idempotencyKey'>);
+
 export interface FixedRequestSummary {
   readonly currentRuleId: string | null;
   readonly effectiveFrom: string;

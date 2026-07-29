@@ -211,8 +211,7 @@ export class FixedRequestService {
       rule.hostId !== command.hostId ||
       rule.siteId !== context.siteId ||
       rule.status !== 'ACTIVE' ||
-      rule.validFrom >= command.effectiveFrom ||
-      (command.requestType === 'CHANGE' && rule.artistId !== command.artistId)
+      rule.validFrom >= command.effectiveFrom
     ) {
       throw new FixedRequestUnavailableError();
     }
@@ -427,6 +426,7 @@ export class FixedRequestService {
 
   private toSummary(request: RequestRecord): FixedRequestSummary {
     if (
+      !request.submittedByOperatorId ||
       !['CANCEL', 'CHANGE', 'CREATE'].includes(request.requestType) ||
       request.status !== 'PENDING' ||
       (request.requestType === 'CREATE' && request.currentRuleId !== null) ||

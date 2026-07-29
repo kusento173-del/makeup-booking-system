@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   deleteManagementItem,
   listManagementItems,
+  searchArtists,
   searchHosts,
   updateManagementItem,
 } from './master-data-api';
@@ -109,6 +110,22 @@ describe('master-data API client', () => {
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe(
       '/api/master-data/hosts?page=1&pageSize=20&personnelStatus=ACTIVE&search=ZB01001&siteId=site-songjiang',
+    );
+  });
+
+  it('narrows backoffice artist search to the selected site', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ items: [], page: 1, pageSize: 50, total: 0 }), {
+        headers: { 'Content-Type': 'application/json' },
+        status: 200,
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await searchArtists('access-token', '阿伟', 'site-songjiang');
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      '/api/master-data/artists?page=1&pageSize=50&personnelStatus=ACTIVE&search=%E9%98%BF%E4%BC%9F&siteId=site-songjiang',
     );
   });
 });

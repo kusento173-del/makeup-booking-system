@@ -260,8 +260,8 @@ export class FixedRequestListItemDto {
   @ApiProperty({ format: 'date-time' })
   submittedAt!: string;
 
-  @ApiProperty({ format: 'uuid' })
-  submittedByOperatorId!: string;
+  @ApiPropertyOptional({ format: 'uuid', nullable: true })
+  submittedByOperatorId!: string | null;
 
   @ApiProperty()
   submittedByOperatorName!: string;

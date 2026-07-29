@@ -253,8 +253,8 @@ describe('FixedRequestService', () => {
     });
   });
 
-  it('requires a fixed artist change to be cancelled and reapplied instead', async () => {
-    const { service, transaction } = createService();
+  it('allows changing the artist of an active fixed relationship', async () => {
+    const { availability, service, transaction } = createService();
     transaction.fixedAppointmentRule.findUnique.mockResolvedValue({
       artistId: 'other-artist',
       hostId: 'host-1',
@@ -265,7 +265,14 @@ describe('FixedRequestService', () => {
 
     await expect(
       service.change(context, { ...command, currentRuleId: 'rule-1' }, now),
-    ).rejects.toBeInstanceOf(FixedRequestUnavailableError);
-    expect(transaction.fixedAppointmentRequest.create).not.toHaveBeenCalled();
+    ).resolves.toMatchObject({ replayed: false });
+    expect(availability.getAvailabilityWithClient).toHaveBeenCalledOnce();
+    expect(transaction.fixedAppointmentRequest.create.mock.calls[0]?.[0]).toMatchObject({
+      data: {
+        currentRuleId: 'rule-1',
+        requestType: 'CHANGE',
+        targetArtistId: 'artist-1',
+      },
+    });
   });
 });

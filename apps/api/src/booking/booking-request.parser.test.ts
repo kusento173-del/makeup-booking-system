@@ -9,6 +9,7 @@ import {
   parseChangeFixedRequest,
   parseCreateBookingRequest,
   parseCreateFixedRequest,
+  parseDirectFixedRuleRequest,
   parseFixedAvailabilityRequest,
   parseFixedHostStateRequest,
   parseFixedRuleList,
@@ -249,6 +250,47 @@ describe('booking request parser', () => {
         { currentRuleId: ruleId, effectiveFrom: '2026-07-28', hostId, reason: '取消', siteId: 'x' },
         'fixed-cancel-0001',
       ),
+    ).toThrow(BookingRequestInvalidError);
+  });
+
+  it('parses backoffice direct fixed-rule changes without idempotency fields', () => {
+    expect(
+      parseDirectFixedRuleRequest({
+        artistId,
+        durationMinutes: 30,
+        effectiveFrom: '2026-07-30',
+        hostId,
+        reason: '客服设置固定关系',
+        requestType: 'CREATE',
+        startMinute: 540,
+        weekdays: [1, 3, 5],
+      }),
+    ).toEqual({
+      artistId,
+      durationMinutes: 30,
+      effectiveFrom: new Date('2026-07-30T00:00:00.000Z'),
+      hostId,
+      reason: '客服设置固定关系',
+      requestType: 'CREATE',
+      startMinute: 540,
+      weekdays: [1, 3, 5],
+    });
+    expect(
+      parseDirectFixedRuleRequest({
+        currentRuleId: ruleId,
+        effectiveFrom: '2026-07-30',
+        hostId,
+        reason: '取消固定关系',
+        requestType: 'CANCEL',
+      }),
+    ).toMatchObject({ currentRuleId: ruleId, requestType: 'CANCEL' });
+    expect(() =>
+      parseDirectFixedRuleRequest({
+        effectiveFrom: '2026-07-30',
+        hostId,
+        reason: '错误请求',
+        requestType: 'CREATE',
+      }),
     ).toThrow(BookingRequestInvalidError);
   });
 

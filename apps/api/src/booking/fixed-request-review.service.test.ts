@@ -28,6 +28,7 @@ const request = {
   hostId: 'host-1',
   id: 'request-1',
   requestType: 'CREATE',
+  reason: '申请固定',
   rowVersion: 1,
   siteId: 'site-1',
   status: 'PENDING',
@@ -48,10 +49,20 @@ function createService(options?: {
   const transaction = {
     $queryRaw: vi.fn().mockResolvedValue([{ acquired: 1 }]),
     fixedAppointmentRequest: {
+      create: vi.fn().mockImplementation(({ data }: { data: object }) => ({
+        ...request,
+        ...data,
+        id: 'direct-request-1',
+        rowVersion: 1,
+        submittedByOperatorId: null,
+      })),
       findUnique: vi
         .fn()
         .mockResolvedValue(options?.request === undefined ? request : options.request),
       updateMany: vi.fn().mockResolvedValue({ count: options?.updatedCount ?? 1 }),
+    },
+    hostProfile: {
+      findUnique: vi.fn().mockResolvedValue({ deletedAt: null, siteId: 'site-1' }),
     },
     fixedAppointmentRule: {
       create: vi.fn().mockResolvedValue({ id: 'rule-1' }),
@@ -139,6 +150,40 @@ describe('FixedRequestReviewService', () => {
       transaction.fixedAppointmentRule.create.mock.invocationCallOrder[0]!,
     );
     expect(audit.append).toHaveBeenCalledOnce();
+  });
+
+  it('creates and approves a backoffice fixed rule in one transaction', async () => {
+    const { service, transaction } = createService();
+
+    await expect(
+      service.direct(
+        context,
+        {
+          artistId: 'artist-1',
+          durationMinutes: 30,
+          effectiveFrom: new Date('2026-07-27T00:00:00.000Z'),
+          hostId: 'host-1',
+          reason: ' 客服直接设置 ',
+          requestType: 'CREATE',
+          startMinute: 540,
+          weekdays: [1, 3],
+        },
+        now,
+      ),
+    ).resolves.toMatchObject({
+      fixedRuleId: 'rule-1',
+      reviewComment: '客服直接设置',
+      status: 'APPROVED',
+    });
+
+    expect(transaction.fixedAppointmentRequest.create.mock.calls[0]?.[0]).toMatchObject({
+      data: {
+        status: 'PENDING',
+        submittedByOperatorId: null,
+        submittedByUserId: context.userId,
+      },
+    });
+    expect(transaction.fixedAppointmentRequest.updateMany).toHaveBeenCalledOnce();
   });
 
   it('rejects with a required comment and releases the hold without creating a rule', async () => {
