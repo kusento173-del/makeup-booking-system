@@ -61,40 +61,41 @@ test('已登录管理员可查看排班详情并进入主播维护', async ({ pa
       const date = new URL(route.request().url()).searchParams.get('date') ?? '2026-07-22';
       await route.fulfill({
         json: {
-          artists: [
-            {
-              appointments: [
-                {
-                  appointmentType: 'SINGLE',
-                  dailySequence: 1,
-                  durationMinutes: 30,
-                  endAt: `${date}T02:00:00.000Z`,
-                  endMinute: 600,
-                  hostCode: 'ZB0001',
-                  hostId: 'host-1',
-                  hostName: '小雨',
-                  id: 'appointment-1',
-                  operatorId: 'operator-1',
-                  operatorName: '运营甲',
-                  rowVersion: 1,
-                  startAt: `${date}T01:30:00.000Z`,
-                  startMinute: 570,
-                  status: 'BOOKED',
-                },
-              ],
-              artistId: 'artist-1',
-              artistNickname: '柔柔',
-              availabilitySource: 'REGULAR_SHIFT',
-              available: true,
-              breakInterval: { endMinute: 780, startMinute: 720 },
-              unavailablePeriods: [{ endMinute: 900, startMinute: 840 }],
-              unavailableReason: null,
-              workIntervals: [
-                { endMinute: 720, startMinute: 540 },
-                { endMinute: 1080, startMinute: 780 },
-              ],
-            },
-          ],
+          artists: Array.from({ length: 12 }, (_, artistIndex) => ({
+            appointments:
+              artistIndex === 0
+                ? [
+                    {
+                      appointmentType: 'SINGLE',
+                      dailySequence: 1,
+                      durationMinutes: 30,
+                      endAt: `${date}T02:00:00.000Z`,
+                      endMinute: 600,
+                      hostCode: 'ZB0001',
+                      hostId: 'host-1',
+                      hostName: '小雨',
+                      id: 'appointment-1',
+                      operatorId: 'operator-1',
+                      operatorName: '运营甲',
+                      rowVersion: 1,
+                      startAt: `${date}T01:30:00.000Z`,
+                      startMinute: 570,
+                      status: 'BOOKED',
+                    },
+                  ]
+                : [],
+            artistId: `artist-${artistIndex + 1}`,
+            artistNickname: artistIndex === 0 ? '柔柔' : `测试化妆师${artistIndex + 1}`,
+            availabilitySource: 'REGULAR_SHIFT',
+            available: true,
+            breakInterval: { endMinute: 780, startMinute: 720 },
+            unavailablePeriods: [{ endMinute: 900, startMinute: 840 }],
+            unavailableReason: null,
+            workIntervals: [
+              { endMinute: 720, startMinute: 540 },
+              { endMinute: 1080, startMinute: 780 },
+            ],
+          })),
           date,
           lastUpdatedAt: new Date().toISOString(),
           siteId: 'site-1',
@@ -254,12 +255,16 @@ test('已登录管理员可查看排班详情并进入主播维护', async ({ pa
   await expect(schedulingNavigation.getByRole('button', { name: '固定主播名单' })).toBeHidden();
   await schedulingNavigation.getByRole('button', { name: '展开排班管理' }).click();
   await expect(schedulingNavigation.getByRole('button', { name: '固定主播名单' })).toBeVisible();
-  await expect(page.getByRole('article').getByText('柔柔', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: '设置不可排' })).toBeVisible();
-  await expect(page.locator('.artist-availability')).toContainText('临时不可排');
-  await expect(page.locator('.artist-availability')).toContainText('14:00–15:00');
-  await page.setViewportSize({ height: 300, width: 1280 });
+  const firstArtistRow = page.getByRole('article').filter({ hasText: '柔柔' });
+  await expect(firstArtistRow.getByText('柔柔', { exact: true })).toBeVisible();
+  await expect(firstArtistRow.getByRole('button', { name: '设置不可排' })).toBeVisible();
+  await expect(firstArtistRow.locator('.artist-availability')).toContainText('临时不可排');
+  await expect(firstArtistRow.locator('.artist-availability')).toContainText('14:00–15:00');
   const managementMain = page.locator('.management-main');
+  await expect
+    .poll(() => managementMain.evaluate((element) => element.scrollHeight > element.clientHeight))
+    .toBe(true);
+  await page.setViewportSize({ height: 300, width: 1280 });
   await expect
     .poll(() => managementMain.evaluate((element) => element.scrollHeight > element.clientHeight))
     .toBe(true);

@@ -1296,6 +1296,7 @@ tbody tr:hover {
 }
 
 .schedule-board {
+  min-height: max-content;
   overflow: hidden;
   border: 1px solid #d7dee4;
   border-radius: 9px;
