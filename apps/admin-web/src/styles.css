@@ -737,6 +737,29 @@ tbody tr:hover {
   color: #234556;
 }
 
+.mobile-history-range {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 14px;
+  border: 1px solid #d8e2e7;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.mobile-history-range label {
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.mobile-history-range input {
+  width: 100%;
+  min-width: 0;
+}
+
 .mobile-tabs button.active,
 .choice-grid button.active,
 .slot-grid button.active {

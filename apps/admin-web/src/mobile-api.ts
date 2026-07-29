@@ -190,8 +190,29 @@ export function listAppointments(
   fromDate: string,
   toDate: string,
 ): Promise<Page<MobileAppointment>> {
-  const query = new URLSearchParams({ fromDate, page: '1', pageSize: '100', toDate });
-  return apiRequest(`/appointments?${query.toString()}`, { token });
+  return listAllPages<MobileAppointment>('/appointments', token, { fromDate, toDate });
+}
+
+async function listAllPages<T>(
+  path: string,
+  token: string,
+  parameters: Readonly<Record<string, string>>,
+): Promise<Page<T>> {
+  const items: T[] = [];
+  let page = 1;
+  while (true) {
+    const query = new URLSearchParams({
+      ...parameters,
+      page: String(page),
+      pageSize: '100',
+    });
+    const result = await apiRequest<Page<T>>(`${path}?${query.toString()}`, { token });
+    items.push(...result.items);
+    if (result.items.length === 0 || items.length >= result.total) {
+      return { items, total: result.total };
+    }
+    page += 1;
+  }
 }
 
 export function cancelAppointment(

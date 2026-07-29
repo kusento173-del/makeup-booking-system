@@ -19,11 +19,20 @@ const RANGES: readonly { readonly id: Range; readonly label: string }[] = [
   { id: 'HISTORY', label: '历史' },
 ];
 
-function dates(range: Range): { readonly from: string; readonly to: string } {
+function dates(
+  range: Range,
+  historyFrom: string,
+  historyTo: string,
+): { readonly from: string; readonly to: string } {
   if (range === 'TODAY') return { from: businessDate(), to: businessDate() };
   if (range === 'TOMORROW') return { from: businessDate(1), to: businessDate(1) };
   if (range === 'SEVEN_DAYS') return { from: businessDate(), to: businessDate(7) };
-  return { from: '2020-01-01', to: businessDate(-1) };
+  return { from: historyFrom, to: historyTo };
+}
+
+function validHistoryRange(from: string, to: string): boolean {
+  const rangeDays = Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000) + 1;
+  return Number.isFinite(rangeDays) && rangeDays >= 1 && rangeDays <= 31;
 }
 
 const STATUS_LABELS = {
@@ -34,6 +43,8 @@ const STATUS_LABELS = {
 
 export function MobileSchedule({ onReschedule, session }: MobileScheduleProps) {
   const [range, setRange] = useState<Range>('TODAY');
+  const [historyFrom, setHistoryFrom] = useState(businessDate(-30));
+  const [historyTo, setHistoryTo] = useState(businessDate(-1));
   const [items, setItems] = useState<readonly MobileAppointment[]>([]);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,14 +53,18 @@ export function MobileSchedule({ onReschedule, session }: MobileScheduleProps) {
     setBusy(true);
     setError(null);
     try {
-      const value = dates(range);
+      if (range === 'HISTORY' && !validHistoryRange(historyFrom, historyTo)) {
+        setError('历史排班每次最多查询 31 天，请重新选择日期');
+        return;
+      }
+      const value = dates(range, historyFrom, historyTo);
       setItems((await listAppointments(session.accessToken, value.from, value.to)).items);
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : '排班读取失败，请稍后重试');
     } finally {
       setBusy(false);
     }
-  }, [range, session.accessToken]);
+  }, [historyFrom, historyTo, range, session.accessToken]);
 
   useEffect(() => {
     void load();
@@ -92,6 +107,29 @@ export function MobileSchedule({ onReschedule, session }: MobileScheduleProps) {
           </button>
         ))}
       </div>
+      {range === 'HISTORY' ? (
+        <div className="mobile-history-range">
+          <label>
+            开始日期
+            <input
+              max={historyTo}
+              onChange={(event) => setHistoryFrom(event.target.value)}
+              type="date"
+              value={historyFrom}
+            />
+          </label>
+          <label>
+            结束日期
+            <input
+              max={businessDate(-1)}
+              min={historyFrom}
+              onChange={(event) => setHistoryTo(event.target.value)}
+              type="date"
+              value={historyTo}
+            />
+          </label>
+        </div>
+      ) : null}
       {error ? <p className="form-error">{error}</p> : null}
       {busy && items.length === 0 ? <p className="mobile-state">正在读取排班…</p> : null}
       {!busy && items.length === 0 ? <p className="mobile-state">当前范围暂无预约。</p> : null}

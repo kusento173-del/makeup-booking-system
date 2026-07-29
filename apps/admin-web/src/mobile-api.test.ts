@@ -18,7 +18,7 @@ describe('mobile web API client', () => {
   beforeEach(() => request.mockReset());
 
   it('queries the signed-in role schedule and booking slots', async () => {
-    request.mockResolvedValue({});
+    request.mockResolvedValue({ items: [], total: 0 });
     await listAppointments('token-1', '2026-07-28', '2026-08-03');
     await getBookingSlots('token-1', {
       artistId: 'artist-1',
@@ -30,10 +30,25 @@ describe('mobile web API client', () => {
 
     expect(request).toHaveBeenNthCalledWith(
       1,
-      '/appointments?fromDate=2026-07-28&page=1&pageSize=100&toDate=2026-08-03',
+      '/appointments?fromDate=2026-07-28&toDate=2026-08-03&page=1&pageSize=100',
       { token: 'token-1' },
     );
     expect(request.mock.calls[1]?.[0]).toContain('excludeAppointmentId=appointment-1');
+  });
+
+  it('loads every appointment page without silently dropping history', async () => {
+    request
+      .mockResolvedValueOnce({
+        items: Array.from({ length: 100 }, (_, id) => ({ id })),
+        total: 101,
+      })
+      .mockResolvedValueOnce({ items: [{ id: 100 }], total: 101 });
+
+    const result = await listAppointments('token-1', '2026-06-28', '2026-07-28');
+
+    expect(result.items).toHaveLength(101);
+    expect(request.mock.calls[0]?.[0]).toContain('page=1');
+    expect(request.mock.calls[1]?.[0]).toContain('page=2');
   });
 
   it('creates and cancels appointments with concurrency protection', async () => {
