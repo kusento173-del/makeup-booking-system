@@ -297,18 +297,29 @@ async function createSessions() {
   const uniqueActors = new Map(actors.map((actor) => [`${actor.user_id}:${actor.role_id}`, actor]));
   const result = new Map();
   for (const actor of uniqueActors.values()) {
-    const hash = createHash('sha256').update(randomBytes(64)).digest('hex');
-    const [session] = await query(
-      `
-        INSERT INTO auth_sessions (user_id, role_assignment_id, refresh_token_hash, expires_at)
-        VALUES ($1, $2, $3, $4::timestamptz)
-        RETURNING id
-      `,
-      [actor.user_id, actor.role_id, hash, `${addDays(firstBusinessDate, 40)}T00:00:00Z`],
-    );
-    result.set(`${actor.role_code}:${actor.user_id}`, { ...actor, session_id: session.id });
+    result.set(`${actor.role_code}:${actor.user_id}`, await createSession(actor));
   }
   return result;
+}
+
+async function createSession(actor) {
+  const hash = createHash('sha256').update(randomBytes(64)).digest('hex');
+  const [session] = await query(
+    `
+      INSERT INTO auth_sessions (user_id, role_assignment_id, refresh_token_hash, expires_at)
+      VALUES ($1, $2, $3, $4::timestamptz)
+      RETURNING id
+    `,
+    [actor.user_id, actor.role_id, hash, `${addDays(firstBusinessDate, 40)}T00:00:00Z`],
+  );
+  return { ...actor, session_id: session.id };
+}
+
+async function renewIdentity(roleCode, userId) {
+  const key = `${roleCode}:${userId}`;
+  const current = identities.get(key);
+  if (!current) throw new Error(`Missing identity to renew: ${key}`);
+  identities.set(key, await createSession(current));
 }
 
 async function token(roleCode, userId, now) {
@@ -822,6 +833,7 @@ async function simulatePasswordFlows(now) {
     if (loginAgain.kind !== 'SESSION_CREATED') {
       throw new Error(`${roleCode} could not log in with the changed password`);
     }
+    await renewIdentity(roleCode, profile.user_id);
   }
   console.log('[simulation] host/operator/artist initial login and password change passed');
 }
