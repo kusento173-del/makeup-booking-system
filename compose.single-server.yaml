@@ -1,0 +1,214 @@
+name: makeup-booking-single-server
+
+x-logging: &default-logging
+  driver: local
+  options:
+    max-file: '3'
+    max-size: 10m
+
+services:
+  postgres:
+    image: postgres:18.4-alpine3.23
+    env_file:
+      - ${SINGLE_SERVER_ENV_FILE:-deploy/single-server.env}
+    environment:
+      TZ: UTC
+    command:
+      - postgres
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - effective_cache_size=1GB
+      - -c
+      - maintenance_work_mem=64MB
+      - -c
+      - work_mem=4MB
+      - -c
+      - max_connections=120
+    restart: unless-stopped
+    shm_size: 256mb
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready --username "$$POSTGRES_USER" --dbname "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    stop_grace_period: 30s
+    mem_limit: 1g
+    cpus: 1.25
+    pids_limit: 200
+    logging: *default-logging
+
+  redis:
+    image: redis:8.8.0-alpine3.23
+    env_file:
+      - ${SINGLE_SERVER_ENV_FILE:-deploy/single-server.env}
+    environment:
+      TZ: UTC
+    command:
+      - sh
+      - -ec
+      - >-
+        exec redis-server
+        --appendonly yes
+        --appendfsync everysec
+        --maxmemory 192mb
+        --maxmemory-policy noeviction
+        --requirepass "$$REDIS_PASSWORD"
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'redis-cli --no-auth-warning -a "$$REDIS_PASSWORD" ping | grep -q PONG']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+    stop_grace_period: 15s
+    mem_limit: 384m
+    cpus: 0.25
+    pids_limit: 100
+    logging: *default-logging
+
+  migrate:
+    image: makeup-booking-migrate:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      target: migrate
+    env_file:
+      - ${SINGLE_SERVER_ENV_FILE:-deploy/single-server.env}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+    profiles: [migration]
+    mem_limit: 768m
+    cpus: 1
+    logging: *default-logging
+
+  api:
+    image: makeup-booking-api:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      target: api
+    env_file:
+      - ${SINGLE_SERVER_ENV_FILE:-deploy/single-server.env}
+    environment:
+      API_PORT: 3000
+      EXPORT_STORAGE_DIR: /var/lib/makeup-booking/exports
+      NODE_ENV: production
+      TRUST_PROXY: 'true'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - export-data:/var/lib/makeup-booking/exports
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 20s
+    stop_grace_period: 30s
+    mem_limit: 1g
+    cpus: 1.5
+    pids_limit: 200
+    logging: *default-logging
+
+  worker:
+    image: makeup-booking-worker:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      target: worker
+    env_file:
+      - ${SINGLE_SERVER_ENV_FILE:-deploy/single-server.env}
+    environment:
+      INTERNAL_API_URL: http://api:3000
+      NODE_ENV: production
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://api:3000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    stop_grace_period: 20s
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 100
+    logging: *default-logging
+
+  gateway:
+    image: makeup-booking-gateway-http:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      target: gateway-http
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    ports:
+      - '${HTTP_PORT:-80}:80'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget --quiet --spider http://127.0.0.1/healthz || exit 1']
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 10s
+    stop_grace_period: 15s
+    mem_limit: 128m
+    cpus: 0.25
+    pids_limit: 100
+    logging: *default-logging
+
+  backup:
+    image: postgres:18.4-alpine3.23
+    env_file:
+      - ${SINGLE_SERVER_ENV_FILE:-deploy/single-server.env}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ['/bin/sh', '-ec']
+    command:
+      - |
+        umask 077
+        stamp="$$(date -u +%Y%m%dT%H%M%SZ)"
+        target="/backups/makeup-booking-$${stamp}.dump"
+        pg_dump "$${BACKUP_DATABASE_URL}" --format=custom --compress=6 --no-owner --no-acl --file="$${target}"
+        pg_restore --list "$${target}" >/dev/null
+        find /backups -type f -name 'makeup-booking-*.dump' -mtime +6 -delete
+        echo "Backup verified: $${target}"
+    profiles: [backup]
+    restart: 'no'
+    volumes:
+      - backup-data:/backups
+    mem_limit: 512m
+    cpus: 0.75
+    pids_limit: 100
+    logging: *default-logging
+
+volumes:
+  backup-data:
+  export-data:
+  postgres-data:
+  redis-data:
