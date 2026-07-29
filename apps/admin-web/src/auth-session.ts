@@ -19,6 +19,16 @@ export interface SessionTokenPair {
   readonly userId: string;
 }
 
+export interface CurrentProfile {
+  readonly account: string;
+  readonly displayName: string;
+  readonly hostCode: string | null;
+  readonly personName: string;
+  readonly roleCode: RoleCode;
+  readonly siteId: string | null;
+  readonly siteName: string | null;
+}
+
 export type BackofficeLoginResult =
   | {
       readonly expiresAt: string;
@@ -113,6 +123,10 @@ export function refreshSession(refreshToken: string): Promise<SessionTokenPair> 
 
 export function verifySession(accessToken: string): Promise<unknown> {
   return apiRequest('/auth/me', { token: accessToken });
+}
+
+export function getCurrentProfile(accessToken: string): Promise<CurrentProfile> {
+  return apiRequest('/auth/profile', { token: accessToken });
 }
 
 export function logoutSession(accessToken: string): Promise<void> {

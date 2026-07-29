@@ -12,6 +12,7 @@ import { AuthSessionService } from './auth-session.service';
 import { AuthorizationPolicyService } from './authorization-policy.service';
 import { BackofficeLoginService } from './backoffice-login.service';
 import { BackofficePasswordService } from './backoffice-password.service';
+import { CurrentProfileService } from './current-profile.service';
 import { OpaqueTokenService } from './opaque-token.service';
 import { PasswordHasherService } from './password-hasher.service';
 import { PasswordChangeChallengeService } from './password-change-challenge.service';
@@ -29,6 +30,7 @@ import { RoleSelectionChallengeService } from './role-selection-challenge.servic
     AuthorizationPolicyService,
     BackofficeLoginService,
     BackofficePasswordService,
+    CurrentProfileService,
     OpaqueTokenService,
     PasswordHasherService,
     PasswordChangeChallengeService,
@@ -43,6 +45,7 @@ import { RoleSelectionChallengeService } from './role-selection-challenge.servic
     AuthorizationPolicyService,
     BackofficeLoginService,
     BackofficePasswordService,
+    CurrentProfileService,
     OpaqueTokenService,
     PasswordHasherService,
     PasswordChangeChallengeService,

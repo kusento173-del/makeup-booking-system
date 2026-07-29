@@ -39,6 +39,8 @@ import type { AccessTokenClaims, SessionTokenPair } from './auth-session.types';
 import { BackofficeLoginService } from './backoffice-login.service';
 import { BackofficePasswordService } from './backoffice-password.service';
 import { CurrentAuth } from './current-auth.decorator';
+import { CurrentProfileService } from './current-profile.service';
+import type { CurrentProfile } from './current-profile.types';
 
 @ApiTags('认证')
 @ApiBadRequestResponse({ type: ApiErrorResponseDto })
@@ -52,6 +54,7 @@ export class AuthController {
     private readonly flow: AuthFlowService,
     private readonly rateLimits: AuthRateLimitService,
     private readonly sessions: AuthSessionService,
+    private readonly currentProfile: CurrentProfileService,
   ) {}
 
   @Post(['password', 'backoffice/password'])
@@ -153,6 +156,15 @@ export class AuthController {
   @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
   me(@CurrentAuth() authorization: AccessTokenClaims): AccessTokenClaims {
     return authorization;
+  }
+
+  @Get('profile')
+  @UseGuards(AccessTokenGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: '读取当前账号和人员资料' })
+  @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
+  profile(@CurrentAuth() authorization: AccessTokenClaims): Promise<CurrentProfile> {
+    return this.currentProfile.get(authorization);
   }
 
   @Post('logout')

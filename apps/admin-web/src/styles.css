@@ -634,6 +634,36 @@ tbody tr:hover {
   line-height: 1.55;
 }
 
+.mobile-profile-card {
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid #d8e2e7;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.mobile-profile-card div {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 16px;
+  padding: 16px 18px;
+  border-bottom: 1px solid #edf1f3;
+}
+
+.mobile-profile-card div:last-child {
+  border-bottom: 0;
+}
+
+.mobile-profile-card dt {
+  color: #647784;
+}
+
+.mobile-profile-card dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-weight: 700;
+}
+
 .mobile-bottom-nav {
   position: fixed;
   z-index: 20;

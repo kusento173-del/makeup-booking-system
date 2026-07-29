@@ -6,6 +6,7 @@ import { MobileBooking } from './MobileBooking';
 import { MobileFixedRelations } from './MobileFixedRelations';
 import { MobileLeave } from './MobileLeave';
 import { MobileOperator } from './MobileOperator';
+import { MobileProfile } from './MobileProfile';
 import { MobileSchedule } from './MobileSchedule';
 import type { MobileAppointment } from './mobile-api';
 
@@ -16,6 +17,7 @@ type MobileView =
   | 'leave'
   | 'managed-hosts'
   | 'overtime'
+  | 'profile'
   | 'schedule'
   | 'shift'
   | 'unavailability';
@@ -110,6 +112,8 @@ export function MobileDashboard({
         view={view}
       />
     );
+  } else if (view === 'profile') {
+    content = <MobileProfile session={session} />;
   } else if (['overtime', 'shift', 'unavailability'].includes(view)) {
     content = <MobileArtistTools session={session} tool={view as ArtistTool} />;
   } else {
@@ -189,6 +193,13 @@ export function MobileDashboard({
             班次
           </button>
         )}
+        <button
+          className={view === 'profile' ? 'active' : ''}
+          onClick={() => open('profile')}
+          type="button"
+        >
+          我的
+        </button>
       </nav>
     </div>
   );
