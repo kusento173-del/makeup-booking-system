@@ -106,6 +106,54 @@ describe('MasterDataUpdateService', () => {
     );
   });
 
+  it('revokes linked personnel sessions with a reason required by the database', async () => {
+    const now = new Date('2026-07-27T12:00:00.000Z');
+    const revokeSessions = vi.fn().mockResolvedValue({ count: 2 });
+    const transaction = {
+      appUser: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+      appointment: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+      authSession: { updateMany: revokeSessions },
+      fixedAppointmentRule: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+      hostProfile: {
+        findUnique: vi.fn().mockResolvedValue({
+          deletedAt: null,
+          hostCode: '000002',
+          id: 'host-2',
+          qualificationStatus: 'ACTIVE',
+          rowVersion: 1,
+          siteId: 'site-songjiang',
+          userId: 'host-user',
+        }),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+      userRole: {
+        findFirst: vi.fn().mockResolvedValue(null),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+    const { service } = createService(transaction);
+
+    await expect(
+      service.deleteHost(
+        customerServiceContext,
+        {
+          expectedRowVersion: 1,
+          id: 'host-2',
+          reason: '主播离职',
+        },
+        now,
+      ),
+    ).resolves.toBeUndefined();
+    expect(revokeSessions).toHaveBeenCalledWith({
+      data: {
+        revokeReason: 'PERSONNEL_DELETED',
+        revokedAt: now,
+        rowVersion: { increment: 1 },
+      },
+      where: { revokedAt: null, userId: 'host-user' },
+    });
+  });
+
   it('does not let a personnel endpoint bypass administrator deletion protection', async () => {
     const transaction = {
       hostProfile: {

@@ -635,7 +635,11 @@ export class MasterDataUpdateService {
         where: { id: userId },
       }),
       transaction.authSession.updateMany({
-        data: { revokedAt: now },
+        data: {
+          revokeReason: 'PERSONNEL_DELETED',
+          revokedAt: now,
+          rowVersion: { increment: 1 },
+        },
         where: { revokedAt: null, userId },
       }),
       transaction.userRole.updateMany({
