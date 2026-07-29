@@ -10,6 +10,11 @@ const workerToken = (() => {
   if (!value) throw new Error('WEB_E2E_WORKER_TOKEN is required');
   return value;
 })();
+const apiUrl = (() => {
+  const value = process.env.WEB_E2E_API_URL;
+  if (!value) throw new Error('WEB_E2E_API_URL is required');
+  return value;
+})();
 
 const accounts = {
   admin: 'qa-admin',
@@ -72,9 +77,14 @@ test.describe.serial('统一网页五角色完整业务验收', () => {
     const customerServicePage = await newBackofficePage(browser);
     await login(customerServicePage, accounts.customerService);
     await expect(customerServicePage.getByText('客服', { exact: true })).toBeVisible();
-    await expect(customerServicePage.getByRole('button', { name: '账号与角色' })).toHaveCount(0);
     await expect(customerServicePage.getByLabel('场地')).toHaveCount(0);
     await expect(customerServicePage.getByText('全量测试现厂主播')).toHaveCount(0);
+    await customerServicePage.getByRole('button', { name: '账号与角色' }).click();
+    const administratorRow = customerServicePage
+      .getByRole('row')
+      .filter({ hasText: '全量测试管理员' });
+    await expect(administratorRow).toBeVisible();
+    await expect(administratorRow.getByRole('button')).toHaveCount(0);
     await customerServicePage.close();
 
     const adminPage = await newBackofficePage(browser);
@@ -118,7 +128,7 @@ test.describe.serial('统一网页五角色完整业务验收', () => {
     const pendingRequest = operatorPage
       .getByRole('article')
       .filter({ hasText: '全量验收固定申请' });
-    await expect(pendingRequest).toContainText('PENDING');
+    await expect(pendingRequest).toContainText('待审核');
     await operatorPage.close();
 
     const customerServicePage = await newBackofficePage(browser);
@@ -130,7 +140,7 @@ test.describe.serial('统一网页五角色完整业务验收', () => {
     await expect(customerServicePage.getByText('当前没有待审核的固定申请')).toBeVisible();
     await customerServicePage.close();
 
-    const generation = await request.post('http://127.0.0.1:3100/internal/jobs/fixed-generation', {
+    const generation = await request.post(`${apiUrl}/internal/jobs/fixed-generation`, {
       headers: { 'x-worker-token': workerToken },
     });
     expect(generation.ok()).toBe(true);
@@ -185,7 +195,7 @@ test.describe.serial('统一网页五角色完整业务验收', () => {
     await artistPage.getByRole('button', { name: '提交修改申请' }).click();
     await expect(
       artistPage.getByRole('article').filter({ hasText: '全量验收班次调整' }),
-    ).toContainText('PENDING');
+    ).toContainText('待审核');
 
     await artistPage.getByRole('button', { name: '返回' }).click();
     await artistPage.getByRole('button', { name: /加班 为非工作日/ }).click();
@@ -194,7 +204,7 @@ test.describe.serial('统一网页五角色完整业务验收', () => {
     await artistPage.getByRole('button', { name: '提交加班申请' }).click();
     await expect(
       artistPage.getByRole('article').filter({ hasText: '全量验收周末加班' }),
-    ).toContainText('PENDING');
+    ).toContainText('待审核');
     await artistPage.close();
 
     const customerServicePage = await newBackofficePage(browser);

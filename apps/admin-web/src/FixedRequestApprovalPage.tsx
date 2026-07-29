@@ -118,13 +118,7 @@ export function FixedRequestApprovalPage({
         onUnauthorized();
         return;
       }
-      setError(
-        cause instanceof ApiError
-          ? cause.code === 'FIXED_REQUEST_STATE_CONFLICT'
-            ? '申请或固定关系已发生变化，请刷新后重试'
-            : cause.message
-          : '审核失败，请稍后重试',
-      );
+      setError(cause instanceof ApiError ? cause.message : '审核失败，请稍后重试');
     } finally {
       setBusyId(null);
     }

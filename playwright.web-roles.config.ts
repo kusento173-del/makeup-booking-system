@@ -1,7 +1,7 @@
 import { defineConfig } from '@playwright/test';
 
-const webPort = 4174;
-const apiPort = 3100;
+const webPort = 4274;
+const apiPort = 3200;
 const databaseUrl = process.env.WEB_E2E_DATABASE_URL;
 const workerToken = process.env.WEB_E2E_WORKER_TOKEN;
 

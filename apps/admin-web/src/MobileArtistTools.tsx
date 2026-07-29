@@ -2,6 +2,7 @@ import { type FormEvent, useCallback, useEffect, useState } from 'react';
 
 import { ApiError } from './api-client';
 import type { SessionTokenPair } from './auth-session';
+import { APPROVAL_STATUS_LABELS } from './business-labels';
 import {
   cancelUnavailablePeriod,
   createOvertime,
@@ -41,13 +42,6 @@ const DEFAULT_SHIFT: ShiftDraft = {
   workStart: '09:00',
   workdays: [1, 2, 3, 4, 5],
 };
-
-const APPROVAL_STATUS_LABELS = {
-  APPROVED: '已通过',
-  PENDING: '待审核',
-  REJECTED: '已驳回',
-  WITHDRAWN: '已撤回',
-} as const;
 
 function workdayLabels(workdays: readonly number[]): string {
   return WEEKDAYS.filter((day) => workdays.includes(day.id))

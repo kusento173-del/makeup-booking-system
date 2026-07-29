@@ -12,6 +12,10 @@ import {
   BookingSlotConflictError,
 } from './booking/booking-create.errors';
 import {
+  FixedRequestStateConflictError,
+  FixedRequestUnavailableError,
+} from './booking/fixed-request.errors';
+import {
   LeaveFixedAppointmentRestoreConflictError,
   LeaveNotFoundError,
   LeaveStateConflictError,
@@ -94,7 +98,10 @@ describe('ApiExceptionFilter', () => {
     });
     expect(conflict.response.status).toHaveBeenCalledWith(409);
     expect(conflict.send).toHaveBeenCalledWith({
-      error: { code: 'MASTER_DATA_VERSION_CONFLICT', message: '数据状态冲突，请刷新后重试' },
+      error: {
+        code: 'MASTER_DATA_VERSION_CONFLICT',
+        message: '人员或场地资料已被其他人修改，请重新打开后再操作',
+      },
       statusCode: 409,
     });
   });
@@ -186,7 +193,10 @@ describe('ApiExceptionFilter', () => {
     });
     expect(conflict.response.status).toHaveBeenCalledWith(409);
     expect(conflict.send).toHaveBeenCalledWith({
-      error: { code: 'LEAVE_STATE_CONFLICT', message: '数据状态冲突，请刷新后重试' },
+      error: {
+        code: 'LEAVE_STATE_CONFLICT',
+        message: '该请假记录已被取消或处理，请返回请假列表查看最新状态',
+      },
       statusCode: 409,
     });
   });
@@ -206,6 +216,24 @@ describe('ApiExceptionFilter', () => {
     });
   });
 
+  it.each([
+    [new FixedRequestStateConflictError(), '该固定申请已被处理或撤回，请查看最新申请记录'],
+    [
+      new FixedRequestUnavailableError(),
+      '所选固定关系或时间已不可用，请重新选择主播、化妆师和时间',
+    ],
+  ])('explains fixed relationship conflicts', (error, expectedMessage) => {
+    const { host, response, send } = createHost();
+
+    new ApiExceptionFilter().catch(error, host);
+
+    expect(response.status).toHaveBeenCalledWith(409);
+    expect(send).toHaveBeenCalledWith({
+      error: { code: error.code, message: expectedMessage },
+      statusCode: 409,
+    });
+  });
+
   it('maps overtime absence and invalid working-day state without internal details', () => {
     const missing = createHost();
     const conflict = createHost();
@@ -221,7 +249,10 @@ describe('ApiExceptionFilter', () => {
     });
     expect(conflict.response.status).toHaveBeenCalledWith(409);
     expect(conflict.send).toHaveBeenCalledWith({
-      error: { code: 'OVERTIME_WORKING_DAY', message: '数据状态冲突，请刷新后重试' },
+      error: {
+        code: 'OVERTIME_WORKING_DAY',
+        message: '所选日期本来就是工作日，无需申请加班',
+      },
       statusCode: 409,
     });
   });

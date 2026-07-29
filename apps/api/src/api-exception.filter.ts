@@ -206,7 +206,11 @@ export class ApiExceptionFilter implements ExceptionFilter {
       exception instanceof ArtistUnavailablePeriodReasonInvalidError ||
       exception instanceof ArtistUnavailabilityRequestInvalidError
     ) {
-      return this.response(HttpStatus.BAD_REQUEST, exception.code, '请求内容不正确');
+      return this.response(
+        HttpStatus.BAD_REQUEST,
+        exception.code,
+        '填写内容有误，请检查日期、时间和必填项',
+      );
     }
 
     if (exception instanceof AuthorizationDeniedError) {
@@ -299,41 +303,211 @@ export class ApiExceptionFilter implements ExceptionFilter {
       exception instanceof BookingIdempotencyConflictError ||
       exception instanceof BookingIdempotencyIncompleteError
     ) {
-      return this.response(HttpStatus.CONFLICT, exception.code, '预约请求状态冲突，请刷新后重试');
+      return this.response(
+        HttpStatus.CONFLICT,
+        exception.code,
+        '该预约正在处理或已提交，请稍后查看排班，避免重复提交',
+      );
+    }
+
+    if (exception instanceof MasterDataVersionConflictError) {
+      return this.response(
+        HttpStatus.CONFLICT,
+        exception.code,
+        '人员或场地资料已被其他人修改，请重新打开后再操作',
+      );
+    }
+
+    if (exception instanceof BookingSiteMismatchError) {
+      return this.response(
+        HttpStatus.CONFLICT,
+        exception.code,
+        '主播与化妆师不在同一场地，请重新选择',
+      );
+    }
+
+    if (exception instanceof BookingStateConflictError) {
+      return this.response(
+        HttpStatus.CONFLICT,
+        exception.code,
+        '该预约已被取消、改期或修改，请返回排班查看最新结果',
+      );
     }
 
     if (
-      exception instanceof MasterDataVersionConflictError ||
-      exception instanceof BookingSiteMismatchError ||
-      exception instanceof BookingStateConflictError ||
       exception instanceof MasterDataDateRangeError ||
       exception instanceof MasterDataInactiveSiteError ||
-      exception instanceof MasterDataSiteMismatchError ||
-      exception instanceof LeaveDateRangeInvalidError ||
-      exception instanceof LeaveImpactChangedError ||
-      exception instanceof LeaveStateConflictError ||
-      exception instanceof LeaveSubjectUnavailableError ||
-      exception instanceof OvertimeArtistUnavailableError ||
-      exception instanceof OvertimeDateInvalidError ||
-      exception instanceof OvertimePendingExistsError ||
-      exception instanceof OvertimeShiftNotConfiguredError ||
-      exception instanceof OvertimeStateConflictError ||
-      exception instanceof OvertimeWorkingDayError ||
-      exception instanceof ShiftArtistUnavailableError ||
-      exception instanceof ShiftChangeEffectiveDateError ||
-      exception instanceof FixedRequestStateConflictError ||
-      exception instanceof FixedRequestUnavailableError ||
-      exception instanceof ExportIdempotencyConflictError ||
-      exception instanceof ExportSiteUnavailableError ||
-      exception instanceof ExportStateConflictError ||
-      exception instanceof ExportFileUnavailableError ||
-      exception instanceof ArtistUnavailablePeriodDateInvalidError ||
-      exception instanceof ArtistUnavailablePeriodImpactChangedError ||
-      exception instanceof ArtistUnavailablePeriodScheduleConflictError ||
-      exception instanceof ArtistUnavailablePeriodStateConflictError ||
-      exception instanceof ArtistUnavailablePeriodTargetInvalidError
+      exception instanceof MasterDataSiteMismatchError
     ) {
-      return this.response(HttpStatus.CONFLICT, exception.code, '数据状态冲突，请刷新后重试');
+      return this.response(
+        HttpStatus.CONFLICT,
+        exception.code,
+        '人员关系的日期或场地不符合要求，请重新选择',
+      );
+    }
+
+    if (exception instanceof LeaveDateRangeInvalidError) {
+      return this.response(HttpStatus.CONFLICT, exception.code, '请假只能选择未来七天内的连续日期');
+    }
+
+    if (exception instanceof LeaveImpactChangedError) {
+      return this.response(
+        HttpStatus.CONFLICT,
+        exception.code,
+        '请假影响的预约数量已变化，请重新确认后提交',
+      );
+    }
+
+    if (exception instanceof LeaveStateConflictError) {
+      return this.response(
+        HttpStatus.CONFLICT,
+        exception.code,
+        '该请假记录已被取消或处理，请返回请假列表查看最新状态',
+      );
+    }
+
+    if (exception instanceof LeaveSubjectUnavailableError) {
+      return this.response(
+        HttpStatus.CONFLICT,
+        exception.code,
+        '当前人员状态不允许请假，请联系所属场地客服',
+      );
+    }
+
+    if (exception instanceof OvertimeArtistUnavailableError) {
+      return this.response(HttpStatus.CONFLICT, exception.code, '该化妆师当前不可申请加班');
+    }
+
+    if (exception instanceof OvertimeDateInvalidError) {
+      return this.response(HttpStatus.CONFLICT, exception.code, '加班只能选择未来七天内的日期');
+    }
+
+    if (exception instanceof OvertimePendingExistsError) {
+      return this.response(
+        HttpStatus.CONFLICT,
+        exception.code,
+        '该日期已有待审核的加班申请，请先等待审核或撤回原申请',
+      );
+    }
+
+    if (exception instanceof OvertimeShiftNotConfiguredError) {
+      return this.response(
+        HttpStatus.CONFLICT,
+        exception.code,
+        '请先设置化妆师固定班次，再申请加班',
+      );
+    }
+
+    if (exception instanceof OvertimeStateConflictError) {
+      return this.response(
+        HttpStatus.CONFLICT,
+        exception.code,
+        '该加班申请已被处理，请返回加班列表查看最新状态',
+      );
+    }
+
+    if (exception instanceof OvertimeWorkingDayError) {
+      return this.response(
+        HttpStatus.CONFLICT,
+        exception.code,
+        '所选日期本来就是工作日，无需申请加班',
+      );
+    }
+
+    if (exception instanceof ShiftArtistUnavailableError) {
+      return this.response(HttpStatus.CONFLICT, exception.code, '该化妆师当前不可修改班次');
+    }
+
+    if (exception instanceof ShiftChangeEffectiveDateError) {
+      return this.response(
+        HttpStatus.CONFLICT,
+        exception.code,
+        '班次修改只能选择允许的未来生效日期',
+      );
+    }
+
+    if (exception instanceof FixedRequestStateConflictError) {
+      return this.response(
+        HttpStatus.CONFLICT,
+        exception.code,
+        '该固定申请已被处理或撤回，请查看最新申请记录',
+      );
+    }
+
+    if (exception instanceof FixedRequestUnavailableError) {
+      return this.response(
+        HttpStatus.CONFLICT,
+        exception.code,
+        '所选固定关系或时间已不可用，请重新选择主播、化妆师和时间',
+      );
+    }
+
+    if (exception instanceof ExportIdempotencyConflictError) {
+      return this.response(
+        HttpStatus.CONFLICT,
+        exception.code,
+        '相同的排班导出任务正在处理中，请勿重复提交',
+      );
+    }
+
+    if (exception instanceof ExportSiteUnavailableError) {
+      return this.response(HttpStatus.CONFLICT, exception.code, '所选场地当前无法导出排班');
+    }
+
+    if (exception instanceof ExportStateConflictError) {
+      return this.response(
+        HttpStatus.CONFLICT,
+        exception.code,
+        '导出任务状态已变化，请返回导出记录查看最新结果',
+      );
+    }
+
+    if (exception instanceof ExportFileUnavailableError) {
+      return this.response(
+        HttpStatus.CONFLICT,
+        exception.code,
+        '排班文件尚未生成或已经过期，请重新导出',
+      );
+    }
+
+    if (exception instanceof ArtistUnavailablePeriodDateInvalidError) {
+      return this.response(
+        HttpStatus.CONFLICT,
+        exception.code,
+        '临时不可排班只能选择未来七天内的日期',
+      );
+    }
+
+    if (exception instanceof ArtistUnavailablePeriodImpactChangedError) {
+      return this.response(
+        HttpStatus.CONFLICT,
+        exception.code,
+        '受影响的预约数量已变化，请重新确认后提交',
+      );
+    }
+
+    if (exception instanceof ArtistUnavailablePeriodScheduleConflictError) {
+      return this.response(
+        HttpStatus.CONFLICT,
+        exception.code,
+        '所选时段不在当天可排班时间内，请重新选择',
+      );
+    }
+
+    if (exception instanceof ArtistUnavailablePeriodStateConflictError) {
+      return this.response(
+        HttpStatus.CONFLICT,
+        exception.code,
+        '该临时不可排班记录已被撤销，请查看最新列表',
+      );
+    }
+
+    if (exception instanceof ArtistUnavailablePeriodTargetInvalidError) {
+      return this.response(
+        HttpStatus.CONFLICT,
+        exception.code,
+        '只能为本人或所属场地的化妆师设置临时不可排班',
+      );
     }
 
     if (

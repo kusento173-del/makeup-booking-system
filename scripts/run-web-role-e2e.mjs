@@ -247,6 +247,7 @@ try {
     env: {
       ...process.env,
       WEB_E2E_DATABASE_URL: qaUrl.toString(),
+      WEB_E2E_API_URL: 'http://127.0.0.1:3200',
       WEB_E2E_PASSWORD: password,
       WEB_E2E_WORKER_TOKEN: workerToken,
     },

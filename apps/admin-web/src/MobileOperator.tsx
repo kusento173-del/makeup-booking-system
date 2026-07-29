@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { ApiError } from './api-client';
 import type { SessionTokenPair } from './auth-session';
+import { approvalStatusLabel, FIXED_REQUEST_TYPE_LABELS } from './business-labels';
 import {
   type BookingDuration,
   cancelFixedRule,
@@ -393,10 +394,11 @@ function FixedWorkspace({
               <strong>
                 {request.hostName} · {request.hostCode}
               </strong>
-              <span>{request.status}</span>
+              <span>{approvalStatusLabel(request.status)}</span>
             </div>
             <p className="mobile-meta">
-              {request.requestType} · {request.effectiveFrom} 生效 · {request.reason}
+              {FIXED_REQUEST_TYPE_LABELS[request.requestType]} · {request.effectiveFrom} 生效 ·{' '}
+              {request.reason}
             </p>
             {request.status === 'PENDING' ? (
               <div className="mobile-actions">

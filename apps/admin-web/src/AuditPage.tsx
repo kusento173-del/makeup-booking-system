@@ -3,6 +3,13 @@ import { useEffect, useState } from 'react';
 import { ApiError } from './api-client';
 import type { SessionTokenPair } from './auth-session';
 import { listAuditLogs, type AuditLogItem } from './audit-api';
+import {
+  AUDIT_ACTION_LABELS,
+  auditActionLabel,
+  AUDIT_OBJECT_LABELS,
+  auditObjectLabel,
+  roleLabel,
+} from './business-labels';
 
 interface AuditPageProps {
   readonly onUnauthorized: () => void;
@@ -86,20 +93,26 @@ export function AuditPage({ onUnauthorized, session }: AuditPageProps) {
         }}
       >
         <label className="filter-field">
-          <span>操作代码</span>
-          <input
-            onChange={(event) => setAction(event.target.value.toUpperCase())}
-            placeholder="例如 APPOINTMENT_CREATED"
-            value={action}
-          />
+          <span>操作类型</span>
+          <select onChange={(event) => setAction(event.target.value)} value={action}>
+            <option value="">全部操作</option>
+            {Object.entries(AUDIT_ACTION_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
         </label>
         <label className="filter-field">
-          <span>对象类型</span>
-          <input
-            onChange={(event) => setObjectType(event.target.value.toUpperCase())}
-            placeholder="例如 APPOINTMENT"
-            value={objectType}
-          />
+          <span>业务对象</span>
+          <select onChange={(event) => setObjectType(event.target.value)} value={objectType}>
+            <option value="">全部对象</option>
+            {Object.entries(AUDIT_OBJECT_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
         </label>
         <button className="primary-button" disabled={loading} type="submit">
           查询
@@ -135,12 +148,12 @@ export function AuditPage({ onUnauthorized, session }: AuditPageProps) {
                       <td>{new Date(item.createdAt).toLocaleString('zh-CN')}</td>
                       <td>
                         <strong>{item.actorName}</strong>
-                        <small>{item.actorRole}</small>
+                        <small>{roleLabel(item.actorRole)}</small>
                       </td>
                       <td>{item.siteName ?? '全部场地'}</td>
-                      <td>{item.action}</td>
+                      <td>{auditActionLabel(item.action)}</td>
                       <td>
-                        <strong>{item.objectType}</strong>
+                        <strong>{auditObjectLabel(item.objectType)}</strong>
                         <small>{item.objectId}</small>
                       </td>
                       <td>
