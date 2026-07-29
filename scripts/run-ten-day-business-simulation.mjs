@@ -392,7 +392,7 @@ async function startApi(date) {
       REDIS_URL: redisUrl.toString(),
       SIMULATED_NOW: simulatedNow(date).toISOString(),
     },
-    stdio: ['ignore', 'inherit', 'inherit'],
+    stdio: ['ignore', 'ignore', 'inherit'],
   });
   for (let attempt = 0; attempt < 80; attempt += 1) {
     if (api.exitCode !== null) throw new Error(`Simulation API exited (${api.exitCode})`);
@@ -554,6 +554,7 @@ async function simulateDay(dayIndex, businessDate) {
         reason: '模拟临时改期',
         startMinute: slotMinutes()[22],
       },
+      expected: [201],
       headers: { 'Idempotency-Key': randomUUID() },
       method: 'POST',
       token: bearer,
