@@ -21,6 +21,9 @@ apps/miniapp/minitest/
 !.env.example
 deploy/production.env
 deploy/single-server.env
+deploy/acme-webroot/
+deploy/letsencrypt/
+deploy/tls/
 *.pem
 *.key
 

@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { isIP } from 'node:net';
 import { resolve } from 'node:path';
 import { parseEnv } from 'node:util';
 
@@ -18,7 +19,15 @@ const required = [
 ];
 
 if (deploymentMode === 'single-server') {
-  required.push('POSTGRES_DB', 'POSTGRES_USER', 'POSTGRES_PASSWORD', 'REDIS_PASSWORD');
+  required.push(
+    'GATEWAY_TARGET',
+    'PUBLIC_IP',
+    'CERTBOT_EMAIL',
+    'POSTGRES_DB',
+    'POSTGRES_USER',
+    'POSTGRES_PASSWORD',
+    'REDIS_PASSWORD',
+  );
 } else if (deploymentMode !== 'managed') {
   throw new Error('DEPLOYMENT_MODE must be managed or single-server');
 }
@@ -102,6 +111,15 @@ if (deploymentMode === 'single-server') {
   }
   if (redisUrl.password !== environment.REDIS_PASSWORD) {
     throw new Error('REDIS_URL password must match REDIS_PASSWORD');
+  }
+  if (environment.GATEWAY_TARGET !== 'gateway') {
+    throw new Error('GATEWAY_TARGET must be gateway after the initial HTTP certificate challenge');
+  }
+  if (!isIP(environment.PUBLIC_IP)) {
+    throw new Error('PUBLIC_IP must be a valid public IPv4 or IPv6 address');
+  }
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(environment.CERTBOT_EMAIL)) {
+    throw new Error('CERTBOT_EMAIL must be a valid certificate contact email');
   }
 } else {
   for (const [name, url] of [

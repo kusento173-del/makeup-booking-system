@@ -6,6 +6,9 @@ x-logging: &default-logging
     max-file: '3'
     max-size: 10m
 
+x-build-args: &default-build-args
+  NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmjs.org}
+
 services:
   postgres:
     image: postgres:18.4-alpine3.23
@@ -77,6 +80,7 @@ services:
     build:
       context: .
       target: migrate
+      args: *default-build-args
     env_file:
       - ${SINGLE_SERVER_ENV_FILE:-deploy/single-server.env}
     depends_on:
@@ -93,6 +97,7 @@ services:
     build:
       context: .
       target: api
+      args: *default-build-args
     env_file:
       - ${SINGLE_SERVER_ENV_FILE:-deploy/single-server.env}
     environment:
@@ -131,6 +136,7 @@ services:
     build:
       context: .
       target: worker
+      args: *default-build-args
     env_file:
       - ${SINGLE_SERVER_ENV_FILE:-deploy/single-server.env}
     environment:
@@ -159,16 +165,21 @@ services:
     logging: *default-logging
 
   gateway:
-    image: makeup-booking-gateway-http:${IMAGE_TAG:-latest}
+    image: makeup-booking-gateway-single:${IMAGE_TAG:-latest}
     build:
       context: .
-      target: gateway-http
+      target: ${GATEWAY_TARGET:-gateway}
+      args: *default-build-args
     depends_on:
       api:
         condition: service_healthy
     restart: unless-stopped
     ports:
       - '${HTTP_PORT:-80}:80'
+      - '${HTTPS_PORT:-443}:443'
+    volumes:
+      - ./deploy/acme-webroot:/var/www/certbot:ro
+      - ./deploy/tls:/etc/nginx/certs:ro
     healthcheck:
       test: ['CMD-SHELL', 'wget --quiet --spider http://127.0.0.1/healthz || exit 1']
       interval: 15s

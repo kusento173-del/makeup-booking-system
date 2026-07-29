@@ -1,5 +1,6 @@
 FROM node:24.15.0-bookworm-slim AS build
 
+ARG NPM_REGISTRY=https://registry.npmjs.org
 ENV CI=true
 ENV DATABASE_URL=postgresql://build:build@127.0.0.1:5432/build?schema=public
 ENV PNPM_HOME=/pnpm
@@ -9,8 +10,7 @@ WORKDIR /workspace
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends openssl \
     && rm -rf /var/lib/apt/lists/* \
-    && corepack enable \
-    && corepack prepare pnpm@11.15.1 --activate
+    && npm install --global pnpm@11.15.1 --no-audit --no-fund --registry="$NPM_REGISTRY"
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/admin-web/package.json apps/admin-web/package.json
@@ -21,7 +21,13 @@ COPY packages/database/package.json packages/database/package.json
 COPY .husky/install.mjs .husky/install.mjs
 
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm --config.trust-lockfile=true install --frozen-lockfile \
+    pnpm --config.trust-lockfile=true \
+    --fetch-retries=5 \
+    --fetch-retry-maxtimeout=120000 \
+    --fetch-timeout=300000 \
+    --network-concurrency=8 \
+    --registry="$NPM_REGISTRY" \
+    install --frozen-lockfile \
     --filter . \
     --filter @makeup/api... \
     --filter @makeup/worker... \

@@ -24,6 +24,7 @@
     "data:import:rehearsal": "node scripts/run-source-import-rehearsal.mjs",
     "deploy:check": "node scripts/check-production-environment.mjs",
     "deploy:check:single": "node scripts/check-production-environment.mjs deploy/single-server.env",
+    "deploy:env:single": "node scripts/create-single-server-environment.mjs",
     "dev:admin": "pnpm --parallel --filter @makeup/api --filter @makeup/admin-web --filter @makeup/worker run dev",
     "env:setup": "node scripts/ensure-local-auth-secrets.mjs",
     "e2e": "pnpm build && pnpm e2e:test",
