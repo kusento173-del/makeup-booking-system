@@ -162,6 +162,20 @@ export class ApiExceptionFilter implements ExceptionFilter {
       );
     }
 
+    if (exception instanceof ShiftDefinitionInvalidError) {
+      const messages = {
+        BREAK_PAIR_INCOMPLETE: '休息开始和休息结束必须同时填写',
+        BREAK_TIME_ORDER_INVALID: '休息时间必须完整位于上下班时间内',
+        TIME_OUT_OF_RANGE: '班次时间超出当天可设置范围',
+        TIME_STEP_INVALID: '班次时间必须按 15 分钟设置',
+        WORKDAY_DUPLICATED: '工作日不能重复选择',
+        WORKDAY_INVALID: '工作日设置不正确',
+        WORKDAYS_EMPTY: '请至少选择一个工作日',
+        WORK_TIME_ORDER_INVALID: '下班时间必须晚于上班时间',
+      } as const;
+      return this.response(HttpStatus.BAD_REQUEST, exception.code, messages[exception.reason]);
+    }
+
     if (
       exception instanceof AuthRequestInvalidError ||
       exception instanceof AuditQueryInvalidError ||
@@ -180,7 +194,6 @@ export class ApiExceptionFilter implements ExceptionFilter {
       exception instanceof MasterDataRequestInvalidError ||
       exception instanceof OvertimeRequestInvalidError ||
       exception instanceof ShiftRequestInvalidError ||
-      exception instanceof ShiftDefinitionInvalidError ||
       exception instanceof ShiftChangeReasonInvalidError ||
       exception instanceof LeaveReasonInvalidError ||
       exception instanceof OvertimeReasonInvalidError ||
@@ -242,6 +255,38 @@ export class ApiExceptionFilter implements ExceptionFilter {
       return this.response(HttpStatus.CONFLICT, exception.code, '预约当天 0 点后不能取消');
     }
 
+    if (exception instanceof InitialShiftAlreadyConfiguredError) {
+      return this.response(
+        HttpStatus.CONFLICT,
+        exception.code,
+        '班次已经设置，请刷新页面后提交修改申请',
+      );
+    }
+
+    if (exception instanceof ShiftChangeNoOpError) {
+      return this.response(
+        HttpStatus.CONFLICT,
+        exception.code,
+        '新班次与当前班次相同，无需提交修改申请',
+      );
+    }
+
+    if (exception instanceof ShiftChangePendingExistsError) {
+      return this.response(
+        HttpStatus.CONFLICT,
+        exception.code,
+        '已有待审核的班次修改申请，请等待审核或先撤回原申请',
+      );
+    }
+
+    if (exception instanceof ShiftChangeStateConflictError) {
+      return this.response(
+        HttpStatus.CONFLICT,
+        exception.code,
+        '这条班次申请已被处理，请刷新页面查看最新状态',
+      );
+    }
+
     if (exception instanceof LeaveFixedAppointmentRestoreConflictError) {
       return this.response(
         HttpStatus.CONFLICT,
@@ -274,12 +319,8 @@ export class ApiExceptionFilter implements ExceptionFilter {
       exception instanceof OvertimeShiftNotConfiguredError ||
       exception instanceof OvertimeStateConflictError ||
       exception instanceof OvertimeWorkingDayError ||
-      exception instanceof InitialShiftAlreadyConfiguredError ||
       exception instanceof ShiftArtistUnavailableError ||
       exception instanceof ShiftChangeEffectiveDateError ||
-      exception instanceof ShiftChangeNoOpError ||
-      exception instanceof ShiftChangePendingExistsError ||
-      exception instanceof ShiftChangeStateConflictError ||
       exception instanceof FixedRequestStateConflictError ||
       exception instanceof FixedRequestUnavailableError ||
       exception instanceof ExportIdempotencyConflictError ||

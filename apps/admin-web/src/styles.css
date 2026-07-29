@@ -664,6 +664,28 @@ tbody tr:hover {
   font-weight: 700;
 }
 
+.mobile-detail-list {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0 0;
+}
+
+.mobile-detail-list div {
+  display: grid;
+  grid-template-columns: 86px 1fr;
+  gap: 12px;
+}
+
+.mobile-detail-list dt {
+  color: #647784;
+}
+
+.mobile-detail-list dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+
 .mobile-bottom-nav {
   position: fixed;
   z-index: 20;

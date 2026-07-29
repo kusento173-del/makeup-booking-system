@@ -25,6 +25,8 @@ import { OvertimeNotFoundError, OvertimeWorkingDayError } from './overtime/overt
 import {
   InitialShiftAlreadyConfiguredError,
   ShiftArtistNotFoundError,
+  ShiftChangeNoOpError,
+  ShiftChangePendingExistsError,
   ShiftChangeStateConflictError,
 } from './shift/shift.errors';
 import { ShiftDefinitionInvalidError } from './shift/shift-time';
@@ -121,7 +123,7 @@ describe('ApiExceptionFilter', () => {
 
     expect(invalid.response.status).toHaveBeenCalledWith(400);
     expect(invalid.send).toHaveBeenCalledWith({
-      error: { code: 'SHIFT_DEFINITION_INVALID', message: '请求内容不正确' },
+      error: { code: 'SHIFT_DEFINITION_INVALID', message: '班次时间必须按 15 分钟设置' },
       statusCode: 400,
     });
     expect(missing.response.status).toHaveBeenCalledWith(404);
@@ -131,7 +133,10 @@ describe('ApiExceptionFilter', () => {
     });
     expect(conflict.response.status).toHaveBeenCalledWith(409);
     expect(conflict.send).toHaveBeenCalledWith({
-      error: { code: 'INITIAL_SHIFT_ALREADY_CONFIGURED', message: '数据状态冲突，请刷新后重试' },
+      error: {
+        code: 'INITIAL_SHIFT_ALREADY_CONFIGURED',
+        message: '班次已经设置，请刷新页面后提交修改申请',
+      },
       statusCode: 409,
     });
   });
@@ -143,7 +148,25 @@ describe('ApiExceptionFilter', () => {
 
     expect(response.status).toHaveBeenCalledWith(409);
     expect(send).toHaveBeenCalledWith({
-      error: { code: 'SHIFT_CHANGE_STATE_CONFLICT', message: '数据状态冲突，请刷新后重试' },
+      error: {
+        code: 'SHIFT_CHANGE_STATE_CONFLICT',
+        message: '这条班次申请已被处理，请刷新页面查看最新状态',
+      },
+      statusCode: 409,
+    });
+  });
+
+  it.each([
+    [new ShiftChangeNoOpError(), '新班次与当前班次相同，无需提交修改申请'],
+    [new ShiftChangePendingExistsError(), '已有待审核的班次修改申请，请等待审核或先撤回原申请'],
+  ])('explains how to resolve shift submission conflicts', (error, expectedMessage) => {
+    const { host, response, send } = createHost();
+
+    new ApiExceptionFilter().catch(error, host);
+
+    expect(response.status).toHaveBeenCalledWith(409);
+    expect(send).toHaveBeenCalledWith({
+      error: { code: error.code, message: expectedMessage },
       statusCode: 409,
     });
   });

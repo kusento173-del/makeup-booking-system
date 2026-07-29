@@ -42,6 +42,25 @@ const DEFAULT_SHIFT: ShiftDraft = {
   workdays: [1, 2, 3, 4, 5],
 };
 
+const APPROVAL_STATUS_LABELS = {
+  APPROVED: '已通过',
+  PENDING: '待审核',
+  REJECTED: '已驳回',
+  WITHDRAWN: '已撤回',
+} as const;
+
+function workdayLabels(workdays: readonly number[]): string {
+  return WEEKDAYS.filter((day) => workdays.includes(day.id))
+    .map((day) => day.label)
+    .join('、');
+}
+
+function breakLabel(shift: ShiftDefinition): string {
+  return shift.breakStartMinute === null || shift.breakEndMinute === null
+    ? '无固定休息时段'
+    : `${minuteLabel(shift.breakStartMinute)}—${minuteLabel(shift.breakEndMinute)}`;
+}
+
 function definition(draft: ShiftDraft): ShiftDefinition {
   return {
     breakEndMinute: draft.breakEnd ? timeToMinute(draft.breakEnd) : null,
@@ -223,15 +242,70 @@ function ShiftTool({
           <h1>{current ? '班次与修改申请' : '首次设置班次'}</h1>
         </div>
       </header>
+      {current ? (
+        <article className="mobile-card">
+          <div className="mobile-card-heading">
+            <strong>当前班次</strong>
+            <span>当前生效</span>
+          </div>
+          <dl className="mobile-detail-list">
+            <div>
+              <dt>工作日</dt>
+              <dd>{workdayLabels(current.workdays)}</dd>
+            </div>
+            <div>
+              <dt>上班时间</dt>
+              <dd>
+                {minuteLabel(current.workStartMinute)}—{minuteLabel(current.workEndMinute)}
+              </dd>
+            </div>
+            <div>
+              <dt>休息时间</dt>
+              <dd>{breakLabel(current)}</dd>
+            </div>
+            <div>
+              <dt>开始日期</dt>
+              <dd>{current.validFrom}</dd>
+            </div>
+          </dl>
+        </article>
+      ) : null}
       {latest ? (
         <article className="mobile-card">
           <div className="mobile-card-heading">
             <strong>最近一次修改申请</strong>
-            <span>{latest.status}</span>
+            <span>{APPROVAL_STATUS_LABELS[latest.status]}</span>
           </div>
-          <p className="mobile-meta">
-            {latest.effectiveFrom} 生效 · {latest.reason}
-          </p>
+          <dl className="mobile-detail-list">
+            <div>
+              <dt>工作日</dt>
+              <dd>{workdayLabels(latest.workdays)}</dd>
+            </div>
+            <div>
+              <dt>上班时间</dt>
+              <dd>
+                {minuteLabel(latest.workStartMinute)}—{minuteLabel(latest.workEndMinute)}
+              </dd>
+            </div>
+            <div>
+              <dt>休息时间</dt>
+              <dd>{breakLabel(latest)}</dd>
+            </div>
+            <div>
+              <dt>生效日期</dt>
+              <dd>{latest.effectiveFrom}</dd>
+            </div>
+            <div>
+              <dt>修改原因</dt>
+              <dd>{latest.reason}</dd>
+            </div>
+            {latest.reviewComment ? (
+              <div>
+                <dt>审核说明</dt>
+                <dd>{latest.reviewComment}</dd>
+              </div>
+            ) : null}
+          </dl>
           {latest.status === 'PENDING' ? (
             <div className="mobile-actions">
               <button onClick={() => void withdraw()} type="button">
@@ -377,7 +451,7 @@ function OvertimeTool({
           <article className="mobile-card" key={item.id}>
             <div className="mobile-card-heading">
               <strong>{item.overtimeDate}</strong>
-              <span>{item.status}</span>
+              <span>{APPROVAL_STATUS_LABELS[item.status]}</span>
             </div>
             <p className="mobile-meta">
               {minuteLabel(item.workStartMinute)}—{minuteLabel(item.workEndMinute)} · {item.reason}
