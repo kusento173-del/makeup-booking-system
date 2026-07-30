@@ -1,13 +1,19 @@
 FROM node:24.15.0-bookworm-slim AS build
 
 ARG NPM_REGISTRY=https://registry.npmjs.org
+ARG DEBIAN_MIRROR=http://deb.debian.org/debian
+ARG DEBIAN_SECURITY_MIRROR=http://deb.debian.org/debian-security
 ENV CI=true
 ENV DATABASE_URL=postgresql://build:build@127.0.0.1:5432/build?schema=public
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 WORKDIR /workspace
 
-RUN apt-get update \
+RUN sed -i \
+    -e "s#http://deb.debian.org/debian-security#${DEBIAN_SECURITY_MIRROR}#g" \
+    -e "s#http://deb.debian.org/debian#${DEBIAN_MIRROR}#g" \
+    /etc/apt/sources.list.d/debian.sources \
+    && apt-get update \
     && apt-get install --yes --no-install-recommends openssl \
     && rm -rf /var/lib/apt/lists/* \
     && npm install --global pnpm@11.15.1 --no-audit --no-fund --registry="$NPM_REGISTRY"
@@ -42,10 +48,16 @@ RUN pnpm db:client \
 
 FROM node:24.15.0-bookworm-slim AS api
 
+ARG DEBIAN_MIRROR=http://deb.debian.org/debian
+ARG DEBIAN_SECURITY_MIRROR=http://deb.debian.org/debian-security
 ENV NODE_ENV=production
 WORKDIR /workspace
 
-RUN apt-get update \
+RUN sed -i \
+    -e "s#http://deb.debian.org/debian-security#${DEBIAN_SECURITY_MIRROR}#g" \
+    -e "s#http://deb.debian.org/debian#${DEBIAN_MIRROR}#g" \
+    /etc/apt/sources.list.d/debian.sources \
+    && apt-get update \
     && apt-get install --yes --no-install-recommends openssl \
     && rm -rf /var/lib/apt/lists/*
 

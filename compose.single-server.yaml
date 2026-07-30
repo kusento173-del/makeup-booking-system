@@ -8,6 +8,8 @@ x-logging: &default-logging
 
 x-build-args: &default-build-args
   NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmjs.org}
+  DEBIAN_MIRROR: ${DEBIAN_MIRROR:-http://deb.debian.org/debian}
+  DEBIAN_SECURITY_MIRROR: ${DEBIAN_SECURITY_MIRROR:-http://deb.debian.org/debian-security}
 
 services:
   postgres:
