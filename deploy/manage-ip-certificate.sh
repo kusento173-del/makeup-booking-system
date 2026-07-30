@@ -60,6 +60,17 @@ test -f "$live_dir/fullchain.pem" && test -f "$live_dir/privkey.pem" || {
   exit 1
 }
 
+certificate_changed=false
+if ! cmp -s "$live_dir/fullchain.pem" "$tls_dir/fullchain.pem" ||
+  ! cmp -s "$live_dir/privkey.pem" "$tls_dir/privkey.pem"; then
+  certificate_changed=true
+fi
+
+if [ "$certificate_changed" = false ]; then
+  echo "Certificate is unchanged; gateway reload skipped for $PUBLIC_IP"
+  exit 0
+fi
+
 cp -L "$live_dir/fullchain.pem" "$tls_dir/fullchain.pem"
 cp -L "$live_dir/privkey.pem" "$tls_dir/privkey.pem"
 chmod 600 "$tls_dir/privkey.pem"
