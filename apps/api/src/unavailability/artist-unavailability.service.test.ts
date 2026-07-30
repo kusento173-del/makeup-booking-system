@@ -33,6 +33,16 @@ const range = {
   startMinute: 840,
   unavailableDate,
 };
+const affectedAppointment = (id: string) => ({
+  appointmentDate: unavailableDate,
+  appointmentType: 'SINGLE',
+  endAt: new Date('2026-07-25T07:00:00.000Z'),
+  hostCodeSnapshot: '000001',
+  hostId: 'host-1',
+  hostNameSnapshot: '主播一',
+  id,
+  startAt: new Date('2026-07-25T06:30:00.000Z'),
+});
 const storedPeriod = {
   affectedAppointmentCount: 1,
   artistId: artist.id,
@@ -40,9 +50,10 @@ const storedPeriod = {
   id: 'period-1',
   reason: '上课',
   rowVersion: 1,
+  reviewComment: null,
   siteId: artist.siteId,
   startMinute: 840,
-  status: 'ACTIVE',
+  status: 'PENDING',
   unavailableDate,
 };
 
@@ -79,14 +90,19 @@ function createService(
 
 describe('ArtistUnavailabilityService', () => {
   it('previews affected appointments for the bound artist', async () => {
-    const count = vi.fn().mockResolvedValue(2);
+    const findMany = vi
+      .fn()
+      .mockResolvedValue([
+        affectedAppointment('appointment-1'),
+        affectedAppointment('appointment-2'),
+      ]);
     const client = {
-      appointment: { count },
+      appointment: { findMany },
       artistProfile: { findUnique: vi.fn().mockResolvedValue(artist) },
     };
     const { service } = createService(client);
 
-    await expect(service.preview(context, range, now)).resolves.toEqual({
+    await expect(service.preview(context, range, now)).resolves.toMatchObject({
       affectedAppointmentCount: 2,
       artistId: artist.id,
       endMinute: 900,
@@ -94,15 +110,15 @@ describe('ArtistUnavailabilityService', () => {
       startMinute: 840,
       unavailableDate: '2026-07-25',
     });
-    const countCall: unknown = count.mock.calls[0]?.[0];
-    expect(countCall).toMatchObject({
+    const findCall: unknown = findMany.mock.calls[0]?.[0];
+    expect(findCall).toMatchObject({
       where: { artistId: artist.id, status: 'BOOKED' },
     });
   });
 
   it('rejects a period outside the effective available intervals', async () => {
     const client = {
-      appointment: { count: vi.fn() },
+      appointment: { findMany: vi.fn() },
       artistProfile: { findUnique: vi.fn().mockResolvedValue(artist) },
     };
     const { service } = createService(client, [{ endMinute: 840, startMinute: 780 }]);
@@ -110,14 +126,17 @@ describe('ArtistUnavailabilityService', () => {
     await expect(service.preview(context, range, now)).rejects.toBeInstanceOf(
       ArtistUnavailablePeriodScheduleConflictError,
     );
-    expect(client.appointment.count).not.toHaveBeenCalled();
+    expect(client.appointment.findMany).not.toHaveBeenCalled();
   });
 
-  it('creates the period and cancels only overlapping booked appointments atomically', async () => {
+  it('submits an artist period for approval without cancelling appointments', async () => {
     const updateMany = vi.fn().mockResolvedValue({ count: 1 });
     const client = {
       $queryRaw: vi.fn().mockResolvedValue([{ acquired: 1 }]),
-      appointment: { count: vi.fn().mockResolvedValue(1), updateMany },
+      appointment: {
+        findMany: vi.fn().mockResolvedValue([affectedAppointment('appointment-1')]),
+        updateMany,
+      },
       artistProfile: { findUnique: vi.fn().mockResolvedValue(artist) },
       artistUnavailablePeriod: { create: vi.fn().mockResolvedValue(storedPeriod) },
     };
@@ -134,26 +153,26 @@ describe('ArtistUnavailabilityService', () => {
         now,
       ),
     ).resolves.toMatchObject({ id: 'period-1', reason: '上课' });
-    const updateCall: unknown = updateMany.mock.calls[0]?.[0];
-    expect(updateCall).toMatchObject({
-      data: {
-        cancellationReasonCode: 'ARTIST_UNAVAILABLE_PERIOD',
-        cancellationSourceId: 'period-1',
-        status: 'CANCELLED',
-      },
-      where: { artistId: artist.id, status: 'BOOKED' },
-    });
+    expect(updateMany).not.toHaveBeenCalled();
     expect(append).toHaveBeenCalledWith(
       client,
       context,
-      expect.objectContaining({ action: 'ARTIST_UNAVAILABLE_PERIOD_CREATED' }),
+      expect.objectContaining({ action: 'ARTIST_UNAVAILABLE_PERIOD_SUBMITTED' }),
     );
   });
 
   it('requires reconfirmation when the affected appointment count changes', async () => {
     const client = {
       $queryRaw: vi.fn().mockResolvedValue([{ acquired: 1 }]),
-      appointment: { count: vi.fn().mockResolvedValue(2), updateMany: vi.fn() },
+      appointment: {
+        findMany: vi
+          .fn()
+          .mockResolvedValue([
+            affectedAppointment('appointment-1'),
+            affectedAppointment('appointment-2'),
+          ]),
+        updateMany: vi.fn(),
+      },
       artistProfile: { findUnique: vi.fn().mockResolvedValue(artist) },
       artistUnavailablePeriod: { create: vi.fn() },
     };
@@ -167,6 +186,98 @@ describe('ArtistUnavailabilityService', () => {
       ),
     ).rejects.toBeInstanceOf(ArtistUnavailablePeriodImpactChangedError);
     expect(client.artistUnavailablePeriod.create).not.toHaveBeenCalled();
+  });
+
+  it('approves a temporary period and records affected appointments as artist leave', async () => {
+    const appointmentUpdate = vi.fn().mockResolvedValue({ count: 1 });
+    const periodUpdate = vi.fn().mockResolvedValue({ count: 1 });
+    const client = {
+      $queryRaw: vi.fn().mockResolvedValue([{ acquired: 1 }]),
+      appointment: {
+        findMany: vi.fn().mockResolvedValue([affectedAppointment('appointment-1')]),
+        updateMany: appointmentUpdate,
+      },
+      artistUnavailablePeriod: {
+        findUnique: vi.fn().mockResolvedValue(storedPeriod),
+        updateMany: periodUpdate,
+      },
+    };
+    const { service } = createService(client);
+    const customerService = {
+      ...context,
+      actorName: '松江客服',
+      roleCode: 'CUSTOMER_SERVICE',
+      siteId: artist.siteId,
+      userId: 'user-service',
+    } as const;
+
+    await expect(
+      service.review(
+        customerService,
+        {
+          confirmedAffectedAppointmentCount: 1,
+          decision: 'APPROVE',
+          expectedRowVersion: 1,
+          periodId: 'period-1',
+        },
+        now,
+      ),
+    ).resolves.toMatchObject({ status: 'ACTIVE' });
+    const periodUpdateCall: unknown = periodUpdate.mock.calls[0]?.[0];
+    expect(periodUpdateCall).toMatchObject({
+      data: { status: 'ACTIVE' },
+      where: { id: 'period-1', rowVersion: 1, status: 'PENDING' },
+    });
+    const appointmentUpdateCall: unknown = appointmentUpdate.mock.calls[0]?.[0];
+    expect(appointmentUpdateCall).toMatchObject({
+      data: {
+        cancellationReasonCode: 'ARTIST_LEAVE',
+        cancellationSourceId: 'period-1',
+        status: 'CANCELLED',
+      },
+    });
+  });
+
+  it('lists pending periods with the current affected appointments', async () => {
+    const client = {
+      appointment: {
+        findMany: vi
+          .fn()
+          .mockResolvedValue([
+            affectedAppointment('appointment-1'),
+            affectedAppointment('appointment-2'),
+          ]),
+      },
+      artistUnavailablePeriod: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            ...storedPeriod,
+            affectedAppointmentCount: 1,
+            artist: { nickname: '柔柔' },
+            createdAt: now,
+          },
+        ]),
+      },
+    };
+    const { service } = createService(client);
+
+    await expect(
+      service.listPending(
+        {
+          ...context,
+          actorName: '松江客服',
+          roleCode: 'CUSTOMER_SERVICE',
+          siteId: artist.siteId,
+          userId: 'user-service',
+        },
+        now,
+      ),
+    ).resolves.toMatchObject([
+      {
+        affectedAppointmentCount: 2,
+        affectedAppointments: [{ id: 'appointment-1' }, { id: 'appointment-2' }],
+      },
+    ]);
   });
 
   it('cancels an active period without restoring appointments', async () => {
@@ -191,7 +302,11 @@ describe('ArtistUnavailabilityService', () => {
     const updateCall: unknown = updateMany.mock.calls[0]?.[0];
     expect(updateCall).toMatchObject({
       data: { rowVersion: { increment: 1 }, status: 'CANCELLED' },
-      where: { id: 'period-1', rowVersion: 1, status: 'ACTIVE' },
+      where: {
+        id: 'period-1',
+        rowVersion: 1,
+        status: { in: ['ACTIVE', 'PENDING'] },
+      },
     });
     expect(append).toHaveBeenCalledWith(
       client,

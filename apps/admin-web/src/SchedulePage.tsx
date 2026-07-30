@@ -70,7 +70,7 @@ export function SchedulePage({ onUnauthorized, session }: SchedulePageProps) {
   const [artistId, setArtistId] = useState('');
   const [query, setQuery] = useState('');
   const [appointmentType, setAppointmentType] = useState<'ALL' | 'FIXED' | 'SINGLE'>('ALL');
-  const [status, setStatus] = useState<'ALL' | 'BOOKED' | 'COMPLETED'>('ALL');
+  const [status, setStatus] = useState<'ALL' | 'BOOKED' | 'CANCELLED' | 'COMPLETED'>('ALL');
   const [selected, setSelected] = useState<{
     readonly appointment: ScheduleAppointment;
     readonly artist: ScheduleArtist;
@@ -262,12 +262,15 @@ export function SchedulePage({ onUnauthorized, session }: SchedulePageProps) {
         <label>
           <span>状态</span>
           <select
-            onChange={(event) => setStatus(event.target.value as 'ALL' | 'BOOKED' | 'COMPLETED')}
+            onChange={(event) =>
+              setStatus(event.target.value as 'ALL' | 'BOOKED' | 'CANCELLED' | 'COMPLETED')
+            }
             value={status}
           >
             <option value="ALL">全部</option>
             <option value="BOOKED">已预约</option>
             <option value="COMPLETED">已完成</option>
+            <option value="CANCELLED">已取消</option>
           </select>
         </label>
         <button
@@ -368,7 +371,7 @@ export function SchedulePage({ onUnauthorized, session }: SchedulePageProps) {
                   ) : (
                     artist.appointments.map((appointment) => (
                       <button
-                        className={`appointment-card ${appointment.appointmentType.toLowerCase()}${appointment.status === 'COMPLETED' ? ' completed' : ''}`}
+                        className={`appointment-card ${appointment.appointmentType.toLowerCase()}${appointment.status === 'COMPLETED' ? ' completed' : ''}${appointment.status === 'CANCELLED' ? ' cancelled' : ''}`}
                         key={appointment.id}
                         onClick={() => setSelected({ appointment, artist })}
                         type="button"
@@ -386,6 +389,9 @@ export function SchedulePage({ onUnauthorized, session }: SchedulePageProps) {
                         </div>
                         <div className="appointment-meta">
                           <span>{makeupTypeLabel(appointment.durationMinutes)}</span>
+                          {appointment.status === 'CANCELLED' ? (
+                            <span>{appointment.cancellationReason || '主播取消'}</span>
+                          ) : null}
                           {appointment.dailySequence === 2 ? <span>第2次</span> : null}
                           {appointment.operatorName ? (
                             <span>运营 {appointment.operatorName}</span>

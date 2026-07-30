@@ -13,6 +13,8 @@ export interface AppointmentListItem {
   readonly appointmentType: 'FIXED' | 'SINGLE';
   readonly artistId: string;
   readonly artistNickname: string;
+  readonly cancellationReason: '主播取消' | '主播请假' | '化妆师请假' | null;
+  readonly cancellationReasonText: string | null;
   readonly dailySequence: 1 | 2;
   readonly date: string;
   readonly durationMinutes: number;

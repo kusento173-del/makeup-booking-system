@@ -9,6 +9,7 @@ DECLARE
     operator_id UUID;
     host_leave_id UUID;
     artist_leave_id UUID;
+    artist_pending_leave_id UUID;
     overtime_id UUID;
     fixed_request_id UUID;
     fixed_rule_id UUID;
@@ -54,6 +55,40 @@ BEGIN
         RAISE EXCEPTION 'Eight-day leave was accepted';
     EXCEPTION WHEN check_violation THEN NULL;
     END;
+
+    INSERT INTO "leave_records" (
+        "subject_type", "artist_id", "start_date", "end_date", "status", "created_by_user_id"
+    ) VALUES (
+        'ARTIST', artist_id, DATE '2026-08-06', DATE '2026-08-06', 'PENDING', user_id
+    ) RETURNING "id" INTO artist_pending_leave_id;
+
+    BEGIN
+        INSERT INTO "leave_records" (
+            "subject_type", "artist_id", "start_date", "end_date", "created_by_user_id"
+        ) VALUES ('ARTIST', artist_id, DATE '2026-08-06', DATE '2026-08-06', user_id);
+        RAISE EXCEPTION 'Leave overlapping a pending artist leave was accepted';
+    EXCEPTION WHEN exclusion_violation THEN NULL;
+    END;
+
+    BEGIN
+        UPDATE "leave_records"
+        SET "status" = 'REJECTED'
+        WHERE "id" = artist_pending_leave_id;
+        RAISE EXCEPTION 'Rejected leave without reviewer was accepted';
+    EXCEPTION WHEN check_violation THEN NULL;
+    END;
+
+    UPDATE "leave_records"
+    SET
+        "status" = 'REJECTED',
+        "reviewed_by_user_id" = user_id,
+        "reviewed_at" = CURRENT_TIMESTAMP,
+        "review_comment" = 'Not approved'
+    WHERE "id" = artist_pending_leave_id;
+
+    INSERT INTO "leave_records" (
+        "subject_type", "artist_id", "start_date", "end_date", "created_by_user_id"
+    ) VALUES ('ARTIST', artist_id, DATE '2026-08-06', DATE '2026-08-06', user_id);
 
     BEGIN
         UPDATE "leave_records" SET "status" = 'CANCELLED' WHERE "id" = host_leave_id;

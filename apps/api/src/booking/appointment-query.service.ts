@@ -6,6 +6,7 @@ import type { VerifiedAuthorizationContext } from '../auth/authorization.types';
 import { DatabaseService } from '../database/database.service';
 import { formatDateOnly } from '../shift/business-date';
 import { BookingStateConflictError } from './booking-create.errors';
+import { cancellationReasonLabel } from './cancellation-reason';
 import type {
   AppointmentDisplayStatus,
   AppointmentListInput,
@@ -18,6 +19,8 @@ const LIST_SELECT = {
   appointmentType: true,
   artistId: true,
   artistNicknameSnapshot: true,
+  cancellationReasonCode: true,
+  cancellationReasonText: true,
   dailySequence: true,
   durationMinutes: true,
   endAt: true,
@@ -155,6 +158,12 @@ export class AppointmentQueryService {
       appointmentType: appointment.appointmentType as AppointmentListItem['appointmentType'],
       artistId: appointment.artistId,
       artistNickname: appointment.artistNicknameSnapshot,
+      cancellationReason:
+        appointment.status === 'CANCELLED'
+          ? cancellationReasonLabel(appointment.cancellationReasonCode)
+          : null,
+      cancellationReasonText:
+        appointment.status === 'CANCELLED' ? appointment.cancellationReasonText : null,
       dailySequence: appointment.dailySequence,
       date: formatDateOnly(appointment.appointmentDate),
       durationMinutes: appointment.durationMinutes,

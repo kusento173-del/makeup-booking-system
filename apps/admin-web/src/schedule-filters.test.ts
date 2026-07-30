@@ -8,6 +8,8 @@ const artists = [
     appointments: [
       {
         appointmentType: 'FIXED',
+        cancellationReason: null,
+        cancellationReasonText: null,
         dailySequence: 1,
         durationMinutes: 30,
         endAt: '2026-07-23T02:00:00.000Z',
@@ -25,6 +27,8 @@ const artists = [
       },
       {
         appointmentType: 'SINGLE',
+        cancellationReason: null,
+        cancellationReasonText: null,
         dailySequence: 2,
         durationMinutes: 45,
         endAt: '2026-07-23T03:00:00.000Z',

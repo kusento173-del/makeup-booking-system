@@ -700,6 +700,12 @@ export class BookingRescheduleResultDto {
 }
 
 export class AppointmentListItemDto extends AppointmentSummaryDto {
+  @ApiProperty({ enum: ['主播取消', '主播请假', '化妆师请假'], nullable: true })
+  cancellationReason!: string | null;
+
+  @ApiProperty({ maxLength: 500, nullable: true })
+  cancellationReasonText!: string | null;
+
   @ApiProperty({ format: 'uuid', nullable: true })
   rescheduledFromAppointmentId!: string | null;
 }

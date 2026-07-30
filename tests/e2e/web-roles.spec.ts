@@ -95,6 +95,22 @@ test.describe.serial('统一网页五角色完整业务验收', () => {
     await adminPage.close();
   });
 
+  test('管理员可以建立主播—运营关系', async ({ browser }) => {
+    const adminPage = await newBackofficePage(browser);
+    await login(adminPage, accounts.admin);
+    await adminPage.getByRole('button', { name: '主播—运营关系' }).click();
+    await adminPage.getByRole('button', { name: '新增' }).click();
+    await adminPage
+      .getByLabel('主播', { exact: true })
+      .selectOption({ label: '全量测试现厂主播｜QA000002' });
+    await adminPage.getByLabel('运营', { exact: true }).selectOption({ label: '全量测试现厂运营' });
+    await adminPage.getByLabel('变更说明（可不填）').fill('验证主播运营关系接口');
+    await adminPage.getByRole('button', { name: '建立关系' }).click();
+    const relation = adminPage.getByRole('row').filter({ hasText: 'QA000002' });
+    await expect(relation).toContainText('全量测试现厂运营');
+    await adminPage.close();
+  });
+
   test('主播创建单次预约，运营提交固定申请，客服审批并生成排班', async ({ browser, request }) => {
     const hostPage = await browser.newPage();
     await login(hostPage, accounts.host);
@@ -147,42 +163,93 @@ test.describe.serial('统一网页五角色完整业务验收', () => {
     await expect(generation.json()).resolves.toMatchObject({ generated: 6 });
   });
 
-  test('化妆师请假取消后只恢复固定预约，并可设置和取消局部不可排', async ({ page }) => {
-    await login(page, accounts.artist);
-    await page.getByRole('button', { name: /我的排班 今日/ }).click();
-    await page.getByRole('button', { name: '明日', exact: true }).click();
-    await expect(page.getByRole('article').filter({ hasText: '单次预约' })).toContainText('已预约');
-    await expect(page.getByRole('article').filter({ hasText: '固定预约' })).toContainText('已预约');
+  test('化妆师请假需客服审核并展示受影响预约，取消后只恢复固定预约', async ({ browser }) => {
+    const artistPage = await browser.newPage();
+    await login(artistPage, accounts.artist);
+    await artistPage.getByRole('button', { name: /我的排班 今日/ }).click();
+    await artistPage.getByRole('button', { name: '明日', exact: true }).click();
+    await expect(artistPage.getByRole('article').filter({ hasText: '单次预约' })).toContainText(
+      '已预约',
+    );
+    await expect(artistPage.getByRole('article').filter({ hasText: '固定预约' })).toContainText(
+      '已预约',
+    );
 
-    await page.getByRole('button', { name: '返回' }).click();
-    await page.getByRole('button', { name: /请假 申请/ }).click();
-    await page.getByLabel('原因（选填）').fill('全量验收请假');
-    acceptNextDialog(page);
-    await page.getByRole('button', { name: '提交请假' }).click();
-    const leave = page.getByRole('article').filter({ hasText: '全量验收请假' });
-    await expect(leave).toContainText('生效中');
-    acceptNextDialog(page);
-    await leave.getByRole('button', { name: '取消请假' }).click();
-    await expect(leave).toHaveCount(0);
+    await artistPage.getByRole('button', { name: '返回' }).click();
+    await artistPage.getByRole('button', { name: /请假 申请/ }).click();
+    await artistPage.getByLabel('原因（选填）').fill('全量验收请假');
+    acceptNextDialog(artistPage);
+    await artistPage.getByRole('button', { name: '提交请假' }).click();
+    const leave = artistPage.getByRole('article').filter({ hasText: '全量验收请假' });
+    await expect(leave).toContainText('待审核');
 
-    await page.getByRole('button', { name: '返回' }).click();
-    await page.getByRole('button', { name: /我的排班 今日/ }).click();
-    await page.getByRole('button', { name: '明日', exact: true }).click();
-    await expect(page.getByRole('article').filter({ hasText: '单次预约' })).toContainText('已取消');
-    await expect(page.getByRole('article').filter({ hasText: '固定预约' })).toContainText('已预约');
+    const customerServicePage = await newBackofficePage(browser);
+    await login(customerServicePage, accounts.customerService);
+    await customerServicePage.getByRole('button', { name: '请假审批' }).click();
+    const leaveApproval = customerServicePage
+      .getByRole('article')
+      .filter({ hasText: '全量验收请假' });
+    await expect(leaveApproval).toContainText('影响 2 条预约');
+    await expect(leaveApproval).toContainText('全量测试主播（QA000001）');
+    await expect(leaveApproval).toContainText('固定预约');
+    await expect(leaveApproval).toContainText('单次预约');
+    acceptNextDialog(customerServicePage);
+    await leaveApproval.getByRole('button', { name: '通过' }).click();
+    await expect(customerServicePage.getByText('当前没有待审核的化妆师请假')).toBeVisible();
+    await customerServicePage.close();
 
-    await page.getByRole('button', { name: '返回' }).click();
-    await page.getByRole('button', { name: /临时不可排班 设置/ }).click();
-    await page.getByLabel('开始').fill('11:00');
-    await page.getByLabel('结束').fill('11:30');
-    await page.getByLabel('原因').fill('全量验收临时上课');
-    acceptNextDialog(page);
-    await page.getByRole('button', { name: '确认设置' }).click();
-    const unavailable = page.getByRole('article').filter({ hasText: '全量验收临时上课' });
-    await expect(unavailable).toContainText('生效中');
-    acceptNextDialog(page);
-    await unavailable.getByRole('button', { name: '取消设置' }).click();
-    await expect(unavailable).toHaveCount(0);
+    await artistPage.reload();
+    await artistPage.getByRole('button', { name: /请假 申请/ }).click();
+    const approvedLeave = artistPage.getByRole('article').filter({ hasText: '全量验收请假' });
+    await expect(approvedLeave).toContainText('已生效');
+    acceptNextDialog(artistPage);
+    await approvedLeave.getByRole('button', { name: '取消请假' }).click();
+    await expect(approvedLeave).toContainText('已取消');
+
+    await artistPage.getByRole('button', { name: '返回' }).click();
+    await artistPage.getByRole('button', { name: /我的排班 今日/ }).click();
+    await artistPage.getByRole('button', { name: '明日', exact: true }).click();
+    await expect(artistPage.getByRole('article').filter({ hasText: '单次预约' })).toContainText(
+      '已取消',
+    );
+    await expect(artistPage.getByRole('article').filter({ hasText: '固定预约' })).toContainText(
+      '已预约',
+    );
+    await artistPage.close();
+  });
+
+  test('化妆师临时不可排班按请假审批，客服通过后才生效', async ({ browser }) => {
+    const artistPage = await browser.newPage();
+    await login(artistPage, accounts.artist);
+    await artistPage.getByRole('button', { name: /临时不可排班 设置/ }).click();
+    await artistPage.getByLabel('开始').fill('11:00');
+    await artistPage.getByLabel('结束').fill('11:30');
+    await artistPage.getByLabel('原因').fill('全量验收临时上课');
+    acceptNextDialog(artistPage);
+    await artistPage.getByRole('button', { name: '提交审核' }).click();
+    const unavailable = artistPage.getByRole('article').filter({ hasText: '全量验收临时上课' });
+    await expect(unavailable).toContainText('待审核');
+
+    const customerServicePage = await newBackofficePage(browser);
+    await login(customerServicePage, accounts.customerService);
+    await customerServicePage.getByRole('button', { name: '请假审批' }).click();
+    const approval = customerServicePage
+      .getByRole('article')
+      .filter({ hasText: '全量验收临时上课' });
+    await expect(approval).toContainText('临时不可排班');
+    await expect(approval).toContainText('影响 0 条预约');
+    acceptNextDialog(customerServicePage);
+    await approval.getByRole('button', { name: '通过' }).click();
+    await expect(customerServicePage.getByText('当前没有待审核的化妆师请假')).toBeVisible();
+    await customerServicePage.close();
+
+    await artistPage.reload();
+    await artistPage.getByRole('button', { name: /临时不可排班 设置/ }).click();
+    const approved = artistPage.getByRole('article').filter({ hasText: '全量验收临时上课' });
+    await expect(approved).toContainText('已生效');
+    await approved.getByRole('button', { name: '取消设置' }).click();
+    await expect(approved).toContainText('已取消');
+    await artistPage.close();
   });
 
   test('化妆师提交班次和加班申请，所属场地客服审批', async ({ browser }) => {

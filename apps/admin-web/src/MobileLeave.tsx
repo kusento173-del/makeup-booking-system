@@ -5,6 +5,13 @@ import type { SessionTokenPair } from './auth-session';
 import { cancelLeave, createLeave, listLeaves, type LeaveRecord, previewLeave } from './mobile-api';
 import { businessDate } from './mobile-utils';
 
+const STATUS_LABEL = {
+  ACTIVE: '已生效',
+  CANCELLED: '已取消',
+  PENDING: '待审核',
+  REJECTED: '已驳回',
+} as const;
+
 export function MobileLeave({ session }: { readonly session: SessionTokenPair }) {
   const [items, setItems] = useState<readonly LeaveRecord[]>([]);
   const [startDate, setStartDate] = useState(businessDate(1));
@@ -35,7 +42,9 @@ export function MobileLeave({ session }: { readonly session: SessionTokenPair })
       const preview = await previewLeave(session.accessToken, startDate, endDate);
       if (
         !window.confirm(
-          `确认请假 ${startDate} 至 ${endDate}？\n将取消 ${preview.affectedAppointmentCount} 条预约。`,
+          session.role.roleCode === 'ARTIST'
+            ? `确认提交 ${startDate} 至 ${endDate} 的请假申请？\n审核通过后将取消 ${preview.affectedAppointmentCount} 条预约。`
+            : `确认请假 ${startDate} 至 ${endDate}？\n将取消 ${preview.affectedAppointmentCount} 条预约。`,
         )
       ) {
         setBusy(false);
@@ -121,12 +130,15 @@ export function MobileLeave({ session }: { readonly session: SessionTokenPair })
               <strong>
                 {item.startDate} 至 {item.endDate}
               </strong>
-              <span>{item.status === 'ACTIVE' ? '生效中' : '已取消'}</span>
+              <span>{STATUS_LABEL[item.status]}</span>
             </div>
             <p className="mobile-meta">
               影响预约 {item.affectedAppointmentCount} 条 · {item.reason || '未填写原因'}
             </p>
-            {item.status === 'ACTIVE' ? (
+            {item.reviewComment ? (
+              <p className="mobile-meta">审核说明：{item.reviewComment}</p>
+            ) : null}
+            {item.status === 'ACTIVE' || item.status === 'PENDING' ? (
               <div className="mobile-actions">
                 <button className="danger-text" onClick={() => void cancel(item)} type="button">
                   取消请假

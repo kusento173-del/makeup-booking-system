@@ -1,4 +1,5 @@
 import type { VerifiedAuthorizationContext } from '../auth/authorization.types';
+import type { AffectedAppointmentSummary } from '../absence/affected-appointment';
 
 export interface ArtistUnavailabilityCommandContext extends VerifiedAuthorizationContext {
   readonly actorName: string;
@@ -32,6 +33,7 @@ export interface ArtistUnavailablePeriodTarget {
 
 export interface ArtistUnavailablePeriodPreview {
   readonly affectedAppointmentCount: number;
+  readonly affectedAppointments: readonly AffectedAppointmentSummary[];
   readonly artistId: string;
   readonly endMinute: number;
   readonly siteId: string;
@@ -43,5 +45,19 @@ export interface ArtistUnavailablePeriodSummary extends ArtistUnavailablePeriodP
   readonly id: string;
   readonly reason: string;
   readonly rowVersion: number;
-  readonly status: 'ACTIVE' | 'CANCELLED';
+  readonly reviewComment: string | null;
+  readonly status: 'ACTIVE' | 'CANCELLED' | 'PENDING' | 'REJECTED';
+}
+
+export interface ArtistUnavailablePeriodApprovalItem extends ArtistUnavailablePeriodSummary {
+  readonly artistNickname: string;
+  readonly submittedAt: string;
+}
+
+export interface ReviewArtistUnavailablePeriodCommand {
+  readonly comment?: string;
+  readonly confirmedAffectedAppointmentCount: number;
+  readonly decision: 'APPROVE' | 'REJECT';
+  readonly expectedRowVersion: number;
+  readonly periodId: string;
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import { AuditPage } from './AuditPage';
+import { AbsenceApprovalPage } from './AbsenceApprovalPage';
 import type { SessionTokenPair } from './auth-session';
 import { BackofficeNavigation, type BackofficeView } from './BackofficeNavigation';
 import { ExportPage } from './ExportPage';
@@ -52,6 +53,8 @@ export function DashboardShell({ busy, onLogout, onUnauthorized, session }: Dash
           <ShiftApprovalPage onUnauthorized={onUnauthorized} session={session} />
         ) : view === 'overtime-approvals' ? (
           <OvertimeApprovalPage onUnauthorized={onUnauthorized} session={session} />
+        ) : view === 'leave-approvals' ? (
+          <AbsenceApprovalPage onUnauthorized={onUnauthorized} session={session} />
         ) : view === 'fixed-approvals' ? (
           <FixedRequestApprovalPage onUnauthorized={onUnauthorized} session={session} />
         ) : view === 'fixed-rules' ? (

@@ -4,6 +4,11 @@ import { Injectable } from '@nestjs/common';
 import { ArtistAvailabilityService } from '../availability/artist-availability.service';
 import { AuditCommandService } from '../audit/audit-command.service';
 import {
+  findAffectedAppointments,
+  toAffectedAppointment,
+  type AffectedAppointmentRecord,
+} from '../absence/affected-appointment';
+import {
   AuthorizationDeniedError,
   AuthorizationPolicyService,
 } from '../auth/authorization-policy.service';
@@ -25,12 +30,14 @@ import {
 } from './artist-unavailability.errors';
 import type {
   ArtistUnavailablePeriodPreview,
+  ArtistUnavailablePeriodApprovalItem,
   ArtistUnavailablePeriodRange,
   ArtistUnavailablePeriodSummary,
   ArtistUnavailablePeriodTarget,
   ArtistUnavailabilityCommandContext,
   CancelArtistUnavailablePeriodCommand,
   CreateArtistUnavailablePeriodCommand,
+  ReviewArtistUnavailablePeriodCommand,
 } from './artist-unavailability.types';
 
 interface ArtistSubject {
@@ -38,6 +45,20 @@ interface ArtistSubject {
   readonly siteId: string;
   readonly userId: string | null;
 }
+
+const PERIOD_SELECT = {
+  affectedAppointmentCount: true,
+  artistId: true,
+  endMinute: true,
+  id: true,
+  reason: true,
+  reviewComment: true,
+  rowVersion: true,
+  siteId: true,
+  startMinute: true,
+  status: true,
+  unavailableDate: true,
+} satisfies Prisma.ArtistUnavailablePeriodSelect;
 
 function reason(value: string | undefined, required: boolean): string | undefined {
   const normalized = value?.normalize('NFKC').trim();
@@ -92,7 +113,11 @@ export class ArtistUnavailabilityService {
     return this.database.read(async (client) => {
       const artist = await this.resolveArtist(client, context, range.artistId);
       await this.assertFitsSchedule(client, artist.id, range);
-      return this.toPreview(artist, range, await this.appointmentCount(client, artist.id, range));
+      return this.toPreview(
+        artist,
+        range,
+        await this.affectedAppointments(client, artist.id, range),
+      );
     });
   }
 
@@ -105,25 +130,24 @@ export class ArtistUnavailabilityService {
       const artist = await this.resolveArtist(client, context, target.artistId);
       const periods = await client.artistUnavailablePeriod.findMany({
         orderBy: [{ unavailableDate: 'asc' }, { startMinute: 'asc' }],
-        select: {
-          affectedAppointmentCount: true,
-          artistId: true,
-          endMinute: true,
-          id: true,
-          reason: true,
-          rowVersion: true,
-          siteId: true,
-          startMinute: true,
-          status: true,
-          unavailableDate: true,
-        },
+        select: PERIOD_SELECT,
         where: {
           artistId: artist.id,
-          status: 'ACTIVE',
+          status: { in: ['ACTIVE', 'CANCELLED', 'PENDING', 'REJECTED'] },
           unavailableDate: { gte: toBusinessDate(now) },
         },
       });
-      return periods.map((period) => this.toSummary(period));
+      return Promise.all(
+        periods.map(async (period) => {
+          const affectedAppointments = await this.affectedAppointments(client, artist.id, period);
+          return this.toSummary(
+            period.status === 'PENDING'
+              ? { ...period, affectedAppointmentCount: affectedAppointments.length }
+              : period,
+            affectedAppointments,
+          );
+        }),
+      );
     });
   }
 
@@ -143,11 +167,12 @@ export class ArtistUnavailabilityService {
           `appointment:artist:${artist.id}:${formatDateOnly(command.unavailableDate)}`,
         );
         await this.assertFitsSchedule(transaction, artist.id, command);
-        const affectedAppointmentCount = await this.appointmentCount(
+        const affectedAppointments = await this.affectedAppointments(
           transaction,
           artist.id,
           command,
         );
+        const affectedAppointmentCount = affectedAppointments.length;
         if (affectedAppointmentCount !== command.confirmedAffectedAppointmentCount) {
           throw new ArtistUnavailablePeriodImpactChangedError();
         }
@@ -161,41 +186,42 @@ export class ArtistUnavailabilityService {
             reason: normalizedReason,
             siteId: artist.siteId,
             startMinute: command.startMinute,
+            status: context.roleCode === 'ARTIST' ? 'PENDING' : 'ACTIVE',
             unavailableDate: command.unavailableDate,
           },
-          select: {
-            affectedAppointmentCount: true,
-            artistId: true,
-            endMinute: true,
-            id: true,
-            reason: true,
-            rowVersion: true,
-            siteId: true,
-            startMinute: true,
-            status: true,
-            unavailableDate: true,
-          },
+          select: PERIOD_SELECT,
         });
-        const summary = this.toSummary(period);
-        const cancelled = await transaction.appointment.updateMany({
-          data: {
-            cancellationReasonCode: 'ARTIST_UNAVAILABLE_PERIOD',
-            cancellationReasonText: normalizedReason,
-            cancellationSourceId: period.id,
-            cancellationSourceType: 'ARTIST_UNAVAILABLE_PERIOD',
-            cancelledAt: now,
-            cancelledByUserId: context.userId,
-            rowVersion: { increment: 1 },
-            status: 'CANCELLED',
-          },
-          where: this.appointmentWhere(artist.id, command),
-        });
-        if (cancelled.count !== affectedAppointmentCount) {
-          throw new ArtistUnavailablePeriodImpactChangedError();
+        const summary = this.toSummary(period, affectedAppointments);
+        if (context.roleCode !== 'ARTIST') {
+          const cancelled = await transaction.appointment.updateMany({
+            data: {
+              cancellationReasonCode: 'ARTIST_LEAVE',
+              cancellationReasonText: normalizedReason,
+              cancellationSourceId: period.id,
+              cancellationSourceType: 'ARTIST_UNAVAILABLE_PERIOD',
+              cancelledAt: now,
+              cancelledByUserId: context.userId,
+              rowVersion: { increment: 1 },
+              status: 'CANCELLED',
+            },
+            where: this.appointmentWhere(artist.id, command),
+          });
+          if (cancelled.count !== affectedAppointmentCount) {
+            throw new ArtistUnavailablePeriodImpactChangedError();
+          }
         }
         await this.audit.append(transaction, context, {
-          action: 'ARTIST_UNAVAILABLE_PERIOD_CREATED',
-          afterData: { ...summary },
+          action:
+            context.roleCode === 'ARTIST'
+              ? 'ARTIST_UNAVAILABLE_PERIOD_SUBMITTED'
+              : 'ARTIST_UNAVAILABLE_PERIOD_CREATED',
+          afterData: {
+            affectedAppointmentCount: summary.affectedAppointmentCount,
+            id: summary.id,
+            rowVersion: summary.rowVersion,
+            status: summary.status,
+            unavailableDate: summary.unavailableDate,
+          },
           objectId: period.id,
           objectType: 'ARTIST_UNAVAILABLE_PERIOD',
           reason: normalizedReason,
@@ -209,6 +235,142 @@ export class ArtistUnavailabilityService {
         }
         throw error;
       });
+  }
+
+  listPending(
+    context: ArtistUnavailabilityCommandContext,
+    now = new Date(),
+  ): Promise<readonly ArtistUnavailablePeriodApprovalItem[]> {
+    this.authorization.assertRole(context, ['CUSTOMER_SERVICE', 'ADMIN']);
+    return this.database.read(async (client) => {
+      const periods = await client.artistUnavailablePeriod.findMany({
+        orderBy: [{ unavailableDate: 'asc' }, { startMinute: 'asc' }, { createdAt: 'asc' }],
+        select: {
+          ...PERIOD_SELECT,
+          artist: { select: { nickname: true } },
+          createdAt: true,
+        },
+        where: {
+          status: 'PENDING',
+          unavailableDate: { gte: toBusinessDate(now) },
+          ...(context.roleCode === 'CUSTOMER_SERVICE' ? { siteId: context.siteId ?? '' } : {}),
+        },
+      });
+      return Promise.all(
+        periods.map(async (period) => {
+          const affectedAppointments = await this.affectedAppointments(
+            client,
+            period.artistId,
+            period,
+          );
+          return {
+            ...this.toSummary(
+              { ...period, affectedAppointmentCount: affectedAppointments.length },
+              affectedAppointments,
+            ),
+            artistNickname: period.artist.nickname,
+            submittedAt: period.createdAt.toISOString(),
+          };
+        }),
+      );
+    });
+  }
+
+  review(
+    context: ArtistUnavailabilityCommandContext,
+    command: ReviewArtistUnavailablePeriodCommand,
+    now = new Date(),
+  ): Promise<ArtistUnavailablePeriodSummary> {
+    this.authorization.assertRole(context, ['CUSTOMER_SERVICE', 'ADMIN']);
+    const normalizedComment = reason(command.comment, command.decision === 'REJECT');
+
+    return this.database.transaction(async (transaction) => {
+      const period = await transaction.artistUnavailablePeriod.findUnique({
+        select: PERIOD_SELECT,
+        where: { id: command.periodId },
+      });
+      if (!period) throw new ArtistUnavailablePeriodNotFoundError();
+      this.authorization.assertSiteScope(context, period.siteId);
+      if (period.unavailableDate <= toBusinessDate(now)) {
+        throw new ArtistUnavailablePeriodDateInvalidError();
+      }
+      await acquireTransactionLock(
+        transaction,
+        `appointment:artist:${period.artistId}:${formatDateOnly(period.unavailableDate)}`,
+      );
+      const affectedAppointments = await this.affectedAppointments(
+        transaction,
+        period.artistId,
+        period,
+      );
+      if (affectedAppointments.length !== command.confirmedAffectedAppointmentCount) {
+        throw new ArtistUnavailablePeriodImpactChangedError();
+      }
+
+      const status = command.decision === 'APPROVE' ? 'ACTIVE' : 'REJECTED';
+      const updated = await transaction.artistUnavailablePeriod.updateMany({
+        data: {
+          affectedAppointmentCount: affectedAppointments.length,
+          reviewComment: normalizedComment ?? null,
+          reviewedAt: now,
+          reviewedByUserId: context.userId,
+          rowVersion: { increment: 1 },
+          status,
+        },
+        where: {
+          id: period.id,
+          rowVersion: command.expectedRowVersion,
+          status: 'PENDING',
+        },
+      });
+      if (updated.count !== 1) throw new ArtistUnavailablePeriodStateConflictError();
+
+      if (status === 'ACTIVE') {
+        const cancelled = await transaction.appointment.updateMany({
+          data: {
+            cancellationReasonCode: 'ARTIST_LEAVE',
+            cancellationReasonText: period.reason,
+            cancellationSourceId: period.id,
+            cancellationSourceType: 'ARTIST_UNAVAILABLE_PERIOD',
+            cancelledAt: now,
+            cancelledByUserId: context.userId,
+            rowVersion: { increment: 1 },
+            status: 'CANCELLED',
+          },
+          where: this.appointmentWhere(period.artistId, period),
+        });
+        if (cancelled.count !== affectedAppointments.length) {
+          throw new ArtistUnavailablePeriodImpactChangedError();
+        }
+      }
+
+      const summary = this.toSummary(
+        {
+          ...period,
+          affectedAppointmentCount: affectedAppointments.length,
+          reviewComment: normalizedComment ?? null,
+          rowVersion: period.rowVersion + 1,
+          status,
+        },
+        affectedAppointments,
+      );
+      await this.audit.append(transaction, context, {
+        action: `ARTIST_UNAVAILABLE_PERIOD_${status === 'ACTIVE' ? 'APPROVED' : 'REJECTED'}`,
+        afterData: {
+          affectedAppointmentCount: summary.affectedAppointmentCount,
+          id: summary.id,
+          rowVersion: summary.rowVersion,
+          status: summary.status,
+          unavailableDate: summary.unavailableDate,
+        },
+        beforeData: { rowVersion: period.rowVersion, status: period.status },
+        objectId: period.id,
+        objectType: 'ARTIST_UNAVAILABLE_PERIOD',
+        ...(normalizedComment ? { reason: normalizedComment } : {}),
+        siteId: period.siteId,
+      });
+      return summary;
+    });
   }
 
   cancel(
@@ -250,7 +412,7 @@ export class ArtistUnavailabilityService {
         where: {
           id: period.id,
           rowVersion: command.expectedRowVersion,
-          status: 'ACTIVE',
+          status: { in: ['ACTIVE', 'PENDING'] },
         },
       });
       if (updated.count !== 1) throw new ArtistUnavailablePeriodStateConflictError();
@@ -329,12 +491,12 @@ export class ArtistUnavailabilityService {
     }
   }
 
-  private appointmentCount(
+  private affectedAppointments(
     client: DatabaseClient | Prisma.TransactionClient,
     artistId: string,
     range: ArtistUnavailablePeriodRange,
-  ): Promise<number> {
-    return client.appointment.count({ where: this.appointmentWhere(artistId, range) });
+  ): Promise<readonly AffectedAppointmentRecord[]> {
+    return findAffectedAppointments(client, this.appointmentWhere(artistId, range));
   }
 
   private appointmentWhere(
@@ -355,10 +517,11 @@ export class ArtistUnavailabilityService {
   private toPreview(
     artist: ArtistSubject,
     range: ArtistUnavailablePeriodRange,
-    affectedAppointmentCount: number,
+    affectedAppointments: readonly AffectedAppointmentRecord[],
   ): ArtistUnavailablePeriodPreview {
     return {
-      affectedAppointmentCount,
+      affectedAppointmentCount: affectedAppointments.length,
+      affectedAppointments: affectedAppointments.map(toAffectedAppointment),
       artistId: artist.id,
       endMinute: range.endMinute,
       siteId: artist.siteId,
@@ -367,24 +530,30 @@ export class ArtistUnavailabilityService {
     };
   }
 
-  private toSummary(period: {
-    affectedAppointmentCount: number;
-    artistId: string;
-    endMinute: number;
-    id: string;
-    reason: string;
-    rowVersion: number;
-    siteId: string;
-    startMinute: number;
-    status: string;
-    unavailableDate: Date;
-  }): ArtistUnavailablePeriodSummary {
+  private toSummary(
+    period: {
+      affectedAppointmentCount: number;
+      artistId: string;
+      endMinute: number;
+      id: string;
+      reason: string;
+      reviewComment: string | null;
+      rowVersion: number;
+      siteId: string;
+      startMinute: number;
+      status: string;
+      unavailableDate: Date;
+    },
+    affectedAppointments: readonly AffectedAppointmentRecord[],
+  ): ArtistUnavailablePeriodSummary {
     return {
       affectedAppointmentCount: period.affectedAppointmentCount,
+      affectedAppointments: affectedAppointments.map(toAffectedAppointment),
       artistId: period.artistId,
       endMinute: period.endMinute,
       id: period.id,
       reason: period.reason,
+      reviewComment: period.reviewComment,
       rowVersion: period.rowVersion,
       siteId: period.siteId,
       startMinute: period.startMinute,

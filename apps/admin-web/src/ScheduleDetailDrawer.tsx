@@ -85,8 +85,25 @@ export function ScheduleDetailDrawer({
           </div>
           <div>
             <dt>预约状态</dt>
-            <dd>{appointment.status === 'COMPLETED' ? '已完成' : '已预约'}</dd>
+            <dd>
+              {appointment.status === 'COMPLETED'
+                ? '已完成'
+                : appointment.status === 'CANCELLED'
+                  ? '已取消'
+                  : '已预约'}
+            </dd>
           </div>
+          {appointment.status === 'CANCELLED' ? (
+            <div>
+              <dt>取消原因</dt>
+              <dd>
+                {appointment.cancellationReason || '主播取消'}
+                {appointment.cancellationReasonText
+                  ? ` · ${appointment.cancellationReasonText}`
+                  : ''}
+              </dd>
+            </div>
+          ) : null}
           <div>
             <dt>当日次数</dt>
             <dd>第 {appointment.dailySequence} 次</dd>

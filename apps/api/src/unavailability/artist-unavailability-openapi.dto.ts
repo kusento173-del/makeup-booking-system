@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { AffectedAppointmentDto } from '../leave/leave-openapi.dto';
 
 export class ArtistUnavailablePeriodRangeDto {
   @ApiPropertyOptional({ format: 'uuid' })
@@ -30,9 +31,26 @@ export class CancelArtistUnavailablePeriodRequestDto {
   reason?: string;
 }
 
+export class ReviewArtistUnavailablePeriodRequestDto {
+  @ApiPropertyOptional({ maxLength: 500 })
+  comment?: string;
+
+  @ApiProperty({ minimum: 0 })
+  confirmedAffectedAppointmentCount!: number;
+
+  @ApiProperty({ enum: ['APPROVE', 'REJECT'] })
+  decision!: string;
+
+  @ApiProperty({ minimum: 1 })
+  expectedRowVersion!: number;
+}
+
 export class ArtistUnavailablePeriodPreviewDto {
   @ApiProperty({ minimum: 0 })
   affectedAppointmentCount!: number;
+
+  @ApiProperty({ type: [AffectedAppointmentDto] })
+  affectedAppointments!: AffectedAppointmentDto[];
 
   @ApiProperty({ format: 'uuid' })
   artistId!: string;
@@ -60,6 +78,17 @@ export class ArtistUnavailablePeriodSummaryDto extends ArtistUnavailablePeriodPr
   @ApiProperty({ minimum: 1 })
   rowVersion!: number;
 
-  @ApiProperty({ enum: ['ACTIVE', 'CANCELLED'] })
+  @ApiProperty({ maxLength: 500, nullable: true })
+  reviewComment!: string | null;
+
+  @ApiProperty({ enum: ['ACTIVE', 'CANCELLED', 'PENDING', 'REJECTED'] })
   status!: string;
+}
+
+export class ArtistUnavailablePeriodApprovalItemDto extends ArtistUnavailablePeriodSummaryDto {
+  @ApiProperty()
+  artistNickname!: string;
+
+  @ApiProperty({ format: 'date-time' })
+  submittedAt!: string;
 }

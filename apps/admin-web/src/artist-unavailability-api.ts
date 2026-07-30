@@ -1,20 +1,24 @@
 import { apiRequest } from './api-client';
+import type { AffectedAppointment } from './mobile-api';
 
 export interface ArtistUnavailablePeriod {
   readonly affectedAppointmentCount: number;
+  readonly affectedAppointments: readonly AffectedAppointment[];
   readonly artistId: string;
   readonly endMinute: number;
   readonly id: string;
   readonly reason: string;
+  readonly reviewComment: string | null;
   readonly rowVersion: number;
   readonly siteId: string;
   readonly startMinute: number;
-  readonly status: 'ACTIVE' | 'CANCELLED';
+  readonly status: 'ACTIVE' | 'CANCELLED' | 'PENDING' | 'REJECTED';
   readonly unavailableDate: string;
 }
 
 export interface ArtistUnavailablePeriodPreview {
   readonly affectedAppointmentCount: number;
+  readonly affectedAppointments: readonly AffectedAppointment[];
   readonly artistId: string;
   readonly endMinute: number;
   readonly siteId: string;

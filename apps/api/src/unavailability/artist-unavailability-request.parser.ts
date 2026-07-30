@@ -3,6 +3,7 @@ import type {
   ArtistUnavailablePeriodTarget,
   CancelArtistUnavailablePeriodCommand,
   CreateArtistUnavailablePeriodCommand,
+  ReviewArtistUnavailablePeriodCommand,
 } from './artist-unavailability.types';
 
 export class ArtistUnavailabilityRequestInvalidError extends Error {
@@ -142,4 +143,28 @@ export function parseArtistUnavailablePeriodTarget(query: unknown): ArtistUnavai
   exactKeys(input, ['artistId']);
   const artistId = optionalUuid(input.artistId);
   return artistId ? { artistId } : {};
+}
+
+export function parseReviewArtistUnavailablePeriodRequest(
+  periodId: unknown,
+  body: unknown,
+): ReviewArtistUnavailablePeriodCommand {
+  const input = record(body);
+  exactKeys(input, [
+    'comment',
+    'confirmedAffectedAppointmentCount',
+    'decision',
+    'expectedRowVersion',
+  ]);
+  if (input.decision !== 'APPROVE' && input.decision !== 'REJECT') {
+    throw new ArtistUnavailabilityRequestInvalidError();
+  }
+  const comment = optionalText(input.comment);
+  return {
+    ...(comment ? { comment } : {}),
+    confirmedAffectedAppointmentCount: integer(input.confirmedAffectedAppointmentCount, 0),
+    decision: input.decision,
+    expectedRowVersion: integer(input.expectedRowVersion, 1),
+    periodId: uuid(periodId),
+  };
 }

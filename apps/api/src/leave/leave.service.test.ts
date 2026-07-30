@@ -29,6 +29,16 @@ const context: LeaveCommandContext = {
   userId: 'user-host',
 };
 const host = { id: 'host-1', qualificationStatus: 'ACTIVE', siteId: 'site-songjiang' };
+const affectedAppointment = (id: string) => ({
+  appointmentDate: range.startDate,
+  appointmentType: 'SINGLE',
+  endAt: new Date('2026-07-23T01:30:00.000Z'),
+  hostCodeSnapshot: '000001',
+  hostId: 'host-1',
+  hostNameSnapshot: '主播一',
+  id,
+  startAt: new Date('2026-07-23T01:00:00.000Z'),
+});
 
 function createService(client: object) {
   const append = vi.fn().mockResolvedValue('log-1');
@@ -55,11 +65,18 @@ function createService(client: object) {
 describe('LeaveService', () => {
   it('previews the bound host future seven-day leave with current appointment impact', async () => {
     const { service } = createService({
-      appointment: { count: vi.fn().mockResolvedValue(2) },
+      appointment: {
+        findMany: vi
+          .fn()
+          .mockResolvedValue([
+            affectedAppointment('appointment-1'),
+            affectedAppointment('appointment-2'),
+          ]),
+      },
       hostProfile: { findUnique: vi.fn().mockResolvedValue(host) },
     });
 
-    await expect(service.preview(context, range, now)).resolves.toEqual({
+    await expect(service.preview(context, range, now)).resolves.toMatchObject({
       affectedAppointmentCount: 2,
       endDate: '2026-07-29',
       startDate: '2026-07-23',
@@ -80,7 +97,7 @@ describe('LeaveService', () => {
     expect(database.transaction).not.toHaveBeenCalled();
   });
 
-  it('creates leave and audit atomically for the bound active artist', async () => {
+  it('submits artist leave for approval without cancelling appointments', async () => {
     const create = vi.fn().mockResolvedValue({
       affectedAppointmentCount: 0,
       artistId: 'artist-1',
@@ -90,13 +107,14 @@ describe('LeaveService', () => {
       reason: '休息',
       rowVersion: 1,
       startDate: range.startDate,
-      status: 'ACTIVE',
+      reviewComment: null,
+      status: 'PENDING',
       subjectType: 'ARTIST',
     });
     const client = {
       $queryRaw: vi.fn().mockResolvedValue([{ acquired: 1 }]),
       appointment: {
-        count: vi.fn().mockResolvedValue(1),
+        findMany: vi.fn().mockResolvedValue([affectedAppointment('appointment-1')]),
         updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       },
       artistProfile: {
@@ -132,24 +150,24 @@ describe('LeaveService', () => {
         reason: '休息',
       },
     });
-    const updateCall: unknown = client.appointment.updateMany.mock.calls[0]?.[0];
-    expect(updateCall).toMatchObject({
-      data: {
-        cancellationReasonCode: 'ARTIST_LEAVE',
-        cancellationSourceId: 'leave-1',
-        status: 'CANCELLED',
-      },
-    });
+    expect(client.appointment.updateMany).not.toHaveBeenCalled();
     expect(append).toHaveBeenCalledWith(
       client,
-      expect.objectContaining({ action: 'LEAVE_CREATED', siteId: 'site-songjiang' }),
+      expect.objectContaining({ action: 'ARTIST_LEAVE_SUBMITTED', siteId: 'site-songjiang' }),
     );
   });
 
   it('rolls back when appointment impact differs from the confirmed preview', async () => {
     const client = {
       $queryRaw: vi.fn().mockResolvedValue([{ acquired: 1 }]),
-      appointment: { count: vi.fn().mockResolvedValue(2) },
+      appointment: {
+        findMany: vi
+          .fn()
+          .mockResolvedValue([
+            affectedAppointment('appointment-1'),
+            affectedAppointment('appointment-2'),
+          ]),
+      },
       hostProfile: { findUnique: vi.fn().mockResolvedValue(host) },
       leaveRecord: { create: vi.fn() },
     };
@@ -170,6 +188,7 @@ describe('LeaveService', () => {
         hostId: 'host-1',
         id: 'leave-1',
         reason: null,
+        reviewComment: null,
         rowVersion: 1,
         startDate: range.startDate,
         status: 'ACTIVE',
@@ -177,6 +196,7 @@ describe('LeaveService', () => {
       },
     ]);
     const { service } = createService({
+      appointment: { findMany: vi.fn().mockResolvedValue([affectedAppointment('appointment-1')]) },
       hostProfile: { findUnique: vi.fn().mockResolvedValue(host) },
       leaveRecord: { findMany },
     });
@@ -184,8 +204,125 @@ describe('LeaveService', () => {
     await expect(service.listSelf(context, now)).resolves.toMatchObject([{ id: 'leave-1' }]);
     const listCall: unknown = findMany.mock.calls[0]?.[0];
     expect(listCall).toMatchObject({
-      where: { hostId: 'host-1', status: 'ACTIVE' },
+      where: {
+        hostId: 'host-1',
+        status: { in: ['ACTIVE', 'CANCELLED', 'PENDING', 'REJECTED'] },
+      },
     });
+  });
+
+  it('approves artist leave and cancels the confirmed fixed and single appointments', async () => {
+    const appointmentUpdate = vi.fn().mockResolvedValue({ count: 1 });
+    const leaveUpdate = vi.fn().mockResolvedValue({ count: 1 });
+    const client = {
+      $queryRaw: vi.fn().mockResolvedValue([{ acquired: 1 }]),
+      appointment: {
+        findMany: vi.fn().mockResolvedValue([affectedAppointment('appointment-1')]),
+        updateMany: appointmentUpdate,
+      },
+      leaveRecord: {
+        findUnique: vi.fn().mockResolvedValue({
+          affectedAppointmentCount: 1,
+          artist: { id: 'artist-1', siteId: 'site-songjiang' },
+          artistId: 'artist-1',
+          endDate: range.endDate,
+          hostId: null,
+          id: 'leave-1',
+          reason: '休息',
+          reviewComment: null,
+          rowVersion: 1,
+          startDate: range.startDate,
+          status: 'PENDING',
+          subjectType: 'ARTIST',
+        }),
+        updateMany: leaveUpdate,
+      },
+    };
+    const { service } = createService(client);
+    const customerService = {
+      ...context,
+      actorName: '松江客服',
+      roleCode: 'CUSTOMER_SERVICE',
+      siteId: 'site-songjiang',
+      userId: 'user-service',
+    } as const;
+
+    await expect(
+      service.review(
+        customerService,
+        {
+          confirmedAffectedAppointmentCount: 1,
+          decision: 'APPROVE',
+          expectedRowVersion: 1,
+          leaveId: 'leave-1',
+        },
+        now,
+      ),
+    ).resolves.toMatchObject({ status: 'ACTIVE' });
+    const leaveUpdateCall: unknown = leaveUpdate.mock.calls[0]?.[0];
+    expect(leaveUpdateCall).toMatchObject({
+      data: { status: 'ACTIVE' },
+      where: { id: 'leave-1', rowVersion: 1, status: 'PENDING' },
+    });
+    const appointmentUpdateCall: unknown = appointmentUpdate.mock.calls[0]?.[0];
+    expect(appointmentUpdateCall).toMatchObject({
+      data: {
+        cancellationReasonCode: 'ARTIST_LEAVE',
+        cancellationSourceId: 'leave-1',
+        status: 'CANCELLED',
+      },
+    });
+  });
+
+  it('lists pending leave with the current affected appointments instead of the submitted count', async () => {
+    const client = {
+      appointment: {
+        findMany: vi
+          .fn()
+          .mockResolvedValue([
+            affectedAppointment('appointment-1'),
+            affectedAppointment('appointment-2'),
+          ]),
+      },
+      leaveRecord: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            affectedAppointmentCount: 1,
+            artist: { nickname: '柔柔', siteId: 'site-songjiang' },
+            artistId: 'artist-1',
+            createdAt: now,
+            endDate: range.endDate,
+            hostId: null,
+            id: 'leave-1',
+            reason: '休息',
+            reviewComment: null,
+            rowVersion: 1,
+            startDate: range.startDate,
+            status: 'PENDING',
+            subjectType: 'ARTIST',
+          },
+        ]),
+      },
+    };
+    const { service } = createService(client);
+
+    await expect(
+      service.listPending(
+        {
+          ...context,
+          actorName: '松江客服',
+          roleCode: 'CUSTOMER_SERVICE',
+          siteId: 'site-songjiang',
+          userId: 'user-service',
+        },
+        now,
+      ),
+    ).resolves.toMatchObject([
+      {
+        affectedAppointmentCount: 2,
+        affectedAppointments: [{ id: 'appointment-1' }, { id: 'appointment-2' }],
+      },
+    ]);
   });
 
   it('denies customer service from submitting ordinary leave', async () => {
@@ -220,7 +357,13 @@ describe('LeaveService', () => {
     await service.cancel(context, { expectedRowVersion: 1, leaveId: 'leave-1' }, now);
     expect(client.appointment.findMany).not.toHaveBeenCalled();
     expect(updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 'leave-1', rowVersion: 1, status: 'ACTIVE' } }),
+      expect.objectContaining({
+        where: {
+          id: 'leave-1',
+          rowVersion: 1,
+          status: { in: ['ACTIVE', 'PENDING'] },
+        },
+      }),
     );
     expect(append).toHaveBeenCalledWith(
       client,

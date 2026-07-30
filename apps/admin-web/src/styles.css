@@ -490,6 +490,47 @@ tbody tr:hover {
   text-align: center;
 }
 
+.approval-card {
+  padding: 18px;
+  border-bottom: 1px solid #e4e9ed;
+}
+
+.approval-card:last-child {
+  border-bottom: 0;
+}
+
+.approval-card-header,
+.approval-card-header > div {
+  display: flex;
+  gap: 6px;
+}
+
+.approval-card-header {
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.approval-card-header > div {
+  flex-direction: column;
+}
+
+.impact-list {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.impact-list li {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 9px 12px;
+  border-radius: 5px;
+  background: #f5f8fa;
+}
+
 .error-message {
   color: #b42318;
 }
@@ -1448,6 +1489,13 @@ tbody tr:hover {
 
 .appointment-card.completed {
   opacity: 0.62;
+}
+
+.appointment-card.cancelled {
+  border-color: #d8c8c5;
+  border-left-color: #a04b43;
+  background: #fbf7f6;
+  opacity: 0.78;
 }
 
 .appointment-time,

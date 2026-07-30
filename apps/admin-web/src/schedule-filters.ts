@@ -4,7 +4,7 @@ export interface ScheduleFilters {
   readonly appointmentType: 'ALL' | 'FIXED' | 'SINGLE';
   readonly artistId: string;
   readonly query: string;
-  readonly status: 'ALL' | 'BOOKED' | 'COMPLETED';
+  readonly status: 'ALL' | 'BOOKED' | 'CANCELLED' | 'COMPLETED';
 }
 
 function searchable(value: string): string {
@@ -26,7 +26,9 @@ export function filterScheduleArtists(
       (appointment) =>
         (filters.appointmentType === 'ALL' ||
           appointment.appointmentType === filters.appointmentType) &&
-        (filters.status === 'ALL' || appointment.status === filters.status) &&
+        (filters.status === 'ALL'
+          ? appointment.status !== 'CANCELLED'
+          : appointment.status === filters.status) &&
         (artistMatches ||
           !query ||
           searchable(appointment.hostCode).includes(query) ||

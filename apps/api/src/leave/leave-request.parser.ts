@@ -1,4 +1,9 @@
-import type { CancelLeaveCommand, CreateLeaveCommand, LeaveDateRange } from './leave.types';
+import type {
+  CancelLeaveCommand,
+  CreateLeaveCommand,
+  LeaveDateRange,
+  ReviewLeaveCommand,
+} from './leave.types';
 
 export class LeaveRequestInvalidError extends Error {
   readonly code = 'INVALID_REQUEST';
@@ -96,5 +101,26 @@ export function parseCancelLeaveRequest(leaveId: unknown, body: unknown): Cancel
     expectedRowVersion: positiveInteger(input.expectedRowVersion),
     leaveId: uuid(leaveId),
     ...(reason ? { reason } : {}),
+  };
+}
+
+export function parseReviewLeaveRequest(leaveId: unknown, body: unknown): ReviewLeaveCommand {
+  const input = record(body);
+  exactKeys(input, [
+    'comment',
+    'confirmedAffectedAppointmentCount',
+    'decision',
+    'expectedRowVersion',
+  ]);
+  if (input.decision !== 'APPROVE' && input.decision !== 'REJECT') {
+    throw new LeaveRequestInvalidError();
+  }
+  const comment = optionalText(input.comment);
+  return {
+    ...(comment ? { comment } : {}),
+    confirmedAffectedAppointmentCount: nonNegativeInteger(input.confirmedAffectedAppointmentCount),
+    decision: input.decision,
+    expectedRowVersion: positiveInteger(input.expectedRowVersion),
+    leaveId: uuid(leaveId),
   };
 }

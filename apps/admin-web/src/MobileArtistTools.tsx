@@ -496,7 +496,9 @@ function UnavailabilityTool({ session }: { readonly session: SessionTokenPair })
       };
       const preview = await previewUnavailablePeriod(session.accessToken, input);
       if (
-        !window.confirm(`确认设置临时不可排班？将取消 ${preview.affectedAppointmentCount} 条预约。`)
+        !window.confirm(
+          `确认提交临时不可排班申请？审核通过后将取消 ${preview.affectedAppointmentCount} 条预约。`,
+        )
       ) {
         setBusy(false);
         return;
@@ -575,7 +577,7 @@ function UnavailabilityTool({ session }: { readonly session: SessionTokenPair })
           />
         </label>
         <button className="primary-button" disabled={busy} type="submit">
-          确认设置
+          提交审核
         </button>
       </form>
       {error ? <p className="form-error">{error}</p> : null}
@@ -587,12 +589,24 @@ function UnavailabilityTool({ session }: { readonly session: SessionTokenPair })
                 {item.unavailableDate} · {minuteLabel(item.startMinute)}—
                 {minuteLabel(item.endMinute)}
               </strong>
-              <span>{item.status === 'ACTIVE' ? '生效中' : '已取消'}</span>
+              <span>
+                {
+                  {
+                    ACTIVE: '已生效',
+                    CANCELLED: '已取消',
+                    PENDING: '待审核',
+                    REJECTED: '已驳回',
+                  }[item.status]
+                }
+              </span>
             </div>
             <p className="mobile-meta">
               {item.reason} · 影响预约 {item.affectedAppointmentCount} 条
             </p>
-            {item.status === 'ACTIVE' ? (
+            {item.reviewComment ? (
+              <p className="mobile-meta">审核说明：{item.reviewComment}</p>
+            ) : null}
+            {item.status === 'ACTIVE' || item.status === 'PENDING' ? (
               <div className="mobile-actions">
                 <button className="danger-text" onClick={() => void cancel(item)} type="button">
                   取消设置

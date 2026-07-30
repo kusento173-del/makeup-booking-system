@@ -36,6 +36,15 @@ function minuteLabel(minute: number): string {
   return `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
 }
 
+function instantTime(instant: string): string {
+  return new Intl.DateTimeFormat('zh-CN', {
+    hour: '2-digit',
+    hour12: false,
+    minute: '2-digit',
+    timeZone: 'Asia/Shanghai',
+  }).format(new Date(instant));
+}
+
 export function ArtistUnavailabilityDialog({
   artist,
   initialDate,
@@ -165,7 +174,7 @@ export function ArtistUnavailabilityDialog({
         <header className="dialog-header">
           <div>
             <h2 id="artist-unavailability-title">临时不可排班</h2>
-            <p className="dialog-subtitle">{artist.artistNickname} · 无需审批，立即生效</p>
+            <p className="dialog-subtitle">{artist.artistNickname} · 客服或管理员设置后立即生效</p>
           </div>
           <button
             aria-label="关闭"
@@ -231,10 +240,27 @@ export function ArtistUnavailabilityDialog({
             value={reason}
           />
           {preview ? (
-            <p className="dialog-note warning-note">
-              将取消 {preview.affectedAppointmentCount}{' '}
-              条重叠预约。固定关系保留，撤销时段后不会自动恢复预约。
-            </p>
+            <>
+              <p className="dialog-note warning-note">
+                将取消 {preview.affectedAppointmentCount}{' '}
+                条重叠预约。固定关系保留，撤销时段后不会自动恢复预约。
+              </p>
+              {preview.affectedAppointments.length > 0 ? (
+                <ul className="impact-list">
+                  {preview.affectedAppointments.map((appointment) => (
+                    <li key={appointment.id}>
+                      <strong>
+                        {appointment.hostName}（{appointment.hostCode}）
+                      </strong>
+                      <span>
+                        {instantTime(appointment.startAt)}–{instantTime(appointment.endAt)} ·{' '}
+                        {appointment.appointmentType === 'FIXED' ? '固定预约' : '单次预约'}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </>
           ) : null}
           {error ? <p className="form-error">{error}</p> : null}
           <div className="dialog-actions">
@@ -272,17 +298,27 @@ export function ArtistUnavailabilityDialog({
                         {minuteLabel(period.endMinute)}
                       </strong>
                       <span>
-                        {period.reason} · 已取消 {period.affectedAppointmentCount} 条预约
+                        {period.reason} · 影响 {period.affectedAppointmentCount} 条预约 ·{' '}
+                        {
+                          {
+                            ACTIVE: '已生效',
+                            CANCELLED: '已取消',
+                            PENDING: '待审核',
+                            REJECTED: '已驳回',
+                          }[period.status]
+                        }
                       </span>
                     </div>
-                    <button
-                      className="text-button danger-text"
-                      disabled={busy || !cancelReason.trim()}
-                      onClick={() => void cancel(period)}
-                      type="button"
-                    >
-                      撤销
-                    </button>
+                    {period.status === 'ACTIVE' ? (
+                      <button
+                        className="text-button danger-text"
+                        disabled={busy || !cancelReason.trim()}
+                        onClick={() => void cancel(period)}
+                        type="button"
+                      >
+                        撤销
+                      </button>
+                    ) : null}
                   </div>
                 ))}
               </div>

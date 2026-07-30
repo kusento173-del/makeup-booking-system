@@ -11,6 +11,17 @@ export {
 export type MobileRoleCode = 'ARTIST' | 'HOST' | 'OPERATOR';
 export type BookingDuration = 15 | 30 | 45 | 60;
 
+export interface AffectedAppointment {
+  readonly appointmentDate: string;
+  readonly appointmentType: 'FIXED' | 'SINGLE';
+  readonly endAt: string;
+  readonly hostCode: string;
+  readonly hostId: string;
+  readonly hostName: string;
+  readonly id: string;
+  readonly startAt: string;
+}
+
 export interface MobileHost {
   readonly hostCode: string;
   readonly id: string;
@@ -31,6 +42,8 @@ export interface MobileArtist {
 export interface MobileAppointment {
   readonly appointmentType: 'FIXED' | 'SINGLE';
   readonly artistNickname: string;
+  readonly cancellationReason: '主播取消' | '主播请假' | '化妆师请假' | null;
+  readonly cancellationReasonText: string | null;
   readonly dailySequence: 1 | 2;
   readonly date: string;
   readonly durationMinutes: number;
@@ -60,12 +73,14 @@ export interface BookingSlots {
 
 export interface LeaveRecord {
   readonly affectedAppointmentCount: number;
+  readonly affectedAppointments: readonly AffectedAppointment[];
   readonly endDate: string;
   readonly id: string;
   readonly reason: string | null;
+  readonly reviewComment: string | null;
   readonly rowVersion: number;
   readonly startDate: string;
-  readonly status: 'ACTIVE' | 'CANCELLED';
+  readonly status: 'ACTIVE' | 'CANCELLED' | 'PENDING' | 'REJECTED';
 }
 
 export interface ShiftChange extends ShiftDefinition {
@@ -90,12 +105,14 @@ export interface OvertimeRecord extends Omit<ShiftDefinition, 'workdays'> {
 
 export interface UnavailablePeriod {
   readonly affectedAppointmentCount: number;
+  readonly affectedAppointments: readonly AffectedAppointment[];
   readonly endMinute: number;
   readonly id: string;
   readonly reason: string;
+  readonly reviewComment: string | null;
   readonly rowVersion: number;
   readonly startMinute: number;
-  readonly status: 'ACTIVE' | 'CANCELLED';
+  readonly status: 'ACTIVE' | 'CANCELLED' | 'PENDING' | 'REJECTED';
   readonly unavailableDate: string;
 }
 
@@ -296,7 +313,10 @@ export function previewLeave(
   token: string,
   startDate: string,
   endDate: string,
-): Promise<{ readonly affectedAppointmentCount: number }> {
+): Promise<{
+  readonly affectedAppointmentCount: number;
+  readonly affectedAppointments: readonly AffectedAppointment[];
+}> {
   return apiRequest('/leaves/preview', { body: { endDate, startDate }, method: 'POST', token });
 }
 
@@ -395,7 +415,10 @@ export function previewUnavailablePeriod(
     readonly startMinute: number;
     readonly unavailableDate: string;
   },
-): Promise<{ readonly affectedAppointmentCount: number }> {
+): Promise<{
+  readonly affectedAppointmentCount: number;
+  readonly affectedAppointments: readonly AffectedAppointment[];
+}> {
   return apiRequest('/artist-unavailable-periods/preview', {
     body: input,
     method: 'POST',

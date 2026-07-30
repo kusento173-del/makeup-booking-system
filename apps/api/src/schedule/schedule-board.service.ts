@@ -20,6 +20,7 @@ import {
   type ShiftDefinition,
 } from '../shift/shift-time';
 import { BookingStateConflictError } from '../booking/booking-create.errors';
+import { cancellationReasonLabel } from '../booking/cancellation-reason';
 import { ScheduleDateOutOfRangeError, ScheduleSiteRequiredError } from './schedule-board.errors';
 import type {
   ScheduleAppointmentItem,
@@ -64,6 +65,8 @@ const ARTIST_SELECT = {
 const APPOINTMENT_SELECT = {
   appointmentType: true,
   artistId: true,
+  cancellationReasonCode: true,
+  cancellationReasonText: true,
   dailySequence: true,
   durationMinutes: true,
   endAt: true,
@@ -141,7 +144,7 @@ export class ScheduleBoardService {
                 appointments: {
                   some: {
                     appointmentDate: input.date,
-                    status: { in: ['BOOKED', 'COMPLETED'] },
+                    status: { in: ['BOOKED', 'CANCELLED', 'COMPLETED'] },
                   },
                 },
               },
@@ -154,7 +157,7 @@ export class ScheduleBoardService {
           where: {
             appointmentDate: input.date,
             siteId,
-            status: { in: ['BOOKED', 'COMPLETED'] },
+            status: { in: ['BOOKED', 'CANCELLED', 'COMPLETED'] },
           },
         }),
       ]);
@@ -267,13 +270,19 @@ export class ScheduleBoardService {
   ): ScheduleAppointmentItem {
     if (
       !['FIXED', 'SINGLE'].includes(appointment.appointmentType) ||
-      !['BOOKED', 'COMPLETED'].includes(appointment.status) ||
+      !['BOOKED', 'CANCELLED', 'COMPLETED'].includes(appointment.status) ||
       ![1, 2].includes(appointment.dailySequence)
     ) {
       throw new BookingStateConflictError();
     }
     return {
       appointmentType: appointment.appointmentType as ScheduleAppointmentItem['appointmentType'],
+      cancellationReason:
+        appointment.status === 'CANCELLED'
+          ? cancellationReasonLabel(appointment.cancellationReasonCode)
+          : null,
+      cancellationReasonText:
+        appointment.status === 'CANCELLED' ? appointment.cancellationReasonText : null,
       dailySequence: appointment.dailySequence as 1 | 2,
       durationMinutes: appointment.durationMinutes,
       endAt: appointment.endAt.toISOString(),

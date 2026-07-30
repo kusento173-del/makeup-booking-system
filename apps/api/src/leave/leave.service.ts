@@ -2,6 +2,11 @@ import { Prisma, type DatabaseClient } from '@makeup/database';
 import { Injectable } from '@nestjs/common';
 
 import { AuditCommandService } from '../audit/audit-command.service';
+import {
+  findAffectedAppointments,
+  toAffectedAppointment,
+  type AffectedAppointmentRecord,
+} from '../absence/affected-appointment';
 import { AuthorizationDeniedError } from '../auth/authorization-policy.service';
 import { DatabaseService } from '../database/database.service';
 import { isHostQualifiedOn } from '../master-data/host-qualification';
@@ -22,7 +27,9 @@ import type {
   LeaveCommandContext,
   LeaveDateRange,
   LeaveImpactPreview,
+  LeaveApprovalItem,
   LeaveSummary,
+  ReviewLeaveCommand,
 } from './leave.types';
 
 interface LeaveSubject {
@@ -56,6 +63,20 @@ const RESTORABLE_FIXED_APPOINTMENT_SELECT = {
 type RestorableFixedAppointment = Prisma.AppointmentGetPayload<{
   select: typeof RESTORABLE_FIXED_APPOINTMENT_SELECT;
 }>;
+
+const LEAVE_SELECT = {
+  affectedAppointmentCount: true,
+  artistId: true,
+  endDate: true,
+  hostId: true,
+  id: true,
+  reason: true,
+  reviewComment: true,
+  rowVersion: true,
+  startDate: true,
+  status: true,
+  subjectType: true,
+} satisfies Prisma.LeaveRecordSelect;
 
 function optionalReason(value: string | undefined): string | undefined {
   if (value === undefined) return undefined;
@@ -105,7 +126,8 @@ export class LeaveService {
     validateRange(range, now);
     return this.database.read(async (client) => {
       const subject = await this.resolveSelf(client, context);
-      return this.toPreview(subject, range, await this.appointmentCount(client, subject, range));
+      const appointments = await this.affectedAppointments(client, subject, range);
+      return this.toPreview(subject, range, appointments);
     });
   }
 
@@ -114,25 +136,27 @@ export class LeaveService {
       const subject = await this.resolveSelf(client, context);
       const leaves = await client.leaveRecord.findMany({
         orderBy: [{ startDate: 'asc' }, { createdAt: 'desc' }],
-        select: {
-          affectedAppointmentCount: true,
-          artistId: true,
-          endDate: true,
-          hostId: true,
-          id: true,
-          reason: true,
-          rowVersion: true,
-          startDate: true,
-          status: true,
-          subjectType: true,
-        },
+        select: LEAVE_SELECT,
         where: {
           endDate: { gte: toBusinessDate(now) },
-          status: 'ACTIVE',
+          status: { in: ['ACTIVE', 'CANCELLED', 'PENDING', 'REJECTED'] },
           ...(subject.subjectType === 'ARTIST' ? { artistId: subject.id } : { hostId: subject.id }),
         },
       });
-      return leaves.map((leave) => this.toSummary(leave));
+      return Promise.all(
+        leaves.map(async (leave) => {
+          const affectedAppointments = await this.affectedAppointments(client, subject, {
+            endDate: leave.endDate,
+            startDate: leave.startDate,
+          });
+          return this.toSummary(
+            leave.status === 'PENDING'
+              ? { ...leave, affectedAppointmentCount: affectedAppointments.length }
+              : leave,
+            affectedAppointments,
+          );
+        }),
+      );
     });
   }
 
@@ -146,7 +170,8 @@ export class LeaveService {
     return this.database.transaction(async (transaction) => {
       const subject = await this.resolveSelf(transaction, context);
       await this.lockSchedule(transaction, subject, command);
-      const affectedAppointmentCount = await this.appointmentCount(transaction, subject, command);
+      const affectedAppointments = await this.affectedAppointments(transaction, subject, command);
+      const affectedAppointmentCount = affectedAppointments.length;
       if (command.confirmedAffectedAppointmentCount !== affectedAppointmentCount) {
         throw new LeaveImpactChangedError();
       }
@@ -159,43 +184,195 @@ export class LeaveService {
           hostId: subject.subjectType === 'HOST' ? subject.id : null,
           reason: reason ?? null,
           startDate: command.startDate,
+          status: subject.subjectType === 'ARTIST' ? 'PENDING' : 'ACTIVE',
           subjectType: subject.subjectType,
         },
-        select: {
-          affectedAppointmentCount: true,
-          artistId: true,
-          endDate: true,
-          hostId: true,
-          id: true,
-          reason: true,
-          rowVersion: true,
-          startDate: true,
-          status: true,
-          subjectType: true,
-        },
+        select: LEAVE_SELECT,
       });
-      const summary = this.toSummary(leave);
-      const cancelled = await transaction.appointment.updateMany({
-        data: {
-          cancellationReasonCode: subject.subjectType === 'ARTIST' ? 'ARTIST_LEAVE' : 'HOST_LEAVE',
-          cancellationReasonText: reason ?? null,
-          cancellationSourceId: leave.id,
-          cancellationSourceType: 'LEAVE_RECORD',
-          cancelledAt: now,
-          cancelledByUserId: context.userId,
-          rowVersion: { increment: 1 },
-          status: 'CANCELLED',
-        },
-        where: this.appointmentWhere(subject, command),
-      });
-      if (cancelled.count !== affectedAppointmentCount) throw new LeaveImpactChangedError();
+      const summary = this.toSummary(leave, affectedAppointments);
+      if (subject.subjectType === 'HOST') {
+        const cancelled = await transaction.appointment.updateMany({
+          data: {
+            cancellationReasonCode: 'HOST_LEAVE',
+            cancellationReasonText: reason ?? null,
+            cancellationSourceId: leave.id,
+            cancellationSourceType: 'LEAVE_RECORD',
+            cancelledAt: now,
+            cancelledByUserId: context.userId,
+            rowVersion: { increment: 1 },
+            status: 'CANCELLED',
+          },
+          where: this.appointmentWhere(subject, command),
+        });
+        if (cancelled.count !== affectedAppointmentCount) throw new LeaveImpactChangedError();
+      }
       await this.audit.append(transaction, context, {
-        action: 'LEAVE_CREATED',
-        afterData: { ...summary },
+        action: subject.subjectType === 'ARTIST' ? 'ARTIST_LEAVE_SUBMITTED' : 'LEAVE_CREATED',
+        afterData: {
+          affectedAppointmentCount: summary.affectedAppointmentCount,
+          endDate: summary.endDate,
+          id: summary.id,
+          rowVersion: summary.rowVersion,
+          startDate: summary.startDate,
+          status: summary.status,
+        },
         objectId: leave.id,
         objectType: 'LEAVE_RECORD',
         ...(reason ? { reason } : {}),
         siteId: subject.siteId,
+      });
+      return summary;
+    });
+  }
+
+  listPending(
+    context: LeaveCommandContext,
+    now = new Date(),
+  ): Promise<readonly LeaveApprovalItem[]> {
+    if (!['CUSTOMER_SERVICE', 'ADMIN'].includes(context.roleCode)) {
+      throw new AuthorizationDeniedError();
+    }
+    return this.database.read(async (client) => {
+      const leaves = await client.leaveRecord.findMany({
+        orderBy: [{ startDate: 'asc' }, { createdAt: 'asc' }],
+        select: {
+          ...LEAVE_SELECT,
+          artist: { select: { nickname: true, siteId: true } },
+          createdAt: true,
+        },
+        where: {
+          artistId: { not: null },
+          endDate: { gte: toBusinessDate(now) },
+          status: 'PENDING',
+          ...(context.roleCode === 'CUSTOMER_SERVICE'
+            ? { artist: { siteId: context.siteId ?? '' } }
+            : {}),
+        },
+      });
+      return Promise.all(
+        leaves.map(async (leave) => {
+          if (!leave.artist) throw new LeaveStateConflictError();
+          const subject: LeaveSubject = {
+            id: leave.artistId!,
+            siteId: leave.artist.siteId,
+            subjectType: 'ARTIST',
+          };
+          const affectedAppointments = await this.affectedAppointments(client, subject, {
+            endDate: leave.endDate,
+            startDate: leave.startDate,
+          });
+          return {
+            ...this.toSummary(
+              { ...leave, affectedAppointmentCount: affectedAppointments.length },
+              affectedAppointments,
+            ),
+            artistNickname: leave.artist.nickname,
+            siteId: leave.artist.siteId,
+            submittedAt: leave.createdAt.toISOString(),
+          };
+        }),
+      );
+    });
+  }
+
+  review(
+    context: LeaveCommandContext,
+    command: ReviewLeaveCommand,
+    now = new Date(),
+  ): Promise<LeaveSummary> {
+    if (!['CUSTOMER_SERVICE', 'ADMIN'].includes(context.roleCode)) {
+      throw new AuthorizationDeniedError();
+    }
+    const comment = optionalReason(command.comment);
+    if (command.decision === 'REJECT' && !comment) throw new LeaveReasonInvalidError();
+
+    return this.database.transaction(async (transaction) => {
+      const leave = await transaction.leaveRecord.findUnique({
+        select: {
+          ...LEAVE_SELECT,
+          artist: { select: { id: true, siteId: true } },
+        },
+        where: { id: command.leaveId },
+      });
+      if (!leave || !leave.artist) throw new LeaveNotFoundError();
+      if (
+        context.roleCode === 'CUSTOMER_SERVICE' &&
+        (!context.siteId || context.siteId !== leave.artist.siteId)
+      ) {
+        throw new AuthorizationDeniedError();
+      }
+      if (leave.startDate <= toBusinessDate(now)) throw new LeaveDateRangeInvalidError();
+
+      const subject: LeaveSubject = {
+        id: leave.artist.id,
+        siteId: leave.artist.siteId,
+        subjectType: 'ARTIST',
+      };
+      await this.lockSchedule(transaction, subject, leave);
+      const affectedAppointments = await this.affectedAppointments(transaction, subject, leave);
+      if (affectedAppointments.length !== command.confirmedAffectedAppointmentCount) {
+        throw new LeaveImpactChangedError();
+      }
+      const status = command.decision === 'APPROVE' ? 'ACTIVE' : 'REJECTED';
+      const updated = await transaction.leaveRecord.updateMany({
+        data: {
+          affectedAppointmentCount: affectedAppointments.length,
+          reviewComment: comment ?? null,
+          reviewedAt: now,
+          reviewedByUserId: context.userId,
+          rowVersion: { increment: 1 },
+          status,
+        },
+        where: {
+          id: leave.id,
+          rowVersion: command.expectedRowVersion,
+          status: 'PENDING',
+        },
+      });
+      if (updated.count !== 1) throw new LeaveStateConflictError();
+
+      if (status === 'ACTIVE') {
+        const cancelled = await transaction.appointment.updateMany({
+          data: {
+            cancellationReasonCode: 'ARTIST_LEAVE',
+            cancellationReasonText: leave.reason,
+            cancellationSourceId: leave.id,
+            cancellationSourceType: 'LEAVE_RECORD',
+            cancelledAt: now,
+            cancelledByUserId: context.userId,
+            rowVersion: { increment: 1 },
+            status: 'CANCELLED',
+          },
+          where: this.appointmentWhere(subject, leave),
+        });
+        if (cancelled.count !== affectedAppointments.length) throw new LeaveImpactChangedError();
+      }
+
+      const summary = this.toSummary(
+        {
+          ...leave,
+          affectedAppointmentCount: affectedAppointments.length,
+          reviewComment: comment ?? null,
+          rowVersion: leave.rowVersion + 1,
+          status,
+        },
+        affectedAppointments,
+      );
+      await this.audit.append(transaction, context, {
+        action: `ARTIST_LEAVE_${status === 'ACTIVE' ? 'APPROVED' : 'REJECTED'}`,
+        afterData: {
+          affectedAppointmentCount: summary.affectedAppointmentCount,
+          endDate: summary.endDate,
+          id: summary.id,
+          rowVersion: summary.rowVersion,
+          startDate: summary.startDate,
+          status: summary.status,
+        },
+        beforeData: { rowVersion: leave.rowVersion, status: leave.status },
+        objectId: leave.id,
+        objectType: 'LEAVE_RECORD',
+        ...(comment ? { reason: comment } : {}),
+        siteId: leave.artist.siteId,
       });
       return summary;
     });
@@ -237,9 +414,10 @@ export class LeaveService {
       }
       if (leave.startDate <= toBusinessDate(now)) throw new LeaveDateRangeInvalidError();
 
-      const restorableAppointments = leave.artist
-        ? await this.restorableFixedAppointments(transaction, leave.id)
-        : [];
+      const restorableAppointments =
+        leave.artist && leave.status === 'ACTIVE'
+          ? await this.restorableFixedAppointments(transaction, leave.id)
+          : [];
       await this.lockFixedAppointmentRestorations(transaction, restorableAppointments);
       const updated = await transaction.leaveRecord.updateMany({
         data: {
@@ -249,7 +427,11 @@ export class LeaveService {
           rowVersion: { increment: 1 },
           status: 'CANCELLED',
         },
-        where: { id: leave.id, rowVersion: command.expectedRowVersion, status: 'ACTIVE' },
+        where: {
+          id: leave.id,
+          rowVersion: command.expectedRowVersion,
+          status: { in: ['ACTIVE', 'PENDING'] },
+        },
       });
       if (updated.count !== 1) throw new LeaveStateConflictError();
       const restoredFixedAppointmentCount = await this.restoreFixedAppointments(
@@ -304,12 +486,12 @@ export class LeaveService {
     throw new AuthorizationDeniedError();
   }
 
-  private appointmentCount(
+  private affectedAppointments(
     client: DatabaseClient | Prisma.TransactionClient,
     subject: LeaveSubject,
     range: LeaveDateRange,
-  ): Promise<number> {
-    return client.appointment.count({ where: this.appointmentWhere(subject, range) });
+  ): Promise<readonly AffectedAppointmentRecord[]> {
+    return findAffectedAppointments(client, this.appointmentWhere(subject, range));
   }
 
   private appointmentWhere(
@@ -472,10 +654,11 @@ export class LeaveService {
   private toPreview(
     subject: LeaveSubject,
     range: LeaveDateRange,
-    affectedAppointmentCount: number,
+    affectedAppointments: readonly AffectedAppointmentRecord[],
   ): LeaveImpactPreview {
     return {
-      affectedAppointmentCount,
+      affectedAppointmentCount: affectedAppointments.length,
+      affectedAppointments: affectedAppointments.map(toAffectedAppointment),
       endDate: formatDateOnly(range.endDate),
       startDate: formatDateOnly(range.startDate),
       subjectId: subject.id,
@@ -483,23 +666,29 @@ export class LeaveService {
     };
   }
 
-  private toSummary(leave: {
-    affectedAppointmentCount: number;
-    artistId: string | null;
-    endDate: Date;
-    hostId: string | null;
-    id: string;
-    reason: string | null;
-    rowVersion: number;
-    startDate: Date;
-    status: string;
-    subjectType: string;
-  }): LeaveSummary {
+  private toSummary(
+    leave: {
+      affectedAppointmentCount: number;
+      artistId: string | null;
+      endDate: Date;
+      hostId: string | null;
+      id: string;
+      reason: string | null;
+      reviewComment: string | null;
+      rowVersion: number;
+      startDate: Date;
+      status: string;
+      subjectType: string;
+    },
+    affectedAppointments: readonly AffectedAppointmentRecord[],
+  ): LeaveSummary {
     return {
       affectedAppointmentCount: leave.affectedAppointmentCount,
+      affectedAppointments: affectedAppointments.map(toAffectedAppointment),
       endDate: formatDateOnly(leave.endDate),
       id: leave.id,
       reason: leave.reason,
+      reviewComment: leave.reviewComment,
       rowVersion: leave.rowVersion,
       startDate: formatDateOnly(leave.startDate),
       status: leave.status as LeaveSummary['status'],

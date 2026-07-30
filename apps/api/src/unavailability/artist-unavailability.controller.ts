@@ -34,20 +34,24 @@ import { CurrentAuth } from '../auth/current-auth.decorator';
 import { MasterDataCommandContextService } from '../master-data/master-data-command-context.service';
 import {
   ArtistUnavailablePeriodPreviewDto,
+  ArtistUnavailablePeriodApprovalItemDto,
   ArtistUnavailablePeriodRangeDto,
   ArtistUnavailablePeriodSummaryDto,
   CancelArtistUnavailablePeriodRequestDto,
   CreateArtistUnavailablePeriodRequestDto,
+  ReviewArtistUnavailablePeriodRequestDto,
 } from './artist-unavailability-openapi.dto';
 import {
   parseArtistUnavailablePeriodPreviewRequest,
   parseArtistUnavailablePeriodTarget,
   parseCancelArtistUnavailablePeriodRequest,
   parseCreateArtistUnavailablePeriodRequest,
+  parseReviewArtistUnavailablePeriodRequest,
 } from './artist-unavailability-request.parser';
 import { ArtistUnavailabilityService } from './artist-unavailability.service';
 import type {
   ArtistUnavailablePeriodPreview,
+  ArtistUnavailablePeriodApprovalItem,
   ArtistUnavailablePeriodSummary,
   ArtistUnavailabilityCommandContext,
 } from './artist-unavailability.types';
@@ -110,6 +114,36 @@ export class ArtistUnavailabilityController {
     const command = parseCreateArtistUnavailablePeriodRequest(body);
     return this.context(authorization, ipAddress, userAgent, requestId).then((context) =>
       this.unavailability.create(context, command),
+    );
+  }
+
+  @Get('pending')
+  @ApiOperation({ summary: '查询待审核的化妆师临时不可排班申请' })
+  @ApiOkResponse({ type: [ArtistUnavailablePeriodApprovalItemDto] })
+  async listPending(
+    @CurrentAuth() authorization: AccessTokenClaims,
+    @Ip() ipAddress: string,
+  ): Promise<readonly ArtistUnavailablePeriodApprovalItem[]> {
+    const context = await this.context(authorization, ipAddress);
+    return this.unavailability.listPending(context);
+  }
+
+  @Post(':periodId/review')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: '审核化妆师临时不可排班申请' })
+  @ApiBody({ type: ReviewArtistUnavailablePeriodRequestDto })
+  @ApiOkResponse({ type: ArtistUnavailablePeriodSummaryDto })
+  review(
+    @Param('periodId') periodId: string,
+    @Body() body: unknown,
+    @CurrentAuth() authorization: AccessTokenClaims,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent?: string,
+    @Headers('x-request-id') requestId?: string,
+  ): Promise<ArtistUnavailablePeriodSummary> {
+    const command = parseReviewArtistUnavailablePeriodRequest(periodId, body);
+    return this.context(authorization, ipAddress, userAgent, requestId).then((context) =>
+      this.unavailability.review(context, command),
     );
   }
 

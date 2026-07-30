@@ -14,6 +14,8 @@ export interface MinuteInterval {
 
 export interface ScheduleAppointment {
   readonly appointmentType: 'FIXED' | 'SINGLE';
+  readonly cancellationReason: '主播取消' | '主播请假' | '化妆师请假' | null;
+  readonly cancellationReasonText: string | null;
   readonly dailySequence: 1 | 2;
   readonly durationMinutes: number;
   readonly endAt: string;
@@ -27,7 +29,7 @@ export interface ScheduleAppointment {
   readonly rowVersion: number;
   readonly startAt: string;
   readonly startMinute: number;
-  readonly status: 'BOOKED' | 'COMPLETED';
+  readonly status: 'BOOKED' | 'CANCELLED' | 'COMPLETED';
 }
 
 export interface ScheduleArtist {

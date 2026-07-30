@@ -160,6 +160,12 @@ export function MobileSchedule({ onReschedule, session }: MobileScheduleProps) {
                 主播：{item.hostName}（{item.hostCode}）<br />
                 实际预约化妆师：{item.artistNickname}
               </p>
+              {item.status === 'CANCELLED' ? (
+                <p className="mobile-meta">
+                  取消原因：{item.cancellationReason || '主播取消'}
+                  {item.cancellationReasonText ? ` · ${item.cancellationReasonText}` : ''}
+                </p>
+              ) : null}
               {canChange && session.role.roleCode !== 'ARTIST' ? (
                 <div className="mobile-actions">
                   <button onClick={() => onReschedule(item)} type="button">

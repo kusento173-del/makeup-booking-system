@@ -34,16 +34,24 @@ import {
   CancelLeaveRequestDto,
   CreateLeaveRequestDto,
   LeaveImpactPreviewDto,
+  LeaveApprovalItemDto,
   LeavePreviewRequestDto,
   LeaveSummaryDto,
+  ReviewLeaveRequestDto,
 } from './leave-openapi.dto';
 import {
   parseCancelLeaveRequest,
   parseCreateLeaveRequest,
   parseLeavePreviewRequest,
+  parseReviewLeaveRequest,
 } from './leave-request.parser';
 import { LeaveService } from './leave.service';
-import type { LeaveCommandContext, LeaveImpactPreview, LeaveSummary } from './leave.types';
+import type {
+  LeaveApprovalItem,
+  LeaveCommandContext,
+  LeaveImpactPreview,
+  LeaveSummary,
+} from './leave.types';
 
 @ApiTags('请假')
 @ApiBearerAuth('access-token')
@@ -101,6 +109,36 @@ export class LeaveController {
     const command = parseCreateLeaveRequest(body);
     return this.context(authorization, ipAddress, userAgent, requestId).then((context) =>
       this.leaves.create(context, command),
+    );
+  }
+
+  @Get('pending')
+  @ApiOperation({ summary: '查询客服或管理员场地范围内待审核的化妆师请假' })
+  @ApiOkResponse({ type: [LeaveApprovalItemDto] })
+  async listPending(
+    @CurrentAuth() authorization: AccessTokenClaims,
+    @Ip() ipAddress: string,
+  ): Promise<readonly LeaveApprovalItem[]> {
+    const context = await this.context(authorization, ipAddress);
+    return this.leaves.listPending(context);
+  }
+
+  @Post(':leaveId/review')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: '审核化妆师整日请假' })
+  @ApiBody({ type: ReviewLeaveRequestDto })
+  @ApiOkResponse({ type: LeaveSummaryDto })
+  review(
+    @Param('leaveId') leaveId: string,
+    @Body() body: unknown,
+    @CurrentAuth() authorization: AccessTokenClaims,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent?: string,
+    @Headers('x-request-id') requestId?: string,
+  ): Promise<LeaveSummary> {
+    const command = parseReviewLeaveRequest(leaveId, body);
+    return this.context(authorization, ipAddress, userAgent, requestId).then((context) =>
+      this.leaves.review(context, command),
     );
   }
 

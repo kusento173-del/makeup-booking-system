@@ -68,8 +68,10 @@ model AppUser {
   submittedOvertimes          ArtistOvertime[]              @relation("ArtistOvertimeSubmittedBy")
   reviewedOvertimes           ArtistOvertime[]              @relation("ArtistOvertimeReviewedBy")
   createdLeaveRecords         LeaveRecord[]                 @relation("LeaveRecordCreatedBy")
+  reviewedLeaveRecords        LeaveRecord[]                 @relation("LeaveRecordReviewedBy")
   cancelledLeaveRecords       LeaveRecord[]                 @relation("LeaveRecordCancelledBy")
   createdUnavailablePeriods   ArtistUnavailablePeriod[]     @relation("ArtistUnavailablePeriodCreatedBy")
+  reviewedUnavailablePeriods  ArtistUnavailablePeriod[]     @relation("ArtistUnavailablePeriodReviewedBy")
   cancelledUnavailablePeriods ArtistUnavailablePeriod[]     @relation("ArtistUnavailablePeriodCancelledBy")
   createdAppointments         Appointment[]                 @relation("AppointmentCreatedBy")
   cancelledAppointments       Appointment[]                 @relation("AppointmentCancelledBy")
@@ -390,6 +392,9 @@ model LeaveRecord {
   reason                   String?                   @db.VarChar(500)
   createdByUserId          String                    @map("created_by_user_id") @db.Uuid
   createdAt                DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
+  reviewedByUserId         String?                   @map("reviewed_by_user_id") @db.Uuid
+  reviewedAt               DateTime?                 @map("reviewed_at") @db.Timestamptz(3)
+  reviewComment            String?                   @map("review_comment") @db.VarChar(500)
   cancelledByUserId        String?                   @map("cancelled_by_user_id") @db.Uuid
   cancelledAt              DateTime?                 @map("cancelled_at") @db.Timestamptz(3)
   cancellationReason       String?                   @map("cancellation_reason") @db.VarChar(500)
@@ -400,11 +405,13 @@ model LeaveRecord {
   host        HostProfile?   @relation(fields: [hostId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   artist      ArtistProfile? @relation(fields: [artistId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   createdBy   AppUser        @relation("LeaveRecordCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  reviewedBy  AppUser?       @relation("LeaveRecordReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   cancelledBy AppUser?       @relation("LeaveRecordCancelledBy", fields: [cancelledByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   @@index([hostId, startDate, endDate], map: "leave_records_host_dates_idx")
   @@index([artistId, startDate, endDate], map: "leave_records_artist_dates_idx")
   @@index([createdByUserId], map: "leave_records_created_by_idx")
+  @@index([reviewedByUserId], map: "leave_records_reviewed_by_idx")
   @@index([cancelledByUserId], map: "leave_records_cancelled_by_idx")
   @@map("leave_records")
 }
@@ -421,6 +428,9 @@ model ArtistUnavailablePeriod {
   status                   String                    @default("ACTIVE") @db.VarChar(16)
   createdByUserId          String                    @map("created_by_user_id") @db.Uuid
   createdAt                DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
+  reviewedByUserId         String?                   @map("reviewed_by_user_id") @db.Uuid
+  reviewedAt               DateTime?                 @map("reviewed_at") @db.Timestamptz(3)
+  reviewComment            String?                   @map("review_comment") @db.VarChar(500)
   cancelledByUserId        String?                   @map("cancelled_by_user_id") @db.Uuid
   cancelledAt              DateTime?                 @map("cancelled_at") @db.Timestamptz(3)
   cancellationReason       String?                   @map("cancellation_reason") @db.VarChar(500)
@@ -431,11 +441,13 @@ model ArtistUnavailablePeriod {
   artist      ArtistProfile @relation(fields: [artistId, siteId], references: [id, siteId], onDelete: Restrict, onUpdate: Cascade, map: "artist_unavailable_periods_artist_site_fkey")
   site        Site          @relation(fields: [siteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   createdBy   AppUser       @relation("ArtistUnavailablePeriodCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  reviewedBy  AppUser?      @relation("ArtistUnavailablePeriodReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   cancelledBy AppUser?      @relation("ArtistUnavailablePeriodCancelledBy", fields: [cancelledByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   @@index([artistId, unavailableDate, status], map: "artist_unavailable_periods_artist_date_status_idx")
   @@index([siteId, unavailableDate, status], map: "artist_unavailable_periods_site_date_status_idx")
   @@index([createdByUserId], map: "artist_unavailable_periods_created_by_idx")
+  @@index([reviewedByUserId], map: "artist_unavailable_periods_reviewed_by_idx")
   @@index([cancelledByUserId], map: "artist_unavailable_periods_cancelled_by_idx")
   @@map("artist_unavailable_periods")
 }

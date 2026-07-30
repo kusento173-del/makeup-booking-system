@@ -99,6 +99,8 @@ describe('ScheduleBoardService', () => {
           appointments: [
             {
               appointmentType: 'FIXED',
+              cancellationReason: null,
+              cancellationReasonText: null,
               dailySequence: 1,
               durationMinutes: 30,
               endAt: '2026-07-22T01:30:00.000Z',
@@ -149,7 +151,7 @@ describe('ScheduleBoardService', () => {
       where: {
         appointmentDate: date,
         siteId: 'site-1',
-        status: { in: ['BOOKED', 'COMPLETED'] },
+        status: { in: ['BOOKED', 'CANCELLED', 'COMPLETED'] },
       },
     });
     expect(client.artistProfile.findMany.mock.calls[0]?.[0]).toMatchObject({

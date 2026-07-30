@@ -8,6 +8,7 @@ export type BackofficeView =
   | 'exports'
   | 'fixed-approvals'
   | 'fixed-rules'
+  | 'leave-approvals'
   | 'overtime-approvals'
   | 'schedule'
   | ManagementView;
@@ -35,6 +36,7 @@ const NAV_GROUPS: readonly {
       { id: 'fixed-approvals', label: '固定申请审批' },
       { id: 'approvals', label: '班次审批' },
       { id: 'overtime-approvals', label: '加班审批' },
+      { id: 'leave-approvals', label: '请假审批' },
     ],
     label: '审批管理',
   },

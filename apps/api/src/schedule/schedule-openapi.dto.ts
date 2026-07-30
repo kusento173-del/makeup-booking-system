@@ -12,6 +12,12 @@ export class ScheduleAppointmentItemDto {
   @ApiProperty({ enum: ['FIXED', 'SINGLE'] })
   appointmentType!: string;
 
+  @ApiProperty({ enum: ['主播取消', '主播请假', '化妆师请假'], nullable: true })
+  cancellationReason!: string | null;
+
+  @ApiProperty({ maxLength: 500, nullable: true })
+  cancellationReasonText!: string | null;
+
   @ApiProperty({ enum: [1, 2] })
   dailySequence!: number;
 
@@ -51,7 +57,7 @@ export class ScheduleAppointmentItemDto {
   @ApiProperty({ maximum: 1425, minimum: 0, multipleOf: 15 })
   startMinute!: number;
 
-  @ApiProperty({ enum: ['BOOKED', 'COMPLETED'] })
+  @ApiProperty({ enum: ['BOOKED', 'CANCELLED', 'COMPLETED'] })
   status!: string;
 }
 

@@ -6,6 +6,7 @@ DECLARE
     user_id UUID;
     artist_id UUID;
     period_id UUID;
+    pending_period_id UUID;
     suffix TEXT := txid_current()::text;
 BEGIN
     SELECT "id" INTO site_id FROM "sites" WHERE "code" = 'SONGJIANG';
@@ -89,6 +90,83 @@ BEGIN
         RAISE EXCEPTION 'Non-15-minute unavailable period was accepted';
     EXCEPTION WHEN check_violation THEN NULL;
     END;
+
+    INSERT INTO "artist_unavailable_periods" (
+        "artist_id",
+        "site_id",
+        "unavailable_date",
+        "start_minute",
+        "end_minute",
+        "reason",
+        "status",
+        "created_by_user_id"
+    ) VALUES (
+        artist_id,
+        site_id,
+        DATE '2026-08-03',
+        780,
+        900,
+        'Pending review',
+        'PENDING',
+        user_id
+    )
+    RETURNING "id" INTO pending_period_id;
+
+    BEGIN
+        INSERT INTO "artist_unavailable_periods" (
+            "artist_id",
+            "site_id",
+            "unavailable_date",
+            "start_minute",
+            "end_minute",
+            "reason",
+            "created_by_user_id"
+        ) VALUES (
+            artist_id,
+            site_id,
+            DATE '2026-08-03',
+            840,
+            960,
+            'Overlaps pending',
+            user_id
+        );
+        RAISE EXCEPTION 'Unavailable period overlapping a pending request was accepted';
+    EXCEPTION WHEN exclusion_violation THEN NULL;
+    END;
+
+    BEGIN
+        UPDATE "artist_unavailable_periods"
+        SET "status" = 'REJECTED'
+        WHERE "id" = pending_period_id;
+        RAISE EXCEPTION 'Rejected unavailable period without reviewer was accepted';
+    EXCEPTION WHEN check_violation THEN NULL;
+    END;
+
+    UPDATE "artist_unavailable_periods"
+    SET
+        "status" = 'REJECTED',
+        "reviewed_by_user_id" = user_id,
+        "reviewed_at" = CURRENT_TIMESTAMP,
+        "review_comment" = 'Not approved'
+    WHERE "id" = pending_period_id;
+
+    INSERT INTO "artist_unavailable_periods" (
+        "artist_id",
+        "site_id",
+        "unavailable_date",
+        "start_minute",
+        "end_minute",
+        "reason",
+        "created_by_user_id"
+    ) VALUES (
+        artist_id,
+        site_id,
+        DATE '2026-08-03',
+        840,
+        960,
+        'Allowed after rejection',
+        user_id
+    );
 
     BEGIN
         UPDATE "artist_unavailable_periods"
