@@ -172,7 +172,12 @@ export function createManagementItem(
   token: string,
   body: unknown,
 ): Promise<{ readonly id: string }> {
-  const path = view === 'accounts' ? '/backoffice/accounts' : `/master-data/${view}`;
+  const path =
+    view === 'accounts'
+      ? '/backoffice/accounts'
+      : view === 'relations'
+        ? PATHS.relations
+        : `/master-data/${view}`;
   return apiRequest(path, { body, method: 'POST', token });
 }
 

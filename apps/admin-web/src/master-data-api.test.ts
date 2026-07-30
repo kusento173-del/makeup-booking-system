@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  createManagementItem,
   deleteManagementItem,
   listManagementItems,
   searchArtists,
@@ -10,6 +11,26 @@ import {
 
 describe('master-data API client', () => {
   afterEach(() => vi.unstubAllGlobals());
+
+  it('uses the host-operator relation endpoint when creating a relation', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ id: 'relation-1' }), {
+        headers: { 'Content-Type': 'application/json' },
+        status: 201,
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await createManagementItem('relations', 'access-token', {
+      hostId: 'host-1',
+      operatorId: 'operator-1',
+      startDate: '2026-07-31',
+    });
+
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe('/api/master-data/host-operator-relations');
+    expect(init.method).toBe('POST');
+  });
 
   it('encodes bounded pagination and search in one request', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
