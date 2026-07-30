@@ -83,6 +83,11 @@ function normalizeText(value: unknown): string {
   return '';
 }
 
+export function normalizeRelationOperatorName(value: unknown): string {
+  const normalized = normalizeText(value);
+  return normalized === '0' ? '' : normalized;
+}
+
 function cellValue(cell: ExcelJS.Cell): unknown {
   const value = cell.value;
   if (!value || typeof value !== 'object' || value instanceof Date) return value;
@@ -252,7 +257,7 @@ export async function loadSourceImportPlan(sourceDir: string): Promise<SourceImp
     const relation = {
       rowNumber,
       hostCode: normalizeText(cellValue(row.getCell(1))),
-      operatorName: normalizeText(cellValue(row.getCell(2))),
+      operatorName: normalizeRelationOperatorName(cellValue(row.getCell(2))),
     };
     if (!relation.hostCode && !relation.operatorName) return;
     if (!relation.hostCode) {
