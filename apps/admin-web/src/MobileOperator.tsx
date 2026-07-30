@@ -17,7 +17,7 @@ import {
   type MobileArtist,
   withdrawFixedRequest,
 } from './mobile-api';
-import { MAKEUP_TYPE_OPTIONS } from './makeup-type';
+import { MAKEUP_TYPE_OPTIONS, makeupTypeLabel } from './makeup-type';
 import { businessDate, minuteLabel, WEEKDAYS } from './mobile-utils';
 
 interface MobileOperatorProps {
@@ -99,7 +99,11 @@ export function MobileOperator({ onBookHost, session, view }: MobileOperatorProp
                 {host.activeRule
                   ? `固定：${host.activeRule.artistNickname} · ${host.activeRule.weekdays
                       .map((day) => WEEKDAYS.find((item) => item.id === day)?.label)
-                      .join('、')} · ${minuteLabel(host.activeRule.startMinute)}`
+                      .join(
+                        '、',
+                      )} · ${minuteLabel(host.activeRule.startMinute)} · ${makeupTypeLabel(
+                      host.activeRule.durationMinutes,
+                    )}`
                   : '暂无固定化妆师'}
               </p>
               {host.pendingRequest ? (
@@ -270,7 +274,9 @@ function FixedWorkspace({
           <>
             <p className="mobile-meta">
               {host.activeRule
-                ? `当前固定：${host.activeRule.artistNickname} · ${minuteLabel(host.activeRule.startMinute)}`
+                ? `当前固定：${host.activeRule.artistNickname} · ${minuteLabel(
+                    host.activeRule.startMinute,
+                  )} · ${makeupTypeLabel(host.activeRule.durationMinutes)}`
                 : '当前没有固定关系'}
             </p>
             {host.pendingRequest ? (
