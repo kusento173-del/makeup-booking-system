@@ -6,8 +6,18 @@ export { Prisma } from '../generated/client';
 
 export type DatabaseClient = PrismaClient;
 
-export function createDatabaseClient(connectionString: string): DatabaseClient {
+export type DatabaseClientOptions = {
+  readonly maxConnections?: number;
+};
+
+export function createDatabaseClient(
+  connectionString: string,
+  options: DatabaseClientOptions = {},
+): DatabaseClient {
   return new PrismaClient({
-    adapter: new PrismaPg({ connectionString }),
+    adapter: new PrismaPg({
+      connectionString,
+      ...(options.maxConnections === undefined ? {} : { max: options.maxConnections }),
+    }),
   });
 }
