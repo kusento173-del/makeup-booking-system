@@ -183,7 +183,11 @@ services:
       - ./deploy/acme-webroot:/var/www/certbot:ro
       - ./deploy/tls:/etc/nginx/certs:ro
     healthcheck:
-      test: ['CMD-SHELL', 'wget --quiet --spider http://127.0.0.1/healthz || exit 1']
+      test:
+        [
+          'CMD-SHELL',
+          'wget --no-check-certificate --quiet --spider https://127.0.0.1/healthz || wget --quiet --spider http://127.0.0.1/healthz || exit 1',
+        ]
       interval: 15s
       timeout: 5s
       retries: 4
