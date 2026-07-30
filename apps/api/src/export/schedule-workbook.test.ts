@@ -32,7 +32,8 @@ describe('schedule workbook', () => {
       '主播姓名',
     ]);
     expect(standard?.getRow(2).values).toEqual([undefined, '柔柔', '09:30', 'ZB01842', '小雨']);
-    expect(workbook.getWorksheet('扩展信息')?.getCell('J2').value).toBe('固定');
+    expect(workbook.getWorksheet('扩展信息')?.getCell('I2').value).toBe('现代妆');
+    expect(workbook.getWorksheet('扩展信息')?.getCell('K2').value).toBe('固定');
   });
 
   it('neutralizes formula-like text from snapshots', async () => {
@@ -56,5 +57,6 @@ describe('schedule workbook', () => {
 
     expect(workbook.getWorksheet('标准排班')?.getCell('A2').value).toBe(`'${'=HYPERLINK("bad")'}`);
     expect(workbook.getWorksheet('扩展信息')?.getCell('H2').value).toBe("'-danger");
+    expect(workbook.getWorksheet('扩展信息')?.getCell('I2').value).toBe('特殊妆');
   });
 });

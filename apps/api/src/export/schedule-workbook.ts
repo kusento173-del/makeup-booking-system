@@ -16,6 +16,12 @@ export interface ScheduleExportRow {
 
 const HEADER_FILL = '244F64';
 const HEADER_FONT = 'FFFFFF';
+const MAKEUP_TYPE_LABELS: Readonly<Record<number, string>> = {
+  15: '指导妆',
+  30: '现代妆',
+  45: '特殊妆',
+  60: '仿妆',
+};
 
 function safeText(value: string): string {
   const normalized = value.normalize('NFKC').trim();
@@ -77,6 +83,7 @@ export async function buildScheduleWorkbook(rows: readonly ScheduleExportRow[]):
     { header: '主播编号', key: 'hostCode', width: 18 },
     { header: '主播姓名', key: 'hostName', width: 18 },
     { header: '运营', key: 'operator', width: 16 },
+    { header: '妆容类型', key: 'makeupType', width: 14 },
     { header: '时长（分钟）', key: 'duration', width: 14 },
     { header: '预约类型', key: 'type', width: 12 },
     { header: '状态', key: 'status', width: 12 },
@@ -89,6 +96,7 @@ export async function buildScheduleWorkbook(rows: readonly ScheduleExportRow[]):
       end: minuteLabel(row.endMinute),
       hostCode: safeText(row.hostCode),
       hostName: safeText(row.hostName),
+      makeupType: MAKEUP_TYPE_LABELS[row.durationMinutes] ?? '未知',
       operator: row.operatorName ? safeText(row.operatorName) : null,
       site: safeText(row.siteName),
       start: minuteLabel(row.startMinute),

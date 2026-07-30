@@ -69,6 +69,7 @@ describe('M6 schedule export acceptance', () => {
         source.hostCode,
         source.hostName,
         source.operatorName ?? undefined,
+        source.durationMinutes === 45 ? '特殊妆' : '现代妆',
         source.durationMinutes,
         source.appointmentType === 'FIXED' ? '固定' : '单次',
         source.status === 'COMPLETED' ? '已完成' : '已预约',
