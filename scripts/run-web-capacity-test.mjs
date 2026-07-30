@@ -22,6 +22,9 @@ const requestedApiPort = process.env.CAPACITY_API_PORT
   ? Number(process.env.CAPACITY_API_PORT)
   : null;
 const concurrency = Number(process.env.CAPACITY_CONCURRENCY || 600);
+const boardConcurrency = Number(
+  process.env.CAPACITY_BOARD_CONCURRENCY || Math.max(1, Math.ceil(concurrency / 100)),
+);
 const durationSeconds = Number(process.env.CAPACITY_DURATION_SECONDS || 900);
 const exportStorageDirectory = resolve(root, 'tmp', 'capacity-exports');
 let apiPort;
@@ -34,8 +37,11 @@ const { AccessTokenService } = requireApi('./dist/auth/access-token.service.js')
 if (
   (requestedApiPort !== null && !Number.isInteger(requestedApiPort)) ||
   !Number.isInteger(concurrency) ||
+  !Number.isInteger(boardConcurrency) ||
   !Number.isInteger(durationSeconds) ||
   concurrency < 1 ||
+  boardConcurrency < 1 ||
+  boardConcurrency > concurrency ||
   durationSeconds < 1
 ) {
   throw new Error('Capacity test settings are invalid');
@@ -399,8 +405,8 @@ async function runSustainedLoad(getToken, fixtures, date) {
   const workers = Array.from({ length: concurrency }, async (_, workerIndex) => {
     await sleep(Math.random() * 1_000);
     let sequence = workerIndex;
+    const boardRequest = workerIndex < boardConcurrency;
     while (Date.now() < deadline) {
-      const boardRequest = sequence % 2 === 0;
       const site = fixtures.sites[sequence % fixtures.sites.length];
       const pair = fixtures.pairs[sequence % fixtures.pairs.length];
       const path = boardRequest
@@ -450,6 +456,7 @@ async function runSustainedLoad(getToken, fixtures, date) {
   await Promise.all(workers);
   const elapsedSeconds = (Date.now() - startedAt) / 1_000;
   return {
+    boardConcurrency,
     boardP95Milliseconds: percentile(metrics.board, 0.95),
     bytes: metrics.bytes,
     concurrency,
