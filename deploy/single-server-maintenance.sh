@@ -12,8 +12,8 @@ docker compose \
   --profile backup \
   run --rm backup
 
-docker image prune --force --filter "until=168h"
-docker builder prune --force --filter "until=168h"
+docker image prune --all --force --filter "until=168h"
+docker builder prune --all --force --filter "until=168h"
 
 used_percent="$(df -P "$project_dir" | awk 'NR == 2 { gsub("%", "", $5); print $5 }')"
 if [ "$used_percent" -ge 80 ]; then
