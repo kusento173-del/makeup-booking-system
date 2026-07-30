@@ -147,8 +147,17 @@ BEGIN
         "status" = 'REJECTED',
         "reviewed_by_user_id" = user_id,
         "reviewed_at" = CURRENT_TIMESTAMP,
-        "review_comment" = 'Not approved'
+        "review_comment" = 'Not approved',
+        "review_impact_snapshot" = '[]'::JSONB
     WHERE "id" = pending_period_id;
+
+    BEGIN
+        UPDATE "artist_unavailable_periods"
+        SET "review_impact_snapshot" = '{}'::JSONB
+        WHERE "id" = pending_period_id;
+        RAISE EXCEPTION 'Non-array unavailable-period review impact snapshot was accepted';
+    EXCEPTION WHEN check_violation THEN NULL;
+    END;
 
     INSERT INTO "artist_unavailable_periods" (
         "artist_id",

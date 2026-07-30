@@ -48,6 +48,10 @@ export interface LeaveApprovalItem extends LeaveSummary {
   readonly submittedAt: string;
 }
 
+export interface LeaveReviewedItem extends LeaveApprovalItem {
+  readonly reviewedAt: string;
+}
+
 export interface ReviewLeaveCommand {
   readonly comment?: string;
   readonly confirmedAffectedAppointmentCount: number;

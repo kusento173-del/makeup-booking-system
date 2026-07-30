@@ -54,6 +54,10 @@ export interface ArtistUnavailablePeriodApprovalItem extends ArtistUnavailablePe
   readonly submittedAt: string;
 }
 
+export interface ArtistUnavailablePeriodReviewedItem extends ArtistUnavailablePeriodApprovalItem {
+  readonly reviewedAt: string;
+}
+
 export interface ReviewArtistUnavailablePeriodCommand {
   readonly comment?: string;
   readonly confirmedAffectedAppointmentCount: number;

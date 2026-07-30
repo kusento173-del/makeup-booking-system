@@ -531,6 +531,10 @@ tbody tr:hover {
   background: #f5f8fa;
 }
 
+.absence-history {
+  margin-top: 18px;
+}
+
 .error-message {
   color: #b42318;
 }

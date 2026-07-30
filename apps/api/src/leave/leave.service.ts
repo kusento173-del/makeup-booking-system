@@ -3,9 +3,12 @@ import { Injectable } from '@nestjs/common';
 
 import { AuditCommandService } from '../audit/audit-command.service';
 import {
+  affectedAppointmentSnapshot,
   findAffectedAppointments,
+  parseAffectedAppointmentSnapshot,
   toAffectedAppointment,
   type AffectedAppointmentRecord,
+  type AffectedAppointmentSummary,
 } from '../absence/affected-appointment';
 import { AuthorizationDeniedError } from '../auth/authorization-policy.service';
 import { DatabaseService } from '../database/database.service';
@@ -29,6 +32,7 @@ import type {
   LeaveImpactPreview,
   LeaveApprovalItem,
   LeaveSummary,
+  LeaveReviewedItem,
   ReviewLeaveCommand,
 } from './leave.types';
 
@@ -72,6 +76,8 @@ const LEAVE_SELECT = {
   id: true,
   reason: true,
   reviewComment: true,
+  reviewedAt: true,
+  reviewImpactSnapshot: true,
   rowVersion: true,
   startDate: true,
   status: true,
@@ -275,6 +281,45 @@ export class LeaveService {
     });
   }
 
+  listReviewed(context: LeaveCommandContext): Promise<readonly LeaveReviewedItem[]> {
+    if (!['CUSTOMER_SERVICE', 'ADMIN'].includes(context.roleCode)) {
+      throw new AuthorizationDeniedError();
+    }
+    return this.database.read(async (client) => {
+      const leaves = await client.leaveRecord.findMany({
+        orderBy: [{ reviewedAt: 'desc' }, { createdAt: 'desc' }],
+        select: {
+          ...LEAVE_SELECT,
+          artist: { select: { nickname: true, siteId: true } },
+          createdAt: true,
+        },
+        take: 100,
+        where: {
+          artistId: { not: null },
+          reviewedAt: { not: null },
+          ...(context.roleCode === 'CUSTOMER_SERVICE'
+            ? { artist: { siteId: context.siteId ?? '' } }
+            : {}),
+        },
+      });
+      return leaves.map((leave) => {
+        if (!leave.artist || !leave.reviewedAt) throw new LeaveStateConflictError();
+        const affectedAppointments = parseAffectedAppointmentSnapshot(leave.reviewImpactSnapshot);
+        return {
+          ...this.toSummary(
+            { ...leave, affectedAppointmentCount: affectedAppointments.length },
+            [],
+            affectedAppointments,
+          ),
+          artistNickname: leave.artist.nickname,
+          reviewedAt: leave.reviewedAt.toISOString(),
+          siteId: leave.artist.siteId,
+          submittedAt: leave.createdAt.toISOString(),
+        };
+      });
+    });
+  }
+
   review(
     context: LeaveCommandContext,
     command: ReviewLeaveCommand,
@@ -318,6 +363,7 @@ export class LeaveService {
         data: {
           affectedAppointmentCount: affectedAppointments.length,
           reviewComment: comment ?? null,
+          reviewImpactSnapshot: affectedAppointmentSnapshot(affectedAppointments),
           reviewedAt: now,
           reviewedByUserId: context.userId,
           rowVersion: { increment: 1 },
@@ -681,10 +727,12 @@ export class LeaveService {
       subjectType: string;
     },
     affectedAppointments: readonly AffectedAppointmentRecord[],
+    affectedAppointmentSummaries?: readonly AffectedAppointmentSummary[],
   ): LeaveSummary {
     return {
       affectedAppointmentCount: leave.affectedAppointmentCount,
-      affectedAppointments: affectedAppointments.map(toAffectedAppointment),
+      affectedAppointments:
+        affectedAppointmentSummaries ?? affectedAppointments.map(toAffectedAppointment),
       endDate: formatDateOnly(leave.endDate),
       id: leave.id,
       reason: leave.reason,

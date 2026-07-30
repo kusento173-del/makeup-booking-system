@@ -36,6 +36,7 @@ import {
   LeaveImpactPreviewDto,
   LeaveApprovalItemDto,
   LeavePreviewRequestDto,
+  LeaveReviewedItemDto,
   LeaveSummaryDto,
   ReviewLeaveRequestDto,
 } from './leave-openapi.dto';
@@ -50,6 +51,7 @@ import type {
   LeaveApprovalItem,
   LeaveCommandContext,
   LeaveImpactPreview,
+  LeaveReviewedItem,
   LeaveSummary,
 } from './leave.types';
 
@@ -121,6 +123,17 @@ export class LeaveController {
   ): Promise<readonly LeaveApprovalItem[]> {
     const context = await this.context(authorization, ipAddress);
     return this.leaves.listPending(context);
+  }
+
+  @Get('reviewed')
+  @ApiOperation({ summary: '查询客服或管理员场地范围内已审核的化妆师请假' })
+  @ApiOkResponse({ type: [LeaveReviewedItemDto] })
+  async listReviewed(
+    @CurrentAuth() authorization: AccessTokenClaims,
+    @Ip() ipAddress: string,
+  ): Promise<readonly LeaveReviewedItem[]> {
+    const context = await this.context(authorization, ipAddress);
+    return this.leaves.listReviewed(context);
   }
 
   @Post(':leaveId/review')

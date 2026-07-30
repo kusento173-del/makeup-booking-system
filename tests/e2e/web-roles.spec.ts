@@ -196,6 +196,13 @@ test.describe.serial('统一网页五角色完整业务验收', () => {
     acceptNextDialog(customerServicePage);
     await leaveApproval.getByRole('button', { name: '通过' }).click();
     await expect(customerServicePage.getByText('当前没有待审核的化妆师请假')).toBeVisible();
+    const reviewedLeave = customerServicePage
+      .getByRole('article')
+      .filter({ hasText: '全量验收请假' });
+    await expect(reviewedLeave).toContainText('已通过');
+    await expect(reviewedLeave).toContainText('全量测试主播（QA000001）');
+    await expect(reviewedLeave).toContainText('固定预约');
+    await expect(reviewedLeave).toContainText('单次预约');
     await customerServicePage.close();
 
     await artistPage.reload();
@@ -241,6 +248,11 @@ test.describe.serial('统一网页五角色完整业务验收', () => {
     acceptNextDialog(customerServicePage);
     await approval.getByRole('button', { name: '通过' }).click();
     await expect(customerServicePage.getByText('当前没有待审核的化妆师请假')).toBeVisible();
+    const reviewedPeriod = customerServicePage
+      .getByRole('article')
+      .filter({ hasText: '全量验收临时上课' });
+    await expect(reviewedPeriod).toContainText('已通过');
+    await expect(reviewedPeriod).toContainText('当前没有预约受到影响');
     await customerServicePage.close();
 
     await artistPage.reload();

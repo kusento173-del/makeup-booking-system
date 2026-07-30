@@ -261,7 +261,10 @@ describe('LeaveService', () => {
     ).resolves.toMatchObject({ status: 'ACTIVE' });
     const leaveUpdateCall: unknown = leaveUpdate.mock.calls[0]?.[0];
     expect(leaveUpdateCall).toMatchObject({
-      data: { status: 'ACTIVE' },
+      data: {
+        reviewImpactSnapshot: [{ id: 'appointment-1' }],
+        status: 'ACTIVE',
+      },
       where: { id: 'leave-1', rowVersion: 1, status: 'PENDING' },
     });
     const appointmentUpdateCall: unknown = appointmentUpdate.mock.calls[0]?.[0];
@@ -321,6 +324,61 @@ describe('LeaveService', () => {
       {
         affectedAppointmentCount: 2,
         affectedAppointments: [{ id: 'appointment-1' }, { id: 'appointment-2' }],
+      },
+    ]);
+  });
+
+  it('lists reviewed leave from the immutable review impact snapshot', async () => {
+    const snapshot = affectedAppointment('appointment-1');
+    const client = {
+      leaveRecord: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            affectedAppointmentCount: 1,
+            artist: { nickname: '柔柔', siteId: 'site-songjiang' },
+            artistId: 'artist-1',
+            createdAt: now,
+            endDate: range.endDate,
+            hostId: null,
+            id: 'leave-1',
+            reason: '休息',
+            reviewComment: null,
+            reviewedAt: now,
+            reviewImpactSnapshot: [
+              {
+                appointmentDate: '2026-07-23',
+                appointmentType: snapshot.appointmentType,
+                endAt: snapshot.endAt.toISOString(),
+                hostCode: snapshot.hostCodeSnapshot,
+                hostId: snapshot.hostId,
+                hostName: snapshot.hostNameSnapshot,
+                id: snapshot.id,
+                startAt: snapshot.startAt.toISOString(),
+              },
+            ],
+            rowVersion: 2,
+            startDate: range.startDate,
+            status: 'ACTIVE',
+            subjectType: 'ARTIST',
+          },
+        ]),
+      },
+    };
+    const { service } = createService(client);
+
+    await expect(
+      service.listReviewed({
+        ...context,
+        actorName: '松江客服',
+        roleCode: 'CUSTOMER_SERVICE',
+        siteId: 'site-songjiang',
+        userId: 'user-service',
+      }),
+    ).resolves.toMatchObject([
+      {
+        affectedAppointmentCount: 1,
+        affectedAppointments: [{ id: 'appointment-1' }],
+        reviewedAt: now.toISOString(),
       },
     ]);
   });

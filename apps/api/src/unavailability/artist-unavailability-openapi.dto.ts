@@ -92,3 +92,8 @@ export class ArtistUnavailablePeriodApprovalItemDto extends ArtistUnavailablePer
   @ApiProperty({ format: 'date-time' })
   submittedAt!: string;
 }
+
+export class ArtistUnavailablePeriodReviewedItemDto extends ArtistUnavailablePeriodApprovalItemDto {
+  @ApiProperty({ format: 'date-time' })
+  reviewedAt!: string;
+}

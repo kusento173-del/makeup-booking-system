@@ -83,8 +83,17 @@ BEGIN
         "status" = 'REJECTED',
         "reviewed_by_user_id" = user_id,
         "reviewed_at" = CURRENT_TIMESTAMP,
-        "review_comment" = 'Not approved'
+        "review_comment" = 'Not approved',
+        "review_impact_snapshot" = '[]'::JSONB
     WHERE "id" = artist_pending_leave_id;
+
+    BEGIN
+        UPDATE "leave_records"
+        SET "review_impact_snapshot" = '{}'::JSONB
+        WHERE "id" = artist_pending_leave_id;
+        RAISE EXCEPTION 'Non-array leave review impact snapshot was accepted';
+    EXCEPTION WHEN check_violation THEN NULL;
+    END;
 
     INSERT INTO "leave_records" (
         "subject_type", "artist_id", "start_date", "end_date", "created_by_user_id"

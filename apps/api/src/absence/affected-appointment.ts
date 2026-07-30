@@ -51,3 +51,56 @@ export function toAffectedAppointment(
     startAt: appointment.startAt.toISOString(),
   };
 }
+
+export function affectedAppointmentSnapshot(
+  appointments: readonly AffectedAppointmentRecord[],
+): Prisma.InputJsonValue {
+  return appointments.map((appointment) => {
+    const summary = toAffectedAppointment(appointment);
+    return {
+      appointmentDate: summary.appointmentDate,
+      appointmentType: summary.appointmentType,
+      endAt: summary.endAt,
+      hostCode: summary.hostCode,
+      hostId: summary.hostId,
+      hostName: summary.hostName,
+      id: summary.id,
+      startAt: summary.startAt,
+    } satisfies Prisma.InputJsonObject;
+  });
+}
+
+export function parseAffectedAppointmentSnapshot(
+  value: Prisma.JsonValue | null,
+): readonly AffectedAppointmentSummary[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return [];
+    const appointment = item;
+    if (
+      typeof appointment.appointmentDate !== 'string' ||
+      typeof appointment.appointmentType !== 'string' ||
+      !['FIXED', 'SINGLE'].includes(appointment.appointmentType) ||
+      typeof appointment.endAt !== 'string' ||
+      typeof appointment.hostCode !== 'string' ||
+      typeof appointment.hostId !== 'string' ||
+      typeof appointment.hostName !== 'string' ||
+      typeof appointment.id !== 'string' ||
+      typeof appointment.startAt !== 'string'
+    ) {
+      return [];
+    }
+    return [
+      {
+        appointmentDate: appointment.appointmentDate,
+        appointmentType: appointment.appointmentType as 'FIXED' | 'SINGLE',
+        endAt: appointment.endAt,
+        hostCode: appointment.hostCode,
+        hostId: appointment.hostId,
+        hostName: appointment.hostName,
+        id: appointment.id,
+        startAt: appointment.startAt,
+      },
+    ];
+  });
+}

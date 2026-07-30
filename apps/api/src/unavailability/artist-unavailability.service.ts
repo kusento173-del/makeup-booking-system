@@ -4,9 +4,12 @@ import { Injectable } from '@nestjs/common';
 import { ArtistAvailabilityService } from '../availability/artist-availability.service';
 import { AuditCommandService } from '../audit/audit-command.service';
 import {
+  affectedAppointmentSnapshot,
   findAffectedAppointments,
+  parseAffectedAppointmentSnapshot,
   toAffectedAppointment,
   type AffectedAppointmentRecord,
+  type AffectedAppointmentSummary,
 } from '../absence/affected-appointment';
 import {
   AuthorizationDeniedError,
@@ -31,6 +34,7 @@ import {
 import type {
   ArtistUnavailablePeriodPreview,
   ArtistUnavailablePeriodApprovalItem,
+  ArtistUnavailablePeriodReviewedItem,
   ArtistUnavailablePeriodRange,
   ArtistUnavailablePeriodSummary,
   ArtistUnavailablePeriodTarget,
@@ -53,6 +57,8 @@ const PERIOD_SELECT = {
   id: true,
   reason: true,
   reviewComment: true,
+  reviewedAt: true,
+  reviewImpactSnapshot: true,
   rowVersion: true,
   siteId: true,
   startMinute: true,
@@ -276,6 +282,41 @@ export class ArtistUnavailabilityService {
     });
   }
 
+  listReviewed(
+    context: ArtistUnavailabilityCommandContext,
+  ): Promise<readonly ArtistUnavailablePeriodReviewedItem[]> {
+    this.authorization.assertRole(context, ['CUSTOMER_SERVICE', 'ADMIN']);
+    return this.database.read(async (client) => {
+      const periods = await client.artistUnavailablePeriod.findMany({
+        orderBy: [{ reviewedAt: 'desc' }, { createdAt: 'desc' }],
+        select: {
+          ...PERIOD_SELECT,
+          artist: { select: { nickname: true } },
+          createdAt: true,
+        },
+        take: 100,
+        where: {
+          reviewedAt: { not: null },
+          ...(context.roleCode === 'CUSTOMER_SERVICE' ? { siteId: context.siteId ?? '' } : {}),
+        },
+      });
+      return periods.map((period) => {
+        if (!period.reviewedAt) throw new ArtistUnavailablePeriodStateConflictError();
+        const affectedAppointments = parseAffectedAppointmentSnapshot(period.reviewImpactSnapshot);
+        return {
+          ...this.toSummary(
+            { ...period, affectedAppointmentCount: affectedAppointments.length },
+            [],
+            affectedAppointments,
+          ),
+          artistNickname: period.artist.nickname,
+          reviewedAt: period.reviewedAt.toISOString(),
+          submittedAt: period.createdAt.toISOString(),
+        };
+      });
+    });
+  }
+
   review(
     context: ArtistUnavailabilityCommandContext,
     command: ReviewArtistUnavailablePeriodCommand,
@@ -312,6 +353,7 @@ export class ArtistUnavailabilityService {
         data: {
           affectedAppointmentCount: affectedAppointments.length,
           reviewComment: normalizedComment ?? null,
+          reviewImpactSnapshot: affectedAppointmentSnapshot(affectedAppointments),
           reviewedAt: now,
           reviewedByUserId: context.userId,
           rowVersion: { increment: 1 },
@@ -545,10 +587,12 @@ export class ArtistUnavailabilityService {
       unavailableDate: Date;
     },
     affectedAppointments: readonly AffectedAppointmentRecord[],
+    affectedAppointmentSummaries?: readonly AffectedAppointmentSummary[],
   ): ArtistUnavailablePeriodSummary {
     return {
       affectedAppointmentCount: period.affectedAppointmentCount,
-      affectedAppointments: affectedAppointments.map(toAffectedAppointment),
+      affectedAppointments:
+        affectedAppointmentSummaries ?? affectedAppointments.map(toAffectedAppointment),
       artistId: period.artistId,
       endMinute: period.endMinute,
       id: period.id,

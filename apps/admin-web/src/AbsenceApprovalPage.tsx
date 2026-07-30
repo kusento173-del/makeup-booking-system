@@ -3,7 +3,9 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   listAbsenceApprovals,
   type FullDayLeaveApproval,
+  type FullDayLeaveReviewed,
   type PartialLeaveApproval,
+  type PartialLeaveReviewed,
   reviewFullDayLeave,
   reviewPartialLeave,
 } from './absence-approval-api';
@@ -23,6 +25,38 @@ function instantTime(instant: string): string {
     timeZone: 'Asia/Shanghai',
   }).format(new Date(instant));
 }
+
+function reviewedAtLabel(instant: string): string {
+  return new Intl.DateTimeFormat('zh-CN', {
+    day: '2-digit',
+    hour: '2-digit',
+    hour12: false,
+    minute: '2-digit',
+    month: '2-digit',
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+  }).format(new Date(instant));
+}
+
+function requestPeriod(
+  kind: 'FULL' | 'PARTIAL',
+  request:
+    FullDayLeaveApproval | FullDayLeaveReviewed | PartialLeaveApproval | PartialLeaveReviewed,
+): string {
+  if (kind === 'FULL') {
+    const leave = request as FullDayLeaveApproval;
+    return `${leave.startDate} 至 ${leave.endDate} · 整日请假`;
+  }
+  const period = request as PartialLeaveApproval;
+  return `${period.unavailableDate} ${minuteLabel(period.startMinute)}–${minuteLabel(period.endMinute)} · 临时不可排班`;
+}
+
+const REVIEW_STATUS_LABELS = {
+  ACTIVE: '已通过',
+  CANCELLED: '已取消请假',
+  PENDING: '待审核',
+  REJECTED: '已驳回',
+} as const;
 
 function ImpactList({ items }: { readonly items: readonly AffectedAppointment[] }) {
   if (items.length === 0) return <p className="mobile-meta">当前没有预约受到影响</p>;
@@ -51,6 +85,10 @@ interface AbsenceApprovalPageProps {
 export function AbsenceApprovalPage({ onUnauthorized, session }: AbsenceApprovalPageProps) {
   const [fullDays, setFullDays] = useState<readonly FullDayLeaveApproval[]>([]);
   const [partialDays, setPartialDays] = useState<readonly PartialLeaveApproval[]>([]);
+  const [reviewedFullDays, setReviewedFullDays] = useState<readonly FullDayLeaveReviewed[]>([]);
+  const [reviewedPartialDays, setReviewedPartialDays] = useState<readonly PartialLeaveReviewed[]>(
+    [],
+  );
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -61,6 +99,8 @@ export function AbsenceApprovalPage({ onUnauthorized, session }: AbsenceApproval
       const result = await listAbsenceApprovals(session.accessToken);
       setFullDays(result.fullDays);
       setPartialDays(result.partialDays);
+      setReviewedFullDays(result.reviewedFullDays);
+      setReviewedPartialDays(result.reviewedPartialDays);
       setError(null);
     } catch (cause) {
       if (cause instanceof ApiError && cause.status === 401) {
@@ -129,6 +169,10 @@ export function AbsenceApprovalPage({ onUnauthorized, session }: AbsenceApproval
   }
 
   const total = fullDays.length + partialDays.length;
+  const reviewed = [
+    ...reviewedFullDays.map((item) => ({ item, kind: 'FULL' as const })),
+    ...reviewedPartialDays.map((item) => ({ item, kind: 'PARTIAL' as const })),
+  ].sort((left, right) => right.item.reviewedAt.localeCompare(left.item.reviewedAt));
   return (
     <main className="management-main">
       <header className="management-header">
@@ -158,11 +202,7 @@ export function AbsenceApprovalPage({ onUnauthorized, session }: AbsenceApproval
             <div className="approval-card-header">
               <div>
                 <strong>{item.artistNickname}</strong>
-                <span>
-                  {kind === 'FULL'
-                    ? `${item.startDate} 至 ${item.endDate} · 整日请假`
-                    : `${item.unavailableDate} ${minuteLabel(item.startMinute)}–${minuteLabel(item.endMinute)} · 临时不可排班`}
-                </span>
+                <span>{requestPeriod(kind, item)}</span>
               </div>
               <span>影响 {item.affectedAppointmentCount} 条预约</span>
             </div>
@@ -184,6 +224,35 @@ export function AbsenceApprovalPage({ onUnauthorized, session }: AbsenceApproval
                 驳回
               </button>
             </div>
+          </article>
+        ))}
+      </section>
+      <section className="table-card absence-history">
+        <div className="table-summary">
+          <span>审批记录 {reviewed.length} 条</span>
+          <span>保留审批当时的受影响预约，不随后续恢复或取消变化</span>
+        </div>
+        {!loading && reviewed.length === 0 ? (
+          <div className="content-message">当前没有已审核的化妆师请假</div>
+        ) : null}
+        {reviewed.map(({ item, kind }) => (
+          <article className="approval-card" key={`reviewed-${kind}-${item.id}`}>
+            <div className="approval-card-header">
+              <div>
+                <strong>{item.artistNickname}</strong>
+                <span>{requestPeriod(kind, item)}</span>
+              </div>
+              <span>{REVIEW_STATUS_LABELS[item.status]}</span>
+            </div>
+            <p className="mobile-meta">
+              审核时间：{reviewedAtLabel(item.reviewedAt)} · 影响 {item.affectedAppointmentCount}{' '}
+              条预约
+            </p>
+            <p className="mobile-meta">请假原因：{item.reason || '未填写'}</p>
+            {item.reviewComment ? (
+              <p className="mobile-meta">审核说明：{item.reviewComment}</p>
+            ) : null}
+            <ImpactList items={item.affectedAppointments} />
           </article>
         ))}
       </section>

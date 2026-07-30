@@ -35,6 +35,7 @@ import { MasterDataCommandContextService } from '../master-data/master-data-comm
 import {
   ArtistUnavailablePeriodPreviewDto,
   ArtistUnavailablePeriodApprovalItemDto,
+  ArtistUnavailablePeriodReviewedItemDto,
   ArtistUnavailablePeriodRangeDto,
   ArtistUnavailablePeriodSummaryDto,
   CancelArtistUnavailablePeriodRequestDto,
@@ -53,6 +54,7 @@ import type {
   ArtistUnavailablePeriodPreview,
   ArtistUnavailablePeriodApprovalItem,
   ArtistUnavailablePeriodSummary,
+  ArtistUnavailablePeriodReviewedItem,
   ArtistUnavailabilityCommandContext,
 } from './artist-unavailability.types';
 
@@ -126,6 +128,17 @@ export class ArtistUnavailabilityController {
   ): Promise<readonly ArtistUnavailablePeriodApprovalItem[]> {
     const context = await this.context(authorization, ipAddress);
     return this.unavailability.listPending(context);
+  }
+
+  @Get('reviewed')
+  @ApiOperation({ summary: '查询已审核的化妆师临时不可排班申请' })
+  @ApiOkResponse({ type: [ArtistUnavailablePeriodReviewedItemDto] })
+  async listReviewed(
+    @CurrentAuth() authorization: AccessTokenClaims,
+    @Ip() ipAddress: string,
+  ): Promise<readonly ArtistUnavailablePeriodReviewedItem[]> {
+    const context = await this.context(authorization, ipAddress);
+    return this.unavailability.listReviewed(context);
   }
 
   @Post(':periodId/review')

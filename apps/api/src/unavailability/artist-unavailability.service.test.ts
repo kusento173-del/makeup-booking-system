@@ -225,7 +225,10 @@ describe('ArtistUnavailabilityService', () => {
     ).resolves.toMatchObject({ status: 'ACTIVE' });
     const periodUpdateCall: unknown = periodUpdate.mock.calls[0]?.[0];
     expect(periodUpdateCall).toMatchObject({
-      data: { status: 'ACTIVE' },
+      data: {
+        reviewImpactSnapshot: [{ id: 'appointment-1' }],
+        status: 'ACTIVE',
+      },
       where: { id: 'period-1', rowVersion: 1, status: 'PENDING' },
     });
     const appointmentUpdateCall: unknown = appointmentUpdate.mock.calls[0]?.[0];
@@ -276,6 +279,53 @@ describe('ArtistUnavailabilityService', () => {
       {
         affectedAppointmentCount: 2,
         affectedAppointments: [{ id: 'appointment-1' }, { id: 'appointment-2' }],
+      },
+    ]);
+  });
+
+  it('lists reviewed periods from the immutable review impact snapshot', async () => {
+    const appointment = affectedAppointment('appointment-1');
+    const client = {
+      artistUnavailablePeriod: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            ...storedPeriod,
+            artist: { nickname: '柔柔' },
+            createdAt: now,
+            reviewedAt: now,
+            reviewImpactSnapshot: [
+              {
+                appointmentDate: '2026-07-25',
+                appointmentType: appointment.appointmentType,
+                endAt: appointment.endAt.toISOString(),
+                hostCode: appointment.hostCodeSnapshot,
+                hostId: appointment.hostId,
+                hostName: appointment.hostNameSnapshot,
+                id: appointment.id,
+                startAt: appointment.startAt.toISOString(),
+              },
+            ],
+            rowVersion: 2,
+            status: 'ACTIVE',
+          },
+        ]),
+      },
+    };
+    const { service } = createService(client);
+
+    await expect(
+      service.listReviewed({
+        ...context,
+        actorName: '松江客服',
+        roleCode: 'CUSTOMER_SERVICE',
+        siteId: artist.siteId,
+        userId: 'user-service',
+      }),
+    ).resolves.toMatchObject([
+      {
+        affectedAppointmentCount: 1,
+        affectedAppointments: [{ id: 'appointment-1' }],
+        reviewedAt: now.toISOString(),
       },
     ]);
   });

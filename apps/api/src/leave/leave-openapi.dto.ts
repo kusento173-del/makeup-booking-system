@@ -111,3 +111,8 @@ export class LeaveApprovalItemDto extends LeaveSummaryDto {
   @ApiProperty({ format: 'date-time' })
   submittedAt!: string;
 }
+
+export class LeaveReviewedItemDto extends LeaveApprovalItemDto {
+  @ApiProperty({ format: 'date-time' })
+  reviewedAt!: string;
+}

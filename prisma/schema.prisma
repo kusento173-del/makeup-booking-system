@@ -395,6 +395,7 @@ model LeaveRecord {
   reviewedByUserId         String?                   @map("reviewed_by_user_id") @db.Uuid
   reviewedAt               DateTime?                 @map("reviewed_at") @db.Timestamptz(3)
   reviewComment            String?                   @map("review_comment") @db.VarChar(500)
+  reviewImpactSnapshot     Json?                     @map("review_impact_snapshot") @db.JsonB
   cancelledByUserId        String?                   @map("cancelled_by_user_id") @db.Uuid
   cancelledAt              DateTime?                 @map("cancelled_at") @db.Timestamptz(3)
   cancellationReason       String?                   @map("cancellation_reason") @db.VarChar(500)
@@ -431,6 +432,7 @@ model ArtistUnavailablePeriod {
   reviewedByUserId         String?                   @map("reviewed_by_user_id") @db.Uuid
   reviewedAt               DateTime?                 @map("reviewed_at") @db.Timestamptz(3)
   reviewComment            String?                   @map("review_comment") @db.VarChar(500)
+  reviewImpactSnapshot     Json?                     @map("review_impact_snapshot") @db.JsonB
   cancelledByUserId        String?                   @map("cancelled_by_user_id") @db.Uuid
   cancelledAt              DateTime?                 @map("cancelled_at") @db.Timestamptz(3)
   cancellationReason       String?                   @map("cancellation_reason") @db.VarChar(500)
