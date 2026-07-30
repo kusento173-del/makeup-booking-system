@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { ApiError } from './api-client';
 import type { SessionTokenPair } from './auth-session';
+import { makeupTypeLabel } from './makeup-type';
 import { listMyFixedRelations, type MyFixedRelation, type MobileRoleCode } from './mobile-api';
 import { minuteLabel, WEEKDAYS } from './mobile-utils';
 
@@ -63,7 +64,7 @@ export function MobileFixedRelations({
             <p className="mobile-meta">
               {weekdayLabel(relation.weekdays)} · {minuteLabel(relation.startMinute)}–
               {minuteLabel(relation.startMinute + relation.durationMinutes)} ·{' '}
-              {relation.durationMinutes} 分钟
+              {makeupTypeLabel(relation.durationMinutes)}
             </p>
             <p className="mobile-meta">
               {relation.siteName} · {relation.validFrom} 起

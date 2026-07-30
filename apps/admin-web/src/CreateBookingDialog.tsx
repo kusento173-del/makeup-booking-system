@@ -7,6 +7,7 @@ import {
   type BookingDuration,
   type BookingSlotResult,
 } from './booking-api';
+import { MAKEUP_TYPE_OPTIONS } from './makeup-type';
 import { searchHosts, type HostSummary } from './master-data-api';
 import type { ScheduleArtist } from './schedule-board-api';
 
@@ -275,7 +276,7 @@ export function CreateBookingDialog({
               />
             </label>
             <label>
-              <span>时长</span>
+              <span>妆容类型</span>
               <select
                 disabled={busy}
                 onChange={(event) =>
@@ -283,9 +284,9 @@ export function CreateBookingDialog({
                 }
                 value={durationMinutes}
               >
-                {[15, 30, 45, 60].map((duration) => (
-                  <option key={duration} value={duration}>
-                    {duration} 分钟
+                {MAKEUP_TYPE_OPTIONS.map((option) => (
+                  <option key={option.label} value={option.durationMinutes}>
+                    {option.label}（{option.durationMinutes}分钟）
                   </option>
                 ))}
               </select>

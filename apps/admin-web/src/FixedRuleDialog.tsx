@@ -16,6 +16,7 @@ import {
   searchHosts,
   type SiteSummary,
 } from './master-data-api';
+import { MAKEUP_TYPE_OPTIONS } from './makeup-type';
 import { minuteLabel, WEEKDAYS } from './mobile-utils';
 
 const UNAVAILABLE_LABELS: Readonly<Record<string, string>> = {
@@ -334,15 +335,15 @@ export function FixedRuleDialog({
             </div>
           </fieldset>
 
-          <label htmlFor="fixed-duration">化妆时长</label>
+          <label htmlFor="fixed-duration">妆容类型</label>
           <select
             id="fixed-duration"
             onChange={(event) => setDurationMinutes(Number(event.target.value))}
             value={durationMinutes}
           >
-            {[15, 30, 45, 60].map((value) => (
-              <option key={value} value={value}>
-                {value} 分钟
+            {MAKEUP_TYPE_OPTIONS.map((option) => (
+              <option key={option.label} value={option.durationMinutes}>
+                {option.label}（{option.durationMinutes}分钟）
               </option>
             ))}
           </select>

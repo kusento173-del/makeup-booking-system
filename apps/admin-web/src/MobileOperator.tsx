@@ -17,6 +17,7 @@ import {
   type MobileArtist,
   withdrawFixedRequest,
 } from './mobile-api';
+import { MAKEUP_TYPE_OPTIONS } from './makeup-type';
 import { businessDate, minuteLabel, WEEKDAYS } from './mobile-utils';
 
 interface MobileOperatorProps {
@@ -317,14 +318,14 @@ function FixedWorkspace({
               </div>
             </fieldset>
             <label>
-              时长
+              妆容类型
               <select
                 onChange={(event) => setDuration(Number(event.target.value) as BookingDuration)}
                 value={duration}
               >
-                {[15, 30, 45, 60].map((value) => (
-                  <option key={value} value={value}>
-                    {value} 分钟
+                {MAKEUP_TYPE_OPTIONS.map((option) => (
+                  <option key={option.label} value={option.durationMinutes}>
+                    {option.label}（{option.durationMinutes}分钟）
                   </option>
                 ))}
               </select>

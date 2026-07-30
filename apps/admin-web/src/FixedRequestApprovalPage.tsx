@@ -7,6 +7,7 @@ import {
   listPendingFixedRequests,
   reviewFixedRequest,
 } from './fixed-request-api';
+import { makeupTypeLabel } from './makeup-type';
 
 const WEEKDAYS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
 
@@ -39,7 +40,7 @@ function targetLabel(request: FixedRequest): string {
   const endMinute = request.targetStartMinute + request.targetDurationMinutes;
   return `${request.targetArtistNickname} · ${weekdayLabel(request.targetWeekdays)} · ${minuteLabel(
     request.targetStartMinute,
-  )}–${minuteLabel(endMinute)} · ${request.targetDurationMinutes}分钟`;
+  )}–${minuteLabel(endMinute)} · ${makeupTypeLabel(request.targetDurationMinutes)}`;
 }
 
 function submittedLabel(instant: string): string {

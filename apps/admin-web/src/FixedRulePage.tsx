@@ -4,6 +4,7 @@ import { ApiError } from './api-client';
 import type { SessionTokenPair } from './auth-session';
 import { FixedRuleDialog } from './FixedRuleDialog';
 import { type FixedRule, type FixedRuleStatus, listFixedRules } from './fixed-rule-api';
+import { makeupTypeLabel } from './makeup-type';
 import { listSites, type SiteSummary } from './master-data-api';
 
 const WEEKDAYS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
@@ -193,7 +194,7 @@ export function FixedRulePage({ onUnauthorized, session }: FixedRulePageProps) {
                         {minuteLabel(rule.startMinute)}–
                         {minuteLabel(rule.startMinute + rule.durationMinutes)}
                       </strong>
-                      <div className="muted-text">{rule.durationMinutes} 分钟</div>
+                      <div className="muted-text">{makeupTypeLabel(rule.durationMinutes)}</div>
                     </td>
                     <td>{validityLabel(rule)}</td>
                     <td>

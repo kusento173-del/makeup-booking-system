@@ -6,6 +6,7 @@ import type { SessionTokenPair } from './auth-session';
 import { addBusinessDays, businessDateLabel, currentBusinessDate } from './business-date';
 import { CancelBookingDialog } from './CancelBookingDialog';
 import { CreateBookingDialog } from './CreateBookingDialog';
+import { makeupTypeLabel } from './makeup-type';
 import { listSites, type SiteSummary } from './master-data-api';
 import { RescheduleBookingDialog } from './RescheduleBookingDialog';
 import { ScheduleDetailDrawer } from './ScheduleDetailDrawer';
@@ -384,7 +385,7 @@ export function SchedulePage({ onUnauthorized, session }: SchedulePageProps) {
                           <span>{appointment.hostCode}</span>
                         </div>
                         <div className="appointment-meta">
-                          <span>{appointment.durationMinutes}分钟</span>
+                          <span>{makeupTypeLabel(appointment.durationMinutes)}</span>
                           {appointment.dailySequence === 2 ? <span>第2次</span> : null}
                           {appointment.operatorName ? (
                             <span>运营 {appointment.operatorName}</span>

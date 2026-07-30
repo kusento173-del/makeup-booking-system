@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { ApiError } from './api-client';
 import type { SessionTokenPair } from './auth-session';
+import { makeupTypeLabel } from './makeup-type';
 import { cancelAppointment, listAppointments, type MobileAppointment } from './mobile-api';
 import { businessDate, isoTimeLabel } from './mobile-utils';
 
@@ -152,7 +153,7 @@ export function MobileSchedule({ onReschedule, session }: MobileScheduleProps) {
                 {item.date} · {isoTimeLabel(item.startAt)}—{isoTimeLabel(item.endAt)}
               </p>
               <p className="mobile-meta">
-                {item.siteName} · {item.durationMinutes} 分钟 ·{' '}
+                {item.siteName} · {makeupTypeLabel(item.durationMinutes)} ·{' '}
                 {item.appointmentType === 'FIXED' ? '固定预约' : '单次预约'}
               </p>
               <p className="mobile-meta">

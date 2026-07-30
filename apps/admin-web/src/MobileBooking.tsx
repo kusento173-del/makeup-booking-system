@@ -15,6 +15,7 @@ import {
   type MobileHost,
   rescheduleAppointment,
 } from './mobile-api';
+import { MAKEUP_TYPE_OPTIONS, makeupTypeLabel } from './makeup-type';
 import { bookingDates, minuteLabel } from './mobile-utils';
 
 interface MobileBookingProps {
@@ -23,8 +24,6 @@ interface MobileBookingProps {
   readonly onCompleted: () => void;
   readonly session: SessionTokenPair;
 }
-
-const DURATIONS: readonly BookingDuration[] = [15, 30, 45, 60];
 
 export function MobileBooking({
   appointment,
@@ -114,7 +113,7 @@ export function MobileBooking({
       !window.confirm(
         `${appointment ? '确认改期' : '确认预约'}\n${host.realName}（${host.hostCode}）\n${
           artist.nickname
-        } · ${date} ${minuteLabel(slot.startMinute)} · ${duration} 分钟${secondNotice}`,
+        } · ${date} ${minuteLabel(slot.startMinute)} · ${makeupTypeLabel(duration)}${secondNotice}`,
       )
     ) {
       return;
@@ -201,17 +200,17 @@ export function MobileBooking({
       {selectedHost ? (
         <>
           <div className="mobile-form-section">
-            <h2>{session.role.roleCode === 'OPERATOR' ? '3' : '2'}. 选择时长</h2>
-            <p className="field-hint">默认 30 分钟；约 40 分钟的妆请选择 45 分钟。</p>
+            <h2>{session.role.roleCode === 'OPERATOR' ? '3' : '2'}. 选择妆容</h2>
             <div className="choice-grid compact">
-              {DURATIONS.map((minutes) => (
+              {MAKEUP_TYPE_OPTIONS.map((option) => (
                 <button
-                  className={duration === minutes ? 'active' : ''}
-                  key={minutes}
-                  onClick={() => setDuration(minutes)}
+                  className={duration === option.durationMinutes ? 'active' : ''}
+                  key={option.label}
+                  onClick={() => setDuration(option.durationMinutes)}
                   type="button"
                 >
-                  {minutes} 分钟
+                  {option.label}
+                  <small>{option.durationMinutes} 分钟</small>
                 </button>
               ))}
             </div>

@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 
+import { makeupTypeLabel } from './makeup-type';
 import type { ScheduleAppointment, ScheduleArtist } from './schedule-board-api';
 
 interface ScheduleDetailDrawerProps {
@@ -67,8 +68,8 @@ export function ScheduleDetailDrawer({
             </dd>
           </div>
           <div>
-            <dt>时长</dt>
-            <dd>{appointment.durationMinutes} 分钟</dd>
+            <dt>妆容类型</dt>
+            <dd>{makeupTypeLabel(appointment.durationMinutes)}</dd>
           </div>
           <div>
             <dt>实际预约化妆师</dt>
