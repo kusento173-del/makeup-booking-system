@@ -25,9 +25,13 @@ mkdir -p "$acme_dir" "$letsencrypt_dir" "$tls_dir"
 
 certbot() {
   docker run --rm \
+    --user "$(id -u):$(id -g)" \
     --volume "$acme_dir:/var/www/certbot" \
     --volume "$letsencrypt_dir:/etc/letsencrypt" \
-    certbot/certbot:v5.4.0 "$@"
+    certbot/certbot:v5.4.0 \
+    --work-dir /tmp/certbot-work \
+    --logs-dir /tmp/certbot-logs \
+    "$@"
 }
 
 case "$action" in
